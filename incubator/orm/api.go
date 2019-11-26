@@ -25,17 +25,13 @@ type UniqueIndex interface {
 	GetOne(ctx HasKVStore, indexKey []byte, dest interface{}) (primaryKey []byte, error error)
 }
 
-type OnReadInterceptor = func(ctx HasKVStore, key interface{}, value interface{}) error
-type SaveInterceptor = func(ctx HasKVStore, rowId uint64, key interface{}, value interface{}) error
-type DeleteInterceptor = func(ctx HasKVStore, rowId uint64, key interface{}) error
+type AfterSaveInterceptor = func(ctx HasKVStore, rowId uint64, key []byte, value interface{}) error
+type AfterDeleteInterceptor = func(ctx HasKVStore, rowId uint64, key []byte) error
 type RowGetter = func(ctx HasKVStore, rowId uint64) (interface{}, error)
 
 type TableBuilder interface {
-	AddOnReadInterceptor(interceptor OnReadInterceptor)
-	AddBeforeSaveInterceptor(interceptor SaveInterceptor)
-	AddAfterSaveInterceptor(interceptor SaveInterceptor)
-	AddBeforeDeleteInterceptor(interceptor DeleteInterceptor)
-	AddAfterDeleteInterceptor(interceptor DeleteInterceptor)
+	AddAfterSaveInterceptor(interceptor AfterSaveInterceptor)
+	AddAfterDeleteInterceptor(interceptor AfterDeleteInterceptor)
 	RowGetter() RowGetter
 }
 
