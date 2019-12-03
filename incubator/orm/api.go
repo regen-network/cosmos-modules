@@ -9,8 +9,8 @@ type HasKVStore interface {
 	KVStore(key sdk.StoreKey) sdk.KVStore
 }
 
-// Index allows efficient prefix scans is stored as key = concat(indexKeyBytes, rowIDUint64) with value empty
-// so that the row ID is allows a fixed with 8 byte integer. This allows the index key bytes to be
+// Index allows efficient prefix scans is stored as storeKey = concat(indexKeyBytes, rowIDUint64) with value empty
+// so that the row ID is allows a fixed with 8 byte integer. This allows the index storeKey bytes to be
 // variable length and scanned iteratively. The
 type Index interface {
 	Has(ctx HasKVStore, key []byte) (bool, error)
@@ -19,7 +19,7 @@ type Index interface {
 	ReversePrefixScan(ctx HasKVStore, start []byte, end []byte) (Iterator, error)
 }
 
-// UniqueIndex is stored as key = indexKey, and value = rowId
+// UniqueIndex is stored as storeKey = indexKey, and value = rowId
 type UniqueIndex interface {
 	Index
 	GetOne(ctx HasKVStore, indexKey []byte, dest interface{}) (primaryKey []byte, error error)
@@ -47,9 +47,9 @@ type Table interface {
 	Save(ctx HasKVStore, value interface{}) error
 }
 
-//Iterator allows iteration through a sequence of key value pairs
+//Iterator allows iteration through a sequence of storeKey value pairs
 type Iterator interface {
-	// LoadNext loads the next value in the sequence into the pointer passed as dest and returns the key. If there
+	// LoadNext loads the next value in the sequence into the pointer passed as dest and returns the storeKey. If there
 	// are no more items an error is returned
 	LoadNext(dest interface{}) (key []byte, err error)
 	// Close releases the iterator and should be called at the end of iteration
@@ -57,7 +57,7 @@ type Iterator interface {
 }
 
 type UInt64Iterator interface {
-	// LoadNext loads the next value in the sequence into the pointer passed as dest and returns the key. If there
+	// LoadNext loads the next value in the sequence into the pointer passed as dest and returns the storeKey. If there
 	// are no more items an error is returned
 	LoadNext(dest interface{}) (key uint64, err error)
 	// Close releases the iterator and should be called at the end of iteration
@@ -69,62 +69,63 @@ type Sequence interface {
 	CurVal(ctx HasKVStore) (uint64, error)
 }
 
-type StoreKey struct {
-	prefix []byte
-}
-
 type SchemaManager interface {
-	RegisterSchemaObject(name string, descriptor SchemaDescriptor) StoreKey
+	RegisterSchemaObject(name string, descriptor SchemaDescriptor) sdk.StoreKey
 }
 
 type SchemaDescriptor interface {
 	// TODO
 }
-//
-//type Indexer interface {
-//	DoIndex(store sdk.KVStore, rowId uint64, key []byte, value interface{}) error
-//	BuildIndex(storeKey sdk.StoreKey, prefix []byte, modelGetter func(ctx HasKVStore, rowId uint64, dest interface{}) (key []byte, err error)) Index
-//}
+type Indexer interface {
+	DoIndex(store sdk.KVStore, rowId uint64, key []byte, value interface{}) error
+	BuildIndex(storeKey sdk.StoreKey, prefix []byte, modelGetter func(ctx HasKVStore, rowId uint64, dest interface{}) (key []byte, err error)) Index
+}
 
 // TableBase provides methods shared by all tables
-//type TableBase interface {
-//	UniqueIndex
-//	// Delete deletes the value at the given key
-//	Delete(ctx HasKVStore, key []byte) error
-//}
+type TableBase interface {
+	UniqueIndex
+	// Delete deletes the value at the given storeKey
+	Delete(ctx HasKVStore, key []byte) error
+}
 //
-//// ExternalKeyTable defines a bucket where the key is stored externally to the value object
+//// ExternalKeyTable defines a bucket where the storeKey is stored externally to the value object
 //type ExternalKeyTable interface {
 //	TableBase
-//	// Save saves the given key value pair
-//	Save(ctx HasKVStore, key []byte, value interface{}) error
+//	// Save saves the given storeKey value pair
+//	Save(ctx HasKVStore, storeKey []byte, value interface{}) error
 //}
 //
-//type HasID interface {
-//	ID() []byte
-//}
+type HasID interface {
+	ID() []byte
+}
 //
-//// NaturalKeyTable defines a bucket where all values implement HasID and the key is stored it the value and
+//// NaturalKeyTable defines a bucket where all values implement HasID and the storeKey is stored it the value and
 //// returned by the HasID method
-//type NaturalKeyTable interface {
-//	TableBase
-//	// Save saves the value passed in
-//	Save(ctx HasKVStore, value HasID) error
-//}
+type NaturalKeyTable interface {
+	TableBase
+	// Save saves the value passed in
+	Save(ctx HasKVStore, value HasID) error
+}
 //
-//type AutoUInt64Table interface {
-//	Has(ctx HasKVStore, key uint64) (bool, error)
-//	Get(ctx HasKVStore, key uint64) (Iterator, error)
-//	PrefixScan(ctx HasKVStore, start uint64, end uint64) (Iterator, error)
-//	ReversePrefixScan(ctx HasKVStore, start uint64, end uint64) (Iterator, error)
-//	Save(ctx HasKVStore, key []byte, value interface{}) error
-//}
+type AutoUInt64Table interface {
+	Has(ctx HasKVStore, key uint64) (bool, error)
+	// TODO: replace iterator by value arg, only 0..1 entitie can exist
+	// TODO: Iterator does return storeKey on load which is not uint64 type. Replace with custom iterator impl?
+	Get(ctx HasKVStore, key uint64) (Iterator, error)
+	PrefixScan(ctx HasKVStore, start uint64, end uint64) (Iterator, error)
+	ReversePrefixScan(ctx HasKVStore, start uint64, end uint64) (Iterator, error)
+	// Create stores the given value and returns the auto generated primary storeKey used.
+	Create(ctx HasKVStore, value interface{}) (uint64, error)
+	// Save updates the entry for the the given storeKey. The storeKey must not be empty.
+	// When no entry for the storeKey exists, an Error is returned.
+	Save(ctx HasKVStore, key uint64, value interface{}) error
+}
 //
 //// AutoKeyTable specifies a bucket where keys are generated via an auto-incremented interger
 //type AutoKeyTable interface {
 //	ExternalKeyTable
 //
-//	// Create auto-generates key
+//	// Create auto-generates storeKey
 //	Create(ctx HasKVStore, value interface{}) ([]byte, error)
 //}
 //

@@ -12,8 +12,8 @@ import (
 )
 
 //type IntIndex interface {
-//	Has(ctx HasKVStore, key sdk.Int) (bool, error)
-//	Get(ctx HasKVStore, key sdk.Int) (Iterator, error)
+//	Has(ctx HasKVStore, storeKey sdk.Int) (bool, error)
+//	Get(ctx HasKVStore, storeKey sdk.Int) (Iterator, error)
 //	PrefixScan(ctx HasKVStore, start sdk.Int, end sdk.Int) (Iterator, error)
 //	ReversePrefixScan(ctx HasKVStore, start sdk.Int, end sdk.Int) (Iterator, error)
 //}
@@ -40,9 +40,9 @@ type externalKeyBucket struct {
 	bucketBase
 }
 
-//func NewExternalKeyBucket(key sdk.StoreKey, bucketPrefix string, cdc *codec.Codec, indexes []Index) ExternalKeyTable {
+//func NewExternalKeyBucket(storeKey sdk.StoreKey, bucketPrefix string, cdc *codec.Codec, indexes []Index) ExternalKeyTable {
 //	return &externalKeyBucket{bucketBase{
-//		key,
+//		storeKey,
 //		bucketPrefix,
 //		cdc,
 //		indexes,
@@ -74,16 +74,16 @@ func (b bucketBase) Delete(ctx HasKVStore, key []byte) error {
 //	bucketBase
 //}
 //
-//func NewNaturalKeyBucket(key sdk.StoreKey, bucketPrefix string, cdc *codec.Codec, indexes []Index) NaturalKeyTable {
-//	return &naturalKeyBucket{bucketBase{key, bucketPrefix, cdc, indexes}}
+//func NewNaturalKeyBucket(storeKey sdk.StoreKey, bucketPrefix string, cdc *codec.Codec, indexes []Index) NaturalKeyTable {
+//	return &naturalKeyBucket{bucketBase{storeKey, bucketPrefix, cdc, indexes}}
 //}
 //
 //func (n naturalKeyBucket) Save(ctx HasKVStore, value HasID) error {
 //	return n.save(ctx, value.ID(), value)
 //}
 //
-//func NewAutoIDBucket(key sdk.StoreKey, bucketPrefix string, cdc *codec.Codec, indexes []Index, idGenerator func(x uint64) []byte) AutoKeyTable {
-//	return &autoIDBucket{externalKeyBucket{bucketBase{key, bucketPrefix, cdc, indexes}}, idGenerator}
+//func NewAutoIDBucket(storeKey sdk.StoreKey, bucketPrefix string, cdc *codec.Codec, indexes []Index, idGenerator func(x uint64) []byte) AutoKeyTable {
+//	return &autoIDBucket{externalKeyBucket{bucketBase{storeKey, bucketPrefix, cdc, indexes}}, idGenerator}
 //}
 //
 //type autoIDBucket struct {
@@ -125,17 +125,17 @@ func (b bucketBase) Delete(ctx HasKVStore, key []byte) error {
 //	it  sdk.Iterator
 //}
 //
-//func (i *iterator) LoadNext(dest interface{}) (key []byte, err error) {
+//func (i *iterator) LoadNext(dest interface{}) (storeKey []byte, err error) {
 //	if !i.it.Valid() {
 //		return nil, fmt.Errorf("invalid")
 //	}
-//	key = i.it.Key()
+//	storeKey = i.it.Key()
 //	err = i.cdc.UnmarshalBinaryBare(i.it.Value(), dest)
 //	if err != nil {
 //		return nil, err
 //	}
 //	i.it.Next()
-//	return key, nil
+//	return storeKey, nil
 //}
 //
 //func (i *iterator) Close() {
@@ -150,13 +150,13 @@ func (b bucketBase) Delete(ctx HasKVStore, key []byte) error {
 //	end   []byte
 //}
 //
-//func (i indexIterator) LoadNext(dest interface{}) (key []byte, err error) {
+//func (i indexIterator) LoadNext(dest interface{}) (storeKey []byte, err error) {
 //	if !i.it.Valid() {
 //		return nil, fmt.Errorf("invalid")
 //	}
 //	pieces := strings.Split(string(i.it.Key()), "/")
 //	if len(pieces) != 2 {
-//		return nil, fmt.Errorf("unexpected index key")
+//		return nil, fmt.Errorf("unexpected index storeKey")
 //	}
 //	indexPrefix, err := hex.DecodeString(pieces[0])
 //	if err != nil {
@@ -166,15 +166,15 @@ func (b bucketBase) Delete(ctx HasKVStore, key []byte) error {
 //	if !((i.start == nil || bytes.Compare(i.start, indexPrefix) >= 0) && (i.end == nil || bytes.Compare(indexPrefix, i.end) <= 0)) {
 //		return nil, fmt.Errorf("done")
 //	}
-//	key, err = hex.DecodeString(pieces[1])
+//	storeKey, err = hex.DecodeString(pieces[1])
 //	if err != nil {
 //		return nil, err
 //	}
-//	err = i.bucketBase.GetOne(i.ctx, key, dest)
+//	err = i.bucketBase.GetOne(i.ctx, storeKey, dest)
 //	if err != nil {
 //		return nil, err
 //	}
-//	return key, nil
+//	return storeKey, nil
 //}
 //
 //func (i indexIterator) Close() {

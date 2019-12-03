@@ -4,39 +4,33 @@ import (
 	"bytes"
 	"encoding/binary"
 	"fmt"
+
 	"github.com/cosmos/cosmos-sdk/store/prefix"
 	"github.com/cosmos/cosmos-sdk/store/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 )
-func NewIndex(builder TableBuilder, prefix byte, indexer func(val interface{}) []byte) Index {
-	return index{}
+func NewIndex(builder TableBuilder, prefix []byte, indexer IndexerFunc) Index {
+	idx := index{
+		prefix:prefix,
+	}
+	//builder.AddAfterDeleteInterceptor(idx.OnDelete)
+	//builder.AddAfterSaveInterceptor(idx.OnSave)
+
+	return &idx
 }
 
+// indexRef
 type indexRef struct {
-	prefix  byte
+	prefix  []byte
 	indexer Indexer
 }
 
-func NewIndexer(fn IndexFunc) Indexer {
-	return indexer{fn}
-}
+var _ Indexer = IndexerFunc(nil)
 
-type IndexFunc = func(value interface{}) ([]byte, error)
+type IndexerFunc  func(value interface{}) ([]byte, error)
 
-type indexer struct {
-	indexFn IndexFunc
-}
-
-func makeIndexPrefixScanKey(indexKey []byte, rowId uint64) []byte {
-	n := len(indexKey)
-	res := make([]byte, n+8)
-	copy(res, indexKey)
-	binary.LittleEndian.PutUint64(res[n:], rowId)
-	return res
-}
-
-func (i indexer) DoIndex(store sdk.KVStore, rowId uint64, key []byte, value interface{}) error {
-	key, err := i.indexFn(value)
+func (i IndexerFunc) DoIndex(store sdk.KVStore, rowId uint64, key []byte, value interface{}) error {
+	key, err := i(value)
 	if err != nil {
 		return err
 	}
@@ -47,11 +41,17 @@ func (i indexer) DoIndex(store sdk.KVStore, rowId uint64, key []byte, value inte
 	return nil
 }
 
-func (i indexer) BuildIndex(storeKey sdk.StoreKey, prefix []byte, modelGetter func(ctx HasKVStore, rowId uint64, dest interface{}) (key []byte, err error)) Index {
+func (i IndexerFunc) BuildIndex(storeKey sdk.StoreKey, prefix []byte, modelGetter func(ctx HasKVStore, rowId uint64, dest interface{}) (key []byte, err error)) Index {
 	return index{storeKey: storeKey, prefix: prefix, modelGetter: modelGetter}
 }
 
-var _ Indexer = indexer{}
+func makeIndexPrefixScanKey(indexKey []byte, rowId uint64) []byte {
+	n := len(indexKey)
+	res := make([]byte, n+8)
+	copy(res, indexKey)
+	binary.BigEndian.PutUint64(res[n:], rowId)
+	return res
+}
 
 type index struct {
 	storeKey    sdk.StoreKey
@@ -77,6 +77,21 @@ func (i index) ReversePrefixScan(ctx HasKVStore, start []byte, end []byte) (Iter
 	panic("implement me")
 }
 
+// TODO: method signature does not make sense returning an error but the store panics
+// id unused
+func (i index) OnDelete(ctx HasKVStore, id uint64, key []byte) error {
+	store := prefix.NewStore(ctx.KVStore(i.storeKey), i.prefix)
+	store.Delete(key)
+	return nil
+}
+// TODO: method signature does not make sense returning an error but the store panics
+// id unused
+func (i index) OnSave(ctx HasKVStore, id uint64, key []byte, value interface{}) error {
+	store := prefix.NewStore(ctx.KVStore(i.storeKey), i.prefix)
+	store.Set(key, []byte{})
+	return nil
+}
+
 type indexIterator struct {
 	ctx         HasKVStore
 	modelGetter func(ctx HasKVStore, rowId uint64, dest interface{}) (key []byte, err error)
@@ -100,7 +115,7 @@ func (i indexIterator) LoadNext(dest interface{}) (key []byte, err error) {
 			return nil, fmt.Errorf("not found")
 		}
 	}
-	rowId := binary.LittleEndian.Uint64(indexPrefixKey[n-8:])
+	rowId := binary.BigEndian.Uint64(indexPrefixKey[n-8:])
 	i.it.Next()
 	return i.modelGetter(i.ctx, rowId, dest)
 }

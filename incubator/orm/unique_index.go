@@ -1,11 +1,10 @@
 package orm
 
 import (
-	"bytes"
 	"encoding/binary"
 	"fmt"
+
 	"github.com/cosmos/cosmos-sdk/store/prefix"
-	"github.com/cosmos/cosmos-sdk/store/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 )
 
@@ -27,14 +26,14 @@ func (u uniqueIndexer) DoIndex(store sdk.KVStore, rowId uint64, key []byte, valu
 	}
 	bz := store.Get(indexKey)
 	if bz != nil {
-		existingRowId := binary.LittleEndian.Uint64(bz)
+		existingRowId := binary.BigEndian.Uint64(bz)
 		if existingRowId != rowId {
 			return fmt.Errorf("unique index constraint violated")
 		}
 		return nil
 	}
 	bz = make([]byte, 8)
-	binary.LittleEndian.PutUint64(bz, rowId)
+	binary.BigEndian.PutUint64(bz, rowId)
 	store.Set(indexKey, bz)
 	return nil
 }
@@ -53,7 +52,7 @@ func (u uniqueIndex) getRowId(ctx HasKVStore, key []byte) uint64 {
 	if bz == nil {
 		return 0
 	}
-	return binary.LittleEndian.Uint64(bz)
+	return binary.BigEndian.Uint64(bz)
 }
 
 func (u uniqueIndex) GetOne(ctx HasKVStore, indexKey []byte, dest interface{}) ([]byte, error) {
@@ -79,7 +78,7 @@ func newPrimaryKeyIndexer() Indexer {
 	}}
 }
 
-func NewUniqueIndexer(fn IndexFunc) Indexer {
+func NewUniqueIndexer(fn IndexerFunc) Indexer {
 	return uniqueIndexer{indexFn: func(key []byte, value interface{}) (i []byte, e error) {
 		return fn(value)
 	}}
