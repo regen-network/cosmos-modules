@@ -85,4 +85,3 @@ func NewUniqueIndexer(fn IndexerFunc) Indexer {
 }
 
 var _ Indexer = uniqueIndexer{}
-

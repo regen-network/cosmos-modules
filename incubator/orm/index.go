@@ -9,9 +9,10 @@ import (
 	"github.com/cosmos/cosmos-sdk/store/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 )
+
 func NewIndex(builder TableBuilder, prefix []byte, indexer IndexerFunc) Index {
 	idx := index{
-		prefix:prefix,
+		prefix: prefix,
 	}
 	//builder.AddAfterDeleteInterceptor(idx.OnDelete)
 	//builder.AddAfterSaveInterceptor(idx.OnSave)
@@ -27,7 +28,7 @@ type indexRef struct {
 
 var _ Indexer = IndexerFunc(nil)
 
-type IndexerFunc  func(value interface{}) ([]byte, error)
+type IndexerFunc func(value interface{}) ([]byte, error)
 
 func (i IndexerFunc) DoIndex(store sdk.KVStore, rowId uint64, key []byte, value interface{}) error {
 	key, err := i(value)
@@ -84,6 +85,7 @@ func (i index) OnDelete(ctx HasKVStore, id uint64, key []byte) error {
 	store.Delete(key)
 	return nil
 }
+
 // TODO: method signature does not make sense returning an error but the store panics
 // id unused
 func (i index) OnSave(ctx HasKVStore, id uint64, key []byte, value interface{}) error {
@@ -124,4 +126,3 @@ func (i indexIterator) Close() error {
 	i.it.Close()
 	return nil
 }
-

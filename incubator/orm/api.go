@@ -87,6 +87,7 @@ type TableBase interface {
 	// Delete deletes the value at the given storeKey
 	Delete(ctx HasKVStore, key []byte) error
 }
+
 //
 //// ExternalKeyTable defines a bucket where the storeKey is stored externally to the value object
 //type ExternalKeyTable interface {
@@ -98,6 +99,7 @@ type TableBase interface {
 type HasID interface {
 	ID() []byte
 }
+
 //
 //// NaturalKeyTable defines a bucket where all values implement HasID and the storeKey is stored it the value and
 //// returned by the HasID method
@@ -106,6 +108,7 @@ type NaturalKeyTable interface {
 	// Save saves the value passed in
 	Save(ctx HasKVStore, value HasID) error
 }
+
 //
 type AutoUInt64Table interface {
 	Has(ctx HasKVStore, key uint64) (bool, error)
@@ -120,6 +123,7 @@ type AutoUInt64Table interface {
 	// When no entry for the storeKey exists, an Error is returned.
 	Save(ctx HasKVStore, key uint64, value interface{}) error
 }
+
 //
 //// AutoKeyTable specifies a bucket where keys are generated via an auto-incremented interger
 //type AutoKeyTable interface {
@@ -137,7 +141,6 @@ type AutoUInt64Table interface {
 //	AfterDelete(ctx HasKVStore, rowId uint64, value interface{}) error
 //}
 
-
 //type TableBuilder interface {
 //	RegisterIndexer(prefix byte, indexer Indexer)
 //}
@@ -151,4 +154,3 @@ type AutoUInt64Table interface {
 //	RegisterIndexer(prefix byte, indexer Indexer)
 //	Build() AutoUInt64Table
 //}
-

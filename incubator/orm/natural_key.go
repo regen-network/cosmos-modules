@@ -59,8 +59,3 @@ func (a naturalKeyTable) ReversePrefixScan(ctx HasKVStore, start uint64, end uin
 func (a naturalKeyTable) Save(ctx HasKVStore, key []byte, value interface{}) error {
 	panic("implement me")
 }
-
-
-
-
-

@@ -17,9 +17,9 @@ type sequence struct {
 
 func NewSequence(storeKey sdk.StoreKey, prefix []byte) *sequence {
 	return &sequence{
-		prefix: prefix,
+		prefix:   prefix,
 		storeKey: storeKey,
-		seqKey:[]byte("seq"), // todo: should seq key also be a short one?
+		seqKey:   []byte("seq"), // todo: should seq key also be a short one?
 	}
 }
 

@@ -33,11 +33,11 @@ type GroupMember struct {
 	Weight sdk.Int
 }
 
-var	(
-	GroupTablePrefix               = []byte{0x0}
+var (
+	GroupTablePrefix = []byte{0x0}
 	// todo: better solution than manually assigning a prefix
-	GroupTableSequncePrefix        = []byte{0x1}
-	GroupByAdminIndexPrefix        = []byte{0x2}
+	GroupTableSequncePrefix = []byte{0x1}
+	GroupByAdminIndexPrefix = []byte{0x2}
 
 	GroupMemberTablePrefix         = []byte{0x3}
 	GroupMemberByGroupIndexPrefix  = []byte{0x4}

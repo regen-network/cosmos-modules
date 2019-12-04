@@ -7,6 +7,11 @@ import (
 	"github.com/cosmos/cosmos-sdk/types/errors"
 )
 
+var (
+	ErrNotFound     = errors.Register(errors.RootCodespace, 100, "not found")
+	ErrIteratorDone = errors.Register(errors.RootCodespace, 101, "iterator done")
+)
+
 var _ TableBuilder = &autoUInt64TableBuilder{}
 
 func NewAutoUInt64TableBuilder(prefix []byte, key sdk.StoreKey, cdc *codec.Codec) autoUInt64TableBuilder {
@@ -85,13 +90,20 @@ func (a autoUInt64Table) Save(ctx HasKVStore, id uint64, value interface{}) erro
 	return nil
 }
 
-
-func (a autoUInt64Table) Has(ctx HasKVStore, key uint64) (bool, error) {
-	panic("implement me")
+// todo: there is no error result as store would panic
+func (a autoUInt64Table) Has(ctx HasKVStore, id uint64) (bool, error) {
+	store := prefix.NewStore(ctx.KVStore(a.storeKey), a.prefix)
+	return store.Has(encodeSequence(id)), nil
 }
 
-func (a autoUInt64Table) Get(ctx HasKVStore, key uint64) (Iterator, error) {
-	panic("implement me")
+func (a autoUInt64Table) Get(ctx HasKVStore, id uint64) (Iterator, error) {
+	store := prefix.NewStore(ctx.KVStore(a.storeKey), a.prefix)
+	key := encodeSequence(id)
+	val := store.Get(key)
+	if val == nil {
+		return nil, ErrNotFound // todo: discuss how to handle this scenario if we drop error return parameter
+	}
+	return NewSingleValueIterator(a.cdc, key, val), nil // todo: SingleValueIterator is only used to satisfy the interface
 }
 
 func (a autoUInt64Table) PrefixScan(ctx HasKVStore, start uint64, end uint64) (Iterator, error) {
@@ -100,4 +112,25 @@ func (a autoUInt64Table) PrefixScan(ctx HasKVStore, start uint64, end uint64) (I
 
 func (a autoUInt64Table) ReversePrefixScan(ctx HasKVStore, start uint64, end uint64) (Iterator, error) {
 	panic("implement me")
+}
+
+type iteratorFunc func(dest interface{}) (key []byte, err error)
+
+func (i iteratorFunc) LoadNext(dest interface{}) (key []byte, err error) {
+	return i(dest)
+}
+
+func (i iteratorFunc) Close() error {
+	return nil
+}
+
+func NewSingleValueIterator(cdc *codec.Codec, key []byte, val []byte) Iterator {
+	var closed bool
+	return iteratorFunc(func(dest interface{}) ([]byte, error) {
+		if closed || val == nil {
+			return nil, ErrIteratorDone
+		}
+		closed = true
+		return key, cdc.UnmarshalBinaryBare(val, dest)
+	})
 }
