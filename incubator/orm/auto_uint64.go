@@ -14,8 +14,14 @@ var (
 
 var _ TableBuilder = &autoUInt64TableBuilder{}
 
-func NewAutoUInt64TableBuilder(prefix []byte, key sdk.StoreKey, cdc *codec.Codec) autoUInt64TableBuilder {
-	return autoUInt64TableBuilder{prefix: prefix, storeKey: key, cdc: cdc}
+func NewAutoUInt64TableBuilder(prefix []byte, key sdk.StoreKey, cdc *codec.Codec) *autoUInt64TableBuilder {
+	if len(prefix) == 0 {
+		panic("prefix must not be empty")
+	}
+	if cdc == nil {
+		panic("codec must not be empty")
+	}
+	return &autoUInt64TableBuilder{prefix: prefix, storeKey: key, cdc: cdc}
 }
 
 type autoUInt64TableBuilder struct {
@@ -25,11 +31,30 @@ type autoUInt64TableBuilder struct {
 	indexerRefs []indexRef
 }
 
+// todo: this function gives access to the storage. It does not really fit the builder patter.
+func (a autoUInt64TableBuilder) ModelGetter() ModelGetter {
+	return func(ctx HasKVStore, rowId uint64, dest interface{}) ([]byte, error) {
+		store := prefix.NewStore(ctx.KVStore(a.storeKey), a.prefix)
+		key := encodeSequence(rowId)
+		val := store.Get(key)
+		// todo: how to handle not found?
+		if val == nil {
+			return nil, ErrNotFound // todo: discuss how to handle this scenario if we drop error return parameter
+		}
+		return key, a.cdc.UnmarshalBinaryBare(val, dest)
+	}
+}
+
+func (a autoUInt64TableBuilder) StoreKey() sdk.StoreKey {
+	return a.storeKey
+}
+
 func (a autoUInt64TableBuilder) RowGetter() RowGetter {
 	panic("implement me")
 }
 
-func (a autoUInt64TableBuilder) RegisterIndexer(prefix []byte, indexer Indexer) {
+// RegisterIndexer panics when prefix is a duplicate
+func (a *autoUInt64TableBuilder) RegisterIndexer(prefix []byte, indexer Indexer) {
 	// todo: fail on duplicates
 	a.indexerRefs = append(a.indexerRefs, indexRef{prefix: prefix, indexer: indexer})
 }
@@ -45,13 +70,14 @@ func (a autoUInt64TableBuilder) Build() autoUInt64Table {
 	}
 }
 
-func (a autoUInt64TableBuilder) AddAfterSaveInterceptor(interceptor AfterSaveInterceptor) {
-	panic("implement me")
-}
-
-func (a autoUInt64TableBuilder) AddAfterDeleteInterceptor(interceptor AfterDeleteInterceptor) {
-	panic("implement me")
-}
+// todo: required?
+//func (a autoUInt64TableBuilder) AddAfterSaveInterceptor(interceptor AfterSaveInterceptor) {
+//	panic("implement me")
+//}
+//
+//func (a autoUInt64TableBuilder) AddAfterDeleteInterceptor(interceptor AfterDeleteInterceptor) {
+//	panic("implement me")
+//}
 
 var _ AutoUInt64Table = autoUInt64Table{}
 
@@ -75,7 +101,15 @@ func (a autoUInt64Table) Create(ctx HasKVStore, value interface{}) (uint64, erro
 	}
 
 	// todo: store does not return an error that we can handle or return
-	store.Set(encodeSequence(id), v)
+	key := encodeSequence(id)
+	store.Set(key, v)
+	for _, idx := range a.indexerRefs {
+		store := prefix.NewStore(ctx.KVStore(a.storeKey), idx.prefix)
+		err := idx.indexer.DoIndex(store, id, key, value)
+		if err != nil {
+			return 0, errors.Wrapf(err, "indexer for prefix %X failed", idx.prefix)
+		}
+	}
 	return id, nil
 }
 

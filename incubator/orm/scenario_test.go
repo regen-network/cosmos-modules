@@ -3,6 +3,7 @@ package orm
 import (
 	"bytes"
 	"encoding/binary"
+	"reflect"
 	"testing"
 
 	"github.com/cosmos/cosmos-sdk/codec"
@@ -43,11 +44,6 @@ func TestKeeperEndToEnd(t *testing.T) {
 
 	k := NewGroupKeeper(storeKey, cdc)
 
-	//g := GroupMember{
-	//	Group:  sdk.AccAddress([]byte("group-address")),
-	//	Member: sdk.AccAddress([]byte("alice-address")),
-	//	Weight: sdk.NewInt(100),
-	//}
 	g := GroupMetadata{
 		Description: "my test",
 		Admin:       sdk.AccAddress([]byte("admin-address")),
@@ -77,7 +73,27 @@ func TestKeeperEndToEnd(t *testing.T) {
 	if exp, got := sdk.AccAddress([]byte("admin-address")), loaded.Admin; !bytes.Equal(exp, got) {
 		t.Errorf("expected %X but got %X", exp, got)
 	}
-
+	// and exists in index
+	exists, err = k.groupByAdminIndex.Has(ctx, []byte("admin-address"))
+	if err != nil {
+		t.Fatalf("unexpected error: %+v", err)
+	}
+	if !exists {
+		t.Fatalf("expected entry to exist")
+	}
+	// and when loaded
+	it, err = k.groupByAdminIndex.Get(ctx, []byte("admin-address"))
+	if err != nil {
+		t.Fatalf("unexpected error: %+v", err)
+	}
+	// then
+	binKey, loaded = first(t, it)
+	if exp, got := groupKey, binary.BigEndian.Uint64(binKey); exp != got {
+		t.Errorf("expected %v but got %v", exp, got)
+	}
+	if exp, got := g, loaded; !reflect.DeepEqual(exp, got) {
+		t.Errorf("expected %v but got %v", exp, got)
+	}
 }
 
 func first(t *testing.T, it Iterator) ([]byte, GroupMetadata) {

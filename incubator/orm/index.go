@@ -4,21 +4,12 @@ import (
 	"bytes"
 	"encoding/binary"
 	"fmt"
+	"math"
 
 	"github.com/cosmos/cosmos-sdk/store/prefix"
 	"github.com/cosmos/cosmos-sdk/store/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 )
-
-func NewIndex(builder TableBuilder, prefix []byte, indexer IndexerFunc) Index {
-	idx := index{
-		prefix: prefix,
-	}
-	//builder.AddAfterDeleteInterceptor(idx.OnDelete)
-	//builder.AddAfterSaveInterceptor(idx.OnSave)
-
-	return &idx
-}
 
 // indexRef
 type indexRef struct {
@@ -30,12 +21,14 @@ var _ Indexer = IndexerFunc(nil)
 
 type IndexerFunc func(value interface{}) ([]byte, error)
 
-func (i IndexerFunc) DoIndex(store sdk.KVStore, rowId uint64, key []byte, value interface{}) error {
-	key, err := i(value)
+// todo: primary key is unused. same as rowID anyway
+// todo: store is a prefix store. type should be explicit so people know. maybe make this a private method instead?
+func (i IndexerFunc) DoIndex(store sdk.KVStore, rowId uint64, primaryKey []byte, value interface{}) error {
+	secondaryIndexKey, err := i(value)
 	if err != nil {
 		return err
 	}
-	indexKey := makeIndexPrefixScanKey(key, rowId)
+	indexKey := makeIndexPrefixScanKey(secondaryIndexKey, rowId)
 	if !store.Has(indexKey) {
 		store.Set(indexKey, []byte{0})
 	}
@@ -46,6 +39,7 @@ func (i IndexerFunc) BuildIndex(storeKey sdk.StoreKey, prefix []byte, modelGette
 	return index{storeKey: storeKey, prefix: prefix, modelGetter: modelGetter}
 }
 
+// todo: this feels quite complicated when reading the data. Why not store rowID(s) as payload instead?
 func makeIndexPrefixScanKey(indexKey []byte, rowId uint64) []byte {
 	n := len(indexKey)
 	res := make([]byte, n+8)
@@ -60,8 +54,26 @@ type index struct {
 	modelGetter func(ctx HasKVStore, rowId uint64, dest interface{}) (key []byte, err error)
 }
 
+func NewIndex(builder TableBuilder, prefix []byte, indexer IndexerFunc) Index {
+	idx := index{
+		storeKey:    builder.StoreKey(),
+		prefix:      prefix,
+		modelGetter: builder.ModelGetter(),
+	}
+	builder.RegisterIndexer(prefix, indexer)
+	return &idx
+}
+
+// todo: store panics on errors. why return an error here?
 func (i index) Has(ctx HasKVStore, key []byte) (bool, error) {
-	panic("implement me")
+	//todo: does not work: return store.Has(key), nil
+	// can only be answered by a prefix scan. see makeIndexPrefixScanKey
+
+	store := prefix.NewStore(ctx.KVStore(i.storeKey), i.prefix)
+	it := store.Iterator(makeIndexPrefixScanKey(key, 0), makeIndexPrefixScanKey(key, math.MaxUint64))
+	defer it.Close()
+	println("+++ ", it.Valid())
+	return it.Valid(), nil
 }
 
 func (i index) Get(ctx HasKVStore, key []byte) (Iterator, error) {
@@ -76,22 +88,6 @@ func (i index) PrefixScan(ctx HasKVStore, start []byte, end []byte) (Iterator, e
 
 func (i index) ReversePrefixScan(ctx HasKVStore, start []byte, end []byte) (Iterator, error) {
 	panic("implement me")
-}
-
-// TODO: method signature does not make sense returning an error but the store panics
-// id unused
-func (i index) OnDelete(ctx HasKVStore, id uint64, key []byte) error {
-	store := prefix.NewStore(ctx.KVStore(i.storeKey), i.prefix)
-	store.Delete(key)
-	return nil
-}
-
-// TODO: method signature does not make sense returning an error but the store panics
-// id unused
-func (i index) OnSave(ctx HasKVStore, id uint64, key []byte, value interface{}) error {
-	store := prefix.NewStore(ctx.KVStore(i.storeKey), i.prefix)
-	store.Set(key, []byte{})
-	return nil
 }
 
 type indexIterator struct {

@@ -30,10 +30,16 @@ type AfterSaveInterceptor = func(ctx HasKVStore, rowId uint64, key []byte, value
 type AfterDeleteInterceptor = func(ctx HasKVStore, rowId uint64, key []byte) error
 type RowGetter = func(ctx HasKVStore, rowId uint64) (interface{}, error)
 
+type ModelGetter func(ctx HasKVStore, rowId uint64, dest interface{}) (key []byte, err error)
 type TableBuilder interface {
-	AddAfterSaveInterceptor(interceptor AfterSaveInterceptor)
-	AddAfterDeleteInterceptor(interceptor AfterDeleteInterceptor)
 	RowGetter() RowGetter
+	StoreKey() sdk.StoreKey
+	RegisterIndexer(prefix []byte, indexer Indexer)
+	ModelGetter() ModelGetter
+	//AddAfterDeleteInterceptor(interceptor AfterDeleteInterceptor)
+	// TODO: needed?
+	//AddAfterSaveInterceptor(interceptor AfterSaveInterceptor)
+	// TODO: needed?
 }
 
 type UInt64Index interface {
