@@ -25,10 +25,6 @@ func (n *naturalKeyTableBuilder) AddAfterDeleteInterceptor(interceptor AfterDele
 	panic("implement me")
 }
 
-func (n *naturalKeyTableBuilder) RowGetter() RowGetter {
-	panic("implement me")
-}
-
 func (n *naturalKeyTableBuilder) RegisterIndexer(prefix byte, indexer Indexer) {
 	panic("implement me")
 }

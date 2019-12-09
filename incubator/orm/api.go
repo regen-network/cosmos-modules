@@ -28,13 +28,11 @@ type UniqueIndex interface {
 
 type AfterSaveInterceptor = func(ctx HasKVStore, rowId uint64, key []byte, value interface{}) error
 type AfterDeleteInterceptor = func(ctx HasKVStore, rowId uint64, key []byte) error
-type RowGetter = func(ctx HasKVStore, rowId uint64) (interface{}, error)
 
-type ModelGetter func(ctx HasKVStore, rowId uint64, dest interface{}) (key []byte, err error)
+type RowGetter func(ctx HasKVStore, rowId uint64, dest interface{}) (key []byte, err error)
 type TableBuilder interface {
-	RowGetter() RowGetter
 	StoreKey() sdk.StoreKey
-	ModelGetter() ModelGetter
+	RowGetter() RowGetter
 	AddAfterDeleteInterceptor(interceptor AfterDeleteInterceptor)
 	AddAfterSaveInterceptor(interceptor AfterSaveInterceptor)
 }

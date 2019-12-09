@@ -55,7 +55,7 @@ func NewIndex(builder TableBuilder, prefix []byte, indexer IndexerFunc) Index {
 	idx := index{
 		storeKey:    builder.StoreKey(),
 		prefix:      prefix,
-		modelGetter: builder.ModelGetter(),
+		modelGetter: builder.RowGetter(),
 		indexer:     indexer,
 	}
 	builder.AddAfterSaveInterceptor(idx.onSave)

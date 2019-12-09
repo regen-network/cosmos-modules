@@ -33,7 +33,7 @@ type autoUInt64TableBuilder struct {
 }
 
 // todo: this function gives access to the storage. It does not really fit the builder patter.
-func (a autoUInt64TableBuilder) ModelGetter() ModelGetter {
+func (a autoUInt64TableBuilder) RowGetter() RowGetter {
 	return func(ctx HasKVStore, rowId uint64, dest interface{}) ([]byte, error) {
 		store := prefix.NewStore(ctx.KVStore(a.storeKey), a.prefix)
 		key := encodeSequence(rowId)
@@ -48,10 +48,6 @@ func (a autoUInt64TableBuilder) ModelGetter() ModelGetter {
 
 func (a autoUInt64TableBuilder) StoreKey() sdk.StoreKey {
 	return a.storeKey
-}
-
-func (a autoUInt64TableBuilder) RowGetter() RowGetter {
-	panic("implement me")
 }
 
 func (a autoUInt64TableBuilder) Build() autoUInt64Table {
