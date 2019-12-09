@@ -34,12 +34,9 @@ type ModelGetter func(ctx HasKVStore, rowId uint64, dest interface{}) (key []byt
 type TableBuilder interface {
 	RowGetter() RowGetter
 	StoreKey() sdk.StoreKey
-	RegisterIndexer(prefix []byte, indexer Indexer)
 	ModelGetter() ModelGetter
-	//AddAfterDeleteInterceptor(interceptor AfterDeleteInterceptor)
-	// TODO: needed?
-	//AddAfterSaveInterceptor(interceptor AfterSaveInterceptor)
-	// TODO: needed?
+	AddAfterDeleteInterceptor(interceptor AfterDeleteInterceptor)
+	AddAfterSaveInterceptor(interceptor AfterSaveInterceptor)
 }
 
 type UInt64Index interface {

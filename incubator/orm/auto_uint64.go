@@ -28,7 +28,8 @@ type autoUInt64TableBuilder struct {
 	prefix      []byte
 	storeKey    sdk.StoreKey
 	cdc         *codec.Codec
-	indexerRefs []indexRef
+	afterSave   []AfterSaveInterceptor
+	afterDelete []AfterDeleteInterceptor
 }
 
 // todo: this function gives access to the storage. It does not really fit the builder patter.
@@ -53,12 +54,6 @@ func (a autoUInt64TableBuilder) RowGetter() RowGetter {
 	panic("implement me")
 }
 
-// RegisterIndexer panics when prefix is a duplicate
-func (a *autoUInt64TableBuilder) RegisterIndexer(prefix []byte, indexer Indexer) {
-	// todo: fail on duplicates
-	a.indexerRefs = append(a.indexerRefs, indexRef{prefix: prefix, indexer: indexer})
-}
-
 func (a autoUInt64TableBuilder) Build() autoUInt64Table {
 	seq := NewSequence(a.storeKey, a.prefix)
 	return autoUInt64Table{
@@ -66,18 +61,18 @@ func (a autoUInt64TableBuilder) Build() autoUInt64Table {
 		prefix:      a.prefix,
 		storeKey:    a.storeKey,
 		cdc:         a.cdc,
-		indexerRefs: a.indexerRefs, // todo: clone slice
+		afterSave:   a.afterSave,
+		afterDelete: a.afterDelete,
 	}
 }
 
-// todo: required?
-//func (a autoUInt64TableBuilder) AddAfterSaveInterceptor(interceptor AfterSaveInterceptor) {
-//	panic("implement me")
-//}
-//
-//func (a autoUInt64TableBuilder) AddAfterDeleteInterceptor(interceptor AfterDeleteInterceptor) {
-//	panic("implement me")
-//}
+func (a *autoUInt64TableBuilder) AddAfterSaveInterceptor(interceptor AfterSaveInterceptor) {
+	a.afterSave = append(a.afterSave, interceptor)
+}
+
+func (a *autoUInt64TableBuilder) AddAfterDeleteInterceptor(interceptor AfterDeleteInterceptor) {
+	a.afterDelete = append(a.afterDelete, interceptor)
+}
 
 var _ AutoUInt64Table = autoUInt64Table{}
 
@@ -85,42 +80,43 @@ type autoUInt64Table struct {
 	prefix      []byte
 	storeKey    sdk.StoreKey
 	cdc         *codec.Codec
-	indexerRefs []indexRef
 	sequence    Sequence
+	afterSave   []AfterSaveInterceptor
+	afterDelete []AfterDeleteInterceptor
 }
 
-func (a autoUInt64Table) Create(ctx HasKVStore, value interface{}) (uint64, error) {
+func (a autoUInt64Table) Create(ctx HasKVStore, obj interface{}) (uint64, error) {
 	store := prefix.NewStore(ctx.KVStore(a.storeKey), a.prefix)
-	v, err := a.cdc.MarshalBinaryBare(value)
+	v, err := a.cdc.MarshalBinaryBare(obj)
 	if err != nil {
-		return 0, errors.Wrapf(err, "failed to serialize %T", value)
+		return 0, errors.Wrapf(err, "failed to serialize %T", obj)
 	}
-	id, err := a.sequence.NextVal(ctx)
+	rowID, err := a.sequence.NextVal(ctx)
 	if err != nil {
 		return 0, errors.Wrap(err, "can not fetch next sequence value")
 	}
 
 	// todo: store does not return an error that we can handle or return
-	key := encodeSequence(id)
+	key := encodeSequence(rowID)
 	store.Set(key, v)
-	for _, idx := range a.indexerRefs {
-		store := prefix.NewStore(ctx.KVStore(a.storeKey), idx.prefix)
-		err := idx.indexer.DoIndex(store, id, key, value)
-		if err != nil {
-			return 0, errors.Wrapf(err, "indexer for prefix %X failed", idx.prefix)
+	for i, itc := range a.afterSave {
+		if err := itc(ctx, rowID, key, obj); err != nil {
+			return 0, errors.Wrapf(err, "interceptor %d failed", i)
 		}
 	}
-	return id, nil
+
+	return rowID, nil
 }
 
-func (a autoUInt64Table) Save(ctx HasKVStore, id uint64, value interface{}) error {
+func (a autoUInt64Table) Save(ctx HasKVStore, rowID uint64, obj interface{}) error {
 	store := prefix.NewStore(ctx.KVStore(a.storeKey), a.prefix)
-	v, err := a.cdc.MarshalBinaryBare(value)
+	v, err := a.cdc.MarshalBinaryBare(obj)
 	if err != nil {
-		return errors.Wrapf(err, "failed to serialize %T", value)
+		return errors.Wrapf(err, "failed to serialize %T", obj)
 	}
 	// todo: store does not return an error that we can handle or return
-	store.Set(encodeSequence(id), v)
+	store.Set(encodeSequence(rowID), v)
+	// todo: impl interceptor calls
 	return nil
 }
 

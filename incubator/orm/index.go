@@ -9,13 +9,8 @@ import (
 	"github.com/cosmos/cosmos-sdk/store/prefix"
 	"github.com/cosmos/cosmos-sdk/store/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	"github.com/cosmos/cosmos-sdk/types/errors"
 )
-
-// indexRef
-type indexRef struct {
-	prefix  []byte
-	indexer Indexer
-}
 
 var _ Indexer = IndexerFunc(nil)
 
@@ -35,8 +30,9 @@ func (i IndexerFunc) DoIndex(store sdk.KVStore, rowId uint64, primaryKey []byte,
 	return nil
 }
 
+// TODO: remove function. there should only be 1 way to create an indexer: NewIndex
 func (i IndexerFunc) BuildIndex(storeKey sdk.StoreKey, prefix []byte, modelGetter func(ctx HasKVStore, rowId uint64, dest interface{}) (key []byte, err error)) Index {
-	return index{storeKey: storeKey, prefix: prefix, modelGetter: modelGetter}
+	panic("what should we do here?")
 }
 
 // todo: this feels quite complicated when reading the data. Why not store rowID(s) as payload instead?
@@ -52,6 +48,7 @@ type index struct {
 	storeKey    sdk.StoreKey
 	prefix      []byte
 	modelGetter func(ctx HasKVStore, rowId uint64, dest interface{}) (key []byte, err error)
+	indexer     IndexerFunc
 }
 
 func NewIndex(builder TableBuilder, prefix []byte, indexer IndexerFunc) Index {
@@ -59,8 +56,9 @@ func NewIndex(builder TableBuilder, prefix []byte, indexer IndexerFunc) Index {
 		storeKey:    builder.StoreKey(),
 		prefix:      prefix,
 		modelGetter: builder.ModelGetter(),
+		indexer:     indexer,
 	}
-	builder.RegisterIndexer(prefix, indexer)
+	builder.AddAfterSaveInterceptor(idx.onSave)
 	return &idx
 }
 
@@ -88,6 +86,16 @@ func (i index) PrefixScan(ctx HasKVStore, start []byte, end []byte) (Iterator, e
 
 func (i index) ReversePrefixScan(ctx HasKVStore, start []byte, end []byte) (Iterator, error) {
 	panic("implement me")
+}
+
+func (i index) onSave(ctx HasKVStore, rowID uint64, key []byte, value interface{}) error {
+	// todo: this is the on create indexer, for update the old value may has to be removed
+	store := prefix.NewStore(ctx.KVStore(i.storeKey), i.prefix)
+	err := i.indexer.DoIndex(store, rowID, key, value)
+	if err != nil {
+		return errors.Wrapf(err, "indexer for prefix %X failed", i.prefix)
+	}
+	return nil
 }
 
 type indexIterator struct {
