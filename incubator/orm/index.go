@@ -9,7 +9,6 @@ import (
 	"github.com/cosmos/cosmos-sdk/store/prefix"
 	"github.com/cosmos/cosmos-sdk/store/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
-	"github.com/cosmos/cosmos-sdk/types/errors"
 )
 
 var _ Indexer = IndexerFunc(nil)
@@ -19,7 +18,7 @@ type IndexerFunc func(value interface{}) ([]byte, error)
 // todo: primary key is unused. same as rowID anyway
 // todo: store is a prefix store. type should be explicit so people know. maybe make this a private method instead?
 func (i IndexerFunc) OnCreate(store sdk.KVStore, rowId uint64, primaryKey []byte, value interface{}) error {
-	secondaryIndexKey, err := i(value) // todo: multiple index keys
+	secondaryIndexKey, err := i(value) // todo: multiple index keys?
 	if err != nil {
 		return err
 	}
@@ -30,31 +29,31 @@ func (i IndexerFunc) OnCreate(store sdk.KVStore, rowId uint64, primaryKey []byte
 	return nil
 }
 
+// todo: same comments as OnCreate
 func (i IndexerFunc) OnDelete(store sdk.KVStore, rowId uint64, primaryKey []byte, value interface{}) error {
-	secondaryIndexKey, err := i(value) // todo: multiple index keys
+	secondaryIndexKey, err := i(value) // todo: multiple index keys?
 	if err != nil {
 		return err
 	}
 	indexKey := makeIndexPrefixScanKey(secondaryIndexKey, rowId)
-	if store.Has(indexKey) {
-		store.Delete(indexKey)
-	}
+	store.Delete(indexKey)
 	return nil
 }
 
-func (i IndexerFunc) OnUpdate(store sdk.KVStore, rowId uint64, primaryKey []byte, oldValue, newValue interface{}) error {
-	oldSecIdxKey, err := i(oldValue) // todo: multiple index keys
+// todo: same comments as OnCreate
+func (i IndexerFunc) OnUpdate(store sdk.KVStore, rowId uint64, primaryKey []byte, newValue, oldValue interface{}) error {
+	oldSecIdxKey, err := i(oldValue) // todo: multiple index keys?
 	if err != nil {
 		return err
 	}
-	newSecIdxKey, err := i(newValue) // todo: multiple index keys
-	if !bytes.Equal(oldSecIdxKey, newSecIdxKey) {
-		if store.Has(oldSecIdxKey) {
-			store.Delete(oldSecIdxKey)
-		}
-		if !store.Has(newSecIdxKey) {
-			store.Set(newSecIdxKey, []byte{0})
-		}
+	newSecIdxKey, err := i(newValue) // todo: multiple index keys?
+	if bytes.Equal(oldSecIdxKey, newSecIdxKey) {
+		return nil
+	}
+	store.Delete(makeIndexPrefixScanKey(oldSecIdxKey, rowId))
+	prefixedKey := makeIndexPrefixScanKey(newSecIdxKey, rowId)
+	if !store.Has(prefixedKey) {
+		store.Set(prefixedKey, []byte{0})
 	}
 	return nil
 }
@@ -100,7 +99,6 @@ func (i index) Has(ctx HasKVStore, key []byte) (bool, error) {
 	store := prefix.NewStore(ctx.KVStore(i.storeKey), i.prefix)
 	it := store.Iterator(makeIndexPrefixScanKey(key, 0), makeIndexPrefixScanKey(key, math.MaxUint64))
 	defer it.Close()
-	println("+++ ", it.Valid())
 	return it.Valid(), nil
 }
 
@@ -118,19 +116,19 @@ func (i index) ReversePrefixScan(ctx HasKVStore, start []byte, end []byte) (Iter
 	panic("implement me")
 }
 
-func (i index) onSave(ctx HasKVStore, rowID uint64, key []byte, value interface{}) error {
+func (i index) onSave(ctx HasKVStore, rowID uint64, key []byte, newValue, oldValue interface{}) error {
 	// todo: this is the on create indexer, for update the old value may has to be removed
 	store := prefix.NewStore(ctx.KVStore(i.storeKey), i.prefix)
-	err := i.indexer.OnCreate(store, rowID, key, value)
-	if err != nil {
-		return errors.Wrapf(err, "indexer for prefix %X failed", i.prefix)
+	if oldValue == nil {
+		return i.indexer.OnCreate(store, rowID, key, newValue)
 	}
-	return nil
+	return i.indexer.OnUpdate(store, rowID, key, newValue, oldValue)
+
 }
 
-func (i index) onDelete(ctx HasKVStore, rowId uint64, key []byte, value interface{}) error {
+func (i index) onDelete(ctx HasKVStore, rowId uint64, key []byte, oldValue interface{}) error {
 	store := prefix.NewStore(ctx.KVStore(i.storeKey), i.prefix)
-	return i.indexer.OnDelete(store, rowId, key, value)
+	return i.indexer.OnDelete(store, rowId, key, oldValue)
 }
 
 type indexIterator struct {

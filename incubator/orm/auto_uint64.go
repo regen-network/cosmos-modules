@@ -114,7 +114,7 @@ func (a autoUInt64Table) Create(ctx HasKVStore, obj interface{}) (uint64, error)
 	key := encodeSequence(rowID)
 	store.Set(key, v)
 	for i, itc := range a.afterSave {
-		if err := itc(ctx, rowID, key, obj); err != nil {
+		if err := itc(ctx, rowID, key, obj, nil); err != nil {
 			return 0, errors.Wrapf(err, "interceptor %d failed", i)
 		}
 	}
@@ -122,19 +122,35 @@ func (a autoUInt64Table) Create(ctx HasKVStore, obj interface{}) (uint64, error)
 	return rowID, nil
 }
 
-func (a autoUInt64Table) Save(ctx HasKVStore, rowID uint64, obj interface{}) error {
-	if err := a.assertCorrectType(obj); err != nil {
+func (a autoUInt64Table) Save(ctx HasKVStore, rowID uint64, newValue interface{}) error {
+	if err := a.assertCorrectType(newValue); err != nil {
 		return err
 	}
 
 	store := prefix.NewStore(ctx.KVStore(a.storeKey), a.prefix)
-	v, err := a.cdc.MarshalBinaryBare(obj)
+	var oldValue = reflect.New(a.model).Interface()
+	it, err := a.Get(ctx, rowID)
 	if err != nil {
-		return errors.Wrapf(err, "failed to serialize %T", obj)
+		return err
+	}
+	_, err = it.LoadNext(oldValue)
+	if err != nil {
+		return err
+	}
+
+	v, err := a.cdc.MarshalBinaryBare(newValue)
+	if err != nil {
+		return errors.Wrapf(err, "failed to serialize %T", newValue)
 	}
 	// todo: store does not return an error that we can handle or return
-	store.Set(encodeSequence(rowID), v)
+	key := encodeSequence(rowID)
+	store.Set(key, v)
 	// todo: impl interceptor calls
+	for i, itc := range a.afterSave {
+		if err := itc(ctx, rowID, key, newValue, oldValue); err != nil {
+			return errors.Wrapf(err, "interceptor %d failed", i)
+		}
+	}
 	return nil
 }
 

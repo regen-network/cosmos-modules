@@ -26,7 +26,7 @@ type UniqueIndex interface {
 	GetOne(ctx HasKVStore, indexKey []byte, dest interface{}) (primaryKey []byte, error error)
 }
 
-type AfterSaveInterceptor = func(ctx HasKVStore, rowId uint64, key []byte, value interface{}) error
+type AfterSaveInterceptor = func(ctx HasKVStore, rowId uint64, key []byte, newValue, oldValue interface{}) error
 type AfterDeleteInterceptor = func(ctx HasKVStore, rowId uint64, key []byte, value interface{}) error
 
 type RowGetter func(ctx HasKVStore, rowId uint64, dest interface{}) (key []byte, err error)
