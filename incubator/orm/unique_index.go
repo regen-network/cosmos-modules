@@ -19,7 +19,7 @@ type uniqueIndex struct {
 	modelGetter func(ctx HasKVStore, rowId uint64, dest interface{}) (key []byte, err error)
 }
 
-func (u uniqueIndexer) DoIndex(store sdk.KVStore, rowId uint64, key []byte, value interface{}) error {
+func (u uniqueIndexer) OnCreate(store sdk.KVStore, rowId uint64, key []byte, value interface{}) error {
 	indexKey, err := u.indexFn(key, value)
 	if err != nil {
 		return err

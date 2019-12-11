@@ -27,7 +27,7 @@ type UniqueIndex interface {
 }
 
 type AfterSaveInterceptor = func(ctx HasKVStore, rowId uint64, key []byte, value interface{}) error
-type AfterDeleteInterceptor = func(ctx HasKVStore, rowId uint64, key []byte) error
+type AfterDeleteInterceptor = func(ctx HasKVStore, rowId uint64, key []byte, value interface{}) error
 
 type RowGetter func(ctx HasKVStore, rowId uint64, dest interface{}) (key []byte, err error)
 type TableBuilder interface {
@@ -79,7 +79,7 @@ type SchemaDescriptor interface {
 	// TODO
 }
 type Indexer interface {
-	DoIndex(store sdk.KVStore, rowId uint64, key []byte, value interface{}) error
+	OnCreate(store sdk.KVStore, rowId uint64, key []byte, value interface{}) error
 	BuildIndex(storeKey sdk.StoreKey, prefix []byte, modelGetter func(ctx HasKVStore, rowId uint64, dest interface{}) (key []byte, err error)) Index
 }
 
@@ -124,6 +124,7 @@ type AutoUInt64Table interface {
 	// Save updates the entry for the the given key. The key must not be empty.
 	// When no entry for the key exists, an Error is returned.
 	Save(ctx HasKVStore, key uint64, value interface{}) error
+	Delete(ctx HasKVStore, key uint64) error
 }
 
 //

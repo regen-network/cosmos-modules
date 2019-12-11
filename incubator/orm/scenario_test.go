@@ -94,6 +94,20 @@ func TestKeeperEndToEnd(t *testing.T) {
 	if exp, got := g, loaded; !reflect.DeepEqual(exp, got) {
 		t.Errorf("expected %v but got %v", exp, got)
 	}
+
+	// when deleted
+	k.groupTable.Delete(ctx, groupKey)
+
+	// then removed from primary index
+	exists, _ = k.groupTable.Has(ctx, groupKey)
+	if exp, got := false, exists; exp != got {
+		t.Fatalf("expected %v but got %v", exp, got)
+	}
+	// and removed from secondary index
+	exists, _ = k.groupByAdminIndex.Has(ctx, []byte("admin-address"))
+	if exp, got := false, exists; exp != got {
+		t.Fatalf("expected %v but got %v", exp, got)
+	}
 }
 
 func first(t *testing.T, it Iterator) ([]byte, GroupMetadata) {

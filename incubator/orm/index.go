@@ -18,14 +18,43 @@ type IndexerFunc func(value interface{}) ([]byte, error)
 
 // todo: primary key is unused. same as rowID anyway
 // todo: store is a prefix store. type should be explicit so people know. maybe make this a private method instead?
-func (i IndexerFunc) DoIndex(store sdk.KVStore, rowId uint64, primaryKey []byte, value interface{}) error {
-	secondaryIndexKey, err := i(value)
+func (i IndexerFunc) OnCreate(store sdk.KVStore, rowId uint64, primaryKey []byte, value interface{}) error {
+	secondaryIndexKey, err := i(value) // todo: multiple index keys
 	if err != nil {
 		return err
 	}
 	indexKey := makeIndexPrefixScanKey(secondaryIndexKey, rowId)
 	if !store.Has(indexKey) {
 		store.Set(indexKey, []byte{0})
+	}
+	return nil
+}
+
+func (i IndexerFunc) OnDelete(store sdk.KVStore, rowId uint64, primaryKey []byte, value interface{}) error {
+	secondaryIndexKey, err := i(value) // todo: multiple index keys
+	if err != nil {
+		return err
+	}
+	indexKey := makeIndexPrefixScanKey(secondaryIndexKey, rowId)
+	if store.Has(indexKey) {
+		store.Delete(indexKey)
+	}
+	return nil
+}
+
+func (i IndexerFunc) OnUpdate(store sdk.KVStore, rowId uint64, primaryKey []byte, oldValue, newValue interface{}) error {
+	oldSecIdxKey, err := i(oldValue) // todo: multiple index keys
+	if err != nil {
+		return err
+	}
+	newSecIdxKey, err := i(newValue) // todo: multiple index keys
+	if !bytes.Equal(oldSecIdxKey, newSecIdxKey) {
+		if store.Has(oldSecIdxKey) {
+			store.Delete(oldSecIdxKey)
+		}
+		if !store.Has(newSecIdxKey) {
+			store.Set(newSecIdxKey, []byte{0})
+		}
 	}
 	return nil
 }
@@ -45,20 +74,21 @@ func makeIndexPrefixScanKey(indexKey []byte, rowId uint64) []byte {
 }
 
 type index struct {
-	storeKey    sdk.StoreKey
-	prefix      []byte
-	modelGetter func(ctx HasKVStore, rowId uint64, dest interface{}) (key []byte, err error)
-	indexer     IndexerFunc
+	storeKey  sdk.StoreKey
+	prefix    []byte
+	rowGetter func(ctx HasKVStore, rowId uint64, dest interface{}) (key []byte, err error)
+	indexer   IndexerFunc
 }
 
 func NewIndex(builder TableBuilder, prefix []byte, indexer IndexerFunc) Index {
 	idx := index{
-		storeKey:    builder.StoreKey(),
-		prefix:      prefix,
-		modelGetter: builder.RowGetter(),
-		indexer:     indexer,
+		storeKey:  builder.StoreKey(),
+		prefix:    prefix,
+		rowGetter: builder.RowGetter(),
+		indexer:   indexer,
 	}
 	builder.AddAfterSaveInterceptor(idx.onSave)
+	builder.AddAfterDeleteInterceptor(idx.onDelete)
 	return &idx
 }
 
@@ -77,7 +107,7 @@ func (i index) Has(ctx HasKVStore, key []byte) (bool, error) {
 func (i index) Get(ctx HasKVStore, key []byte) (Iterator, error) {
 	store := prefix.NewStore(ctx.KVStore(i.storeKey), i.prefix)
 	it := store.Iterator(key, nil)
-	return indexIterator{ctx: ctx, it: it, end: key, modelGetter: i.modelGetter}, nil
+	return indexIterator{ctx: ctx, it: it, end: key, modelGetter: i.rowGetter}, nil
 }
 
 func (i index) PrefixScan(ctx HasKVStore, start []byte, end []byte) (Iterator, error) {
@@ -91,11 +121,16 @@ func (i index) ReversePrefixScan(ctx HasKVStore, start []byte, end []byte) (Iter
 func (i index) onSave(ctx HasKVStore, rowID uint64, key []byte, value interface{}) error {
 	// todo: this is the on create indexer, for update the old value may has to be removed
 	store := prefix.NewStore(ctx.KVStore(i.storeKey), i.prefix)
-	err := i.indexer.DoIndex(store, rowID, key, value)
+	err := i.indexer.OnCreate(store, rowID, key, value)
 	if err != nil {
 		return errors.Wrapf(err, "indexer for prefix %X failed", i.prefix)
 	}
 	return nil
+}
+
+func (i index) onDelete(ctx HasKVStore, rowId uint64, key []byte, value interface{}) error {
+	store := prefix.NewStore(ctx.KVStore(i.storeKey), i.prefix)
+	return i.indexer.OnDelete(store, rowId, key, value)
 }
 
 type indexIterator struct {

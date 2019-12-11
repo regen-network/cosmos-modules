@@ -1,6 +1,8 @@
 package orm
 
 import (
+	"reflect"
+
 	"github.com/cosmos/cosmos-sdk/codec"
 	"github.com/cosmos/cosmos-sdk/store/prefix"
 	sdk "github.com/cosmos/cosmos-sdk/types"
@@ -8,23 +10,33 @@ import (
 )
 
 var (
+	// todo: claim codes
 	ErrNotFound     = errors.Register(errors.RootCodespace, 100, "not found")
 	ErrIteratorDone = errors.Register(errors.RootCodespace, 101, "iterator done")
+	ErrType         = errors.Register(errors.RootCodespace, 102, "invalid type")
 )
 
 var _ TableBuilder = &autoUInt64TableBuilder{}
 
-func NewAutoUInt64TableBuilder(prefix []byte, key sdk.StoreKey, cdc *codec.Codec) *autoUInt64TableBuilder {
+func NewAutoUInt64TableBuilder(prefix []byte, key sdk.StoreKey, cdc *codec.Codec, model interface{}) *autoUInt64TableBuilder {
 	if len(prefix) == 0 {
 		panic("prefix must not be empty")
 	}
 	if cdc == nil {
 		panic("codec must not be empty")
 	}
-	return &autoUInt64TableBuilder{prefix: prefix, storeKey: key, cdc: cdc}
+	if model == nil {
+		panic("model must not be empty")
+	}
+	tp := reflect.TypeOf(model)
+	if tp.Kind() == reflect.Ptr {
+		tp = tp.Elem()
+	}
+	return &autoUInt64TableBuilder{prefix: prefix, storeKey: key, cdc: cdc, model: tp}
 }
 
 type autoUInt64TableBuilder struct {
+	model       reflect.Type
 	prefix      []byte
 	storeKey    sdk.StoreKey
 	cdc         *codec.Codec
@@ -53,6 +65,7 @@ func (a autoUInt64TableBuilder) StoreKey() sdk.StoreKey {
 func (a autoUInt64TableBuilder) Build() autoUInt64Table {
 	seq := NewSequence(a.storeKey, a.prefix)
 	return autoUInt64Table{
+		model:       a.model,
 		sequence:    seq,
 		prefix:      a.prefix,
 		storeKey:    a.storeKey,
@@ -73,6 +86,7 @@ func (a *autoUInt64TableBuilder) AddAfterDeleteInterceptor(interceptor AfterDele
 var _ AutoUInt64Table = autoUInt64Table{}
 
 type autoUInt64Table struct {
+	model       reflect.Type
 	prefix      []byte
 	storeKey    sdk.StoreKey
 	cdc         *codec.Codec
@@ -82,6 +96,10 @@ type autoUInt64Table struct {
 }
 
 func (a autoUInt64Table) Create(ctx HasKVStore, obj interface{}) (uint64, error) {
+	if err := a.assertCorrectType(obj); err != nil {
+		return 0, err
+	}
+
 	store := prefix.NewStore(ctx.KVStore(a.storeKey), a.prefix)
 	v, err := a.cdc.MarshalBinaryBare(obj)
 	if err != nil {
@@ -105,6 +123,10 @@ func (a autoUInt64Table) Create(ctx HasKVStore, obj interface{}) (uint64, error)
 }
 
 func (a autoUInt64Table) Save(ctx HasKVStore, rowID uint64, obj interface{}) error {
+	if err := a.assertCorrectType(obj); err != nil {
+		return err
+	}
+
 	store := prefix.NewStore(ctx.KVStore(a.storeKey), a.prefix)
 	v, err := a.cdc.MarshalBinaryBare(obj)
 	if err != nil {
@@ -113,6 +135,40 @@ func (a autoUInt64Table) Save(ctx HasKVStore, rowID uint64, obj interface{}) err
 	// todo: store does not return an error that we can handle or return
 	store.Set(encodeSequence(rowID), v)
 	// todo: impl interceptor calls
+	return nil
+}
+
+func (a autoUInt64Table) assertCorrectType(obj interface{}) error {
+	tp := reflect.TypeOf(obj)
+	if tp.Kind() != reflect.Ptr {
+		return errors.Wrap(ErrType, "model destination must be a pointer")
+	}
+	if a.model != tp.Elem() {
+		return errors.Wrapf(ErrType, "can not use %T with this bucket", obj)
+	}
+	return nil
+}
+
+func (a autoUInt64Table) Delete(ctx HasKVStore, rowID uint64) error {
+	store := prefix.NewStore(ctx.KVStore(a.storeKey), a.prefix)
+	key := encodeSequence(rowID)
+
+	var oldValue = reflect.New(a.model).Interface()
+	it, err := a.Get(ctx, rowID)
+	if err != nil {
+		return err
+	}
+	_, err = it.LoadNext(oldValue)
+	if err != nil {
+		return err
+	}
+	store.Delete(key)
+
+	for i, itc := range a.afterDelete {
+		if err := itc(ctx, rowID, key, oldValue); err != nil {
+			return errors.Wrapf(err, "delete interceptor %d failed", i)
+		}
+	}
 	return nil
 }
 
