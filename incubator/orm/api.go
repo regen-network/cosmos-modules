@@ -87,12 +87,6 @@ type SchemaDescriptor interface {
 	// TODO
 }
 
-// TODO: unused
-type Indexer interface {
-	OnCreate(store sdk.KVStore, rowId uint64, key []byte, value interface{}) error
-	BuildIndex(storeKey sdk.StoreKey, prefix []byte, modelGetter func(ctx HasKVStore, rowId uint64, dest interface{}) (key []byte, err error)) Index
-}
-
 // TableBase provides methods shared by all tables
 // todo: do wee need this?
 type TableBase interface {

@@ -9,11 +9,14 @@ import (
 	"github.com/cosmos/cosmos-sdk/types/errors"
 )
 
+const ormCodespace = "orm"
+
 var (
-	// todo: claim codes
-	ErrNotFound     = errors.Register(errors.RootCodespace, 100, "not found")
-	ErrIteratorDone = errors.Register(errors.RootCodespace, 101, "iterator done")
-	ErrType         = errors.Register(errors.RootCodespace, 102, "invalid type")
+	// todo: ormCodespace ok or do we need to claim error codes somehow?
+	ErrNotFound         = errors.Register(ormCodespace, 100, "not found")
+	ErrIteratorDone     = errors.Register(ormCodespace, 101, "iterator done")
+	ErrType             = errors.Register(ormCodespace, 102, "invalid type")
+	ErrUniqueConstraint = errors.Register(ormCodespace, 103, "unique constraint violation")
 )
 
 var _ TableBuilder = &autoUInt64TableBuilder{}

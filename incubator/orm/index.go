@@ -10,89 +10,19 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 )
 
-
-// IndexerFunc creates or or multiple index keyrs from the source object.
-type IndexerFunc func(value interface{}) ([][]byte, error)
-
-// todo: store is a prefix store. type should be explicit so people know. maybe make this a private method instead?
-func (i IndexerFunc) OnCreate(store sdk.KVStore, rowId uint64, value interface{}) error {
-	secondaryIndexKeys, err := i(value) // todo: multiple index keys?
-	if err != nil {
-		return err
-	}
-	for _, secondaryIndexKey := range secondaryIndexKeys {
-		indexKey := makeIndexPrefixScanKey(secondaryIndexKey, rowId)
-		if !store.Has(indexKey) {
-			store.Set(indexKey, []byte{0})
-		}
-	}
-	return nil
+// indexer creates and modifies the second index based on the operations and changes on the primary object.
+type indexer interface {
+	OnCreate(store sdk.KVStore, rowId uint64, value interface{}) error
+	OnDelete(store sdk.KVStore, rowId uint64, value interface{}) error
+	OnUpdate(store sdk.KVStore, rowId uint64, newValue, oldValue interface{}) error
 }
 
-// todo: same comments as OnCreate
-func (i IndexerFunc) OnDelete(store sdk.KVStore, rowId uint64, value interface{}) error {
-	secondaryIndexKeys, err := i(value) // todo: multiple index keys?
-	if err != nil {
-		return err
-	}
-	for _, secondaryIndexKey := range secondaryIndexKeys {
-		indexKey := makeIndexPrefixScanKey(secondaryIndexKey, rowId)
-		store.Delete(indexKey)
-	}
-	return nil
-}
-
-// todo: same comments as OnCreate
-func (i IndexerFunc) OnUpdate(store sdk.KVStore, rowId uint64, newValue, oldValue interface{}) error {
-	oldSecIdxKeys, err := i(oldValue)
-	if err != nil {
-		return err
-	}
-	newSecIdxKeys, err := i(newValue)
-	if err != nil {
-		return err
-	}
-	for _, oldIdxKey := range difference(oldSecIdxKeys, newSecIdxKeys) {
-		store.Delete(makeIndexPrefixScanKey(oldIdxKey, rowId))
-	}
-	for _, newIdxKey := range difference(newSecIdxKeys, oldSecIdxKeys) {
-		prefixedKey := makeIndexPrefixScanKey(newIdxKey, rowId)
-		if !store.Has(prefixedKey) {
-			store.Set(prefixedKey, []byte{0})
-		}
-	}
-	return nil
-}
-
-// difference returns the list of elements that are in a but not in b.
-func difference(a [][]byte, b [][]byte) [][]byte {
-	set := make(map[string]struct{}, len(b))
-	for _, v := range b {
-		set[string(v)] = struct{}{}
-	}
-	var result [][]byte
-	for _, v := range a {
-		if _, ok := set[string(v)]; !ok {
-			result = append(result, v)
-		}
-	}
-	return result
-}
-
-// todo: this feels quite complicated when reading the data. Why not store rowID(s) as payload instead?
-func makeIndexPrefixScanKey(indexKey []byte, rowId uint64) []byte {
-	n := len(indexKey)
-	res := make([]byte, n+8)
-	copy(res, indexKey)
-	binary.BigEndian.PutUint64(res[n:], rowId)
-	return res
-}
-
+// index is the entry point for all index related operations.
 type index struct {
 	storeKey  sdk.StoreKey
 	prefix    []byte
 	rowGetter func(ctx HasKVStore, rowId uint64, dest interface{}) (key []byte, err error)
-	indexer   IndexerFunc
+	indexer   indexer
 }
 
 func NewIndex(builder TableBuilder, prefix []byte, indexer IndexerFunc) *index {
@@ -100,7 +30,7 @@ func NewIndex(builder TableBuilder, prefix []byte, indexer IndexerFunc) *index {
 		storeKey:  builder.StoreKey(),
 		prefix:    prefix,
 		rowGetter: builder.RowGetter(),
-		indexer:   indexer,
+		indexer:   NewIndexer(indexer, false),
 	}
 	builder.AddAfterSaveInterceptor(idx.onSave)
 	builder.AddAfterDeleteInterceptor(idx.onDelete)
@@ -122,17 +52,6 @@ func (i index) Get(ctx HasKVStore, key []byte) (Iterator, error) {
 	store := prefix.NewStore(ctx.KVStore(i.storeKey), i.prefix)
 	it := store.Iterator(makeIndexPrefixScanKey(key, 0), makeIndexPrefixScanKey(key, math.MaxUint64))
 	return indexIterator{ctx: ctx, it: it, end: key, modelGetter: i.rowGetter}, nil
-}
-
-// RowID looks up the rowID for an index key. Returns ErrNotFound when not exists in index.
-func (i index) RowID(ctx HasKVStore, key []byte) (uint64, error) {
-	// todo: support multiIndex ?
-	store := prefix.NewStore(ctx.KVStore(i.storeKey), i.prefix)
-	it := store.Iterator(makeIndexPrefixScanKey(key, 0), makeIndexPrefixScanKey(key, math.MaxUint64))
-	if !it.Valid() {
-		return 0, ErrNotFound
-	}
-	return stripRowIDFromIndexKey(it.Key()), nil
 }
 
 func (i index) PrefixScan(ctx HasKVStore, start []byte, end []byte) (Iterator, error) {
@@ -158,6 +77,36 @@ func (i index) onDelete(ctx HasKVStore, rowId uint64, key []byte, oldValue inter
 	return i.indexer.OnDelete(store, rowId, oldValue)
 }
 
+type uniqueIndex struct {
+	index
+}
+
+func NewUniqueIndex(builder TableBuilder, prefix []byte, indexerFunc IndexerFunc) *uniqueIndex {
+	idx := uniqueIndex{
+		index: index{
+			storeKey:  builder.StoreKey(),
+			prefix:    prefix,
+			rowGetter: builder.RowGetter(),
+			indexer:   NewIndexer(indexerFunc, true),
+		},
+	}
+	builder.AddAfterSaveInterceptor(idx.onSave)
+	builder.AddAfterDeleteInterceptor(idx.onDelete)
+	return &idx
+}
+
+// RowID looks up the rowID for an index key. Returns ErrNotFound when not exists in index.
+func (i uniqueIndex) RowID(ctx HasKVStore, key []byte) (uint64, error) {
+	store := prefix.NewStore(ctx.KVStore(i.storeKey), i.prefix)
+	it := store.Iterator(makeIndexPrefixScanKey(key, 0), makeIndexPrefixScanKey(key, math.MaxUint64))
+	defer it.Close()
+	if !it.Valid() {
+		return 0, ErrNotFound
+	}
+	return stripRowIDFromIndexKey(it.Key()), nil
+}
+
+// indexIterator uses modelGetter to lazy load new model values on request.
 type indexIterator struct {
 	ctx         HasKVStore
 	modelGetter func(ctx HasKVStore, rowId uint64, dest interface{}) (key []byte, err error)

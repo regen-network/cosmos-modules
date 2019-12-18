@@ -188,7 +188,7 @@ func TestKeeperEndToEndWithNaturalKeyTable(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error: %+v", err)
 	}
-	// then
+	// then values should match as before
 	rowID, err = First(it, &loaded)
 	if err != nil {
 		t.Fatalf("unexpected error: %+v", err)
@@ -200,6 +200,13 @@ func TestKeeperEndToEndWithNaturalKeyTable(t *testing.T) {
 	if exp, got := m, loaded; !reflect.DeepEqual(exp, got) {
 		t.Errorf("expected %v but got %v", exp, got)
 	}
+	// and when we create another entry with the same natural key
+	err = k.groupMemberTable.Create(ctx, &m)
+	// then it should fail as the natural key must be unique
+	if !ErrUniqueConstraint.Is(err) {
+		t.Fatal("expected error but got %#V", err)
+	}
+
 	// and when entity updated with new natural key
 	updatedMember := &GroupMember{
 		Group:  m.Group,
@@ -210,7 +217,7 @@ func TestKeeperEndToEndWithNaturalKeyTable(t *testing.T) {
 
 	// then it should fail as the natural key is immutable
 	if err == nil {
-		t.Fatalf("unexpected error: %+v", err)
+		t.Fatal("expected error but got nil")
 	}
 	// and when entity updated with non natural key attribute modified
 	updatedMember = &GroupMember{
