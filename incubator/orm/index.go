@@ -10,49 +10,73 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 )
 
-type IndexerFunc func(value interface{}) ([]byte, error)
 
-// todo: primary key is unused. same as rowID anyway
+// IndexerFunc creates or or multiple index keyrs from the source object.
+type IndexerFunc func(value interface{}) ([][]byte, error)
+
 // todo: store is a prefix store. type should be explicit so people know. maybe make this a private method instead?
-func (i IndexerFunc) OnCreate(store sdk.KVStore, rowId uint64, primaryKey []byte, value interface{}) error {
-	secondaryIndexKey, err := i(value) // todo: multiple index keys?
+func (i IndexerFunc) OnCreate(store sdk.KVStore, rowId uint64, value interface{}) error {
+	secondaryIndexKeys, err := i(value) // todo: multiple index keys?
 	if err != nil {
 		return err
 	}
-	indexKey := makeIndexPrefixScanKey(secondaryIndexKey, rowId)
-	if !store.Has(indexKey) {
-		store.Set(indexKey, []byte{0})
+	for _, secondaryIndexKey := range secondaryIndexKeys {
+		indexKey := makeIndexPrefixScanKey(secondaryIndexKey, rowId)
+		if !store.Has(indexKey) {
+			store.Set(indexKey, []byte{0})
+		}
 	}
 	return nil
 }
 
 // todo: same comments as OnCreate
-func (i IndexerFunc) OnDelete(store sdk.KVStore, rowId uint64, primaryKey []byte, value interface{}) error {
-	secondaryIndexKey, err := i(value) // todo: multiple index keys?
+func (i IndexerFunc) OnDelete(store sdk.KVStore, rowId uint64, value interface{}) error {
+	secondaryIndexKeys, err := i(value) // todo: multiple index keys?
 	if err != nil {
 		return err
 	}
-	indexKey := makeIndexPrefixScanKey(secondaryIndexKey, rowId)
-	store.Delete(indexKey)
+	for _, secondaryIndexKey := range secondaryIndexKeys {
+		indexKey := makeIndexPrefixScanKey(secondaryIndexKey, rowId)
+		store.Delete(indexKey)
+	}
 	return nil
 }
 
 // todo: same comments as OnCreate
-func (i IndexerFunc) OnUpdate(store sdk.KVStore, rowId uint64, primaryKey []byte, newValue, oldValue interface{}) error {
-	oldSecIdxKey, err := i(oldValue) // todo: multiple index keys?
+func (i IndexerFunc) OnUpdate(store sdk.KVStore, rowId uint64, newValue, oldValue interface{}) error {
+	oldSecIdxKeys, err := i(oldValue)
 	if err != nil {
 		return err
 	}
-	newSecIdxKey, err := i(newValue) // todo: multiple index keys?
-	if bytes.Equal(oldSecIdxKey, newSecIdxKey) {
-		return nil
+	newSecIdxKeys, err := i(newValue)
+	if err != nil {
+		return err
 	}
-	store.Delete(makeIndexPrefixScanKey(oldSecIdxKey, rowId))
-	prefixedKey := makeIndexPrefixScanKey(newSecIdxKey, rowId)
-	if !store.Has(prefixedKey) {
-		store.Set(prefixedKey, []byte{0})
+	for _, oldIdxKey := range difference(oldSecIdxKeys, newSecIdxKeys) {
+		store.Delete(makeIndexPrefixScanKey(oldIdxKey, rowId))
+	}
+	for _, newIdxKey := range difference(newSecIdxKeys, oldSecIdxKeys) {
+		prefixedKey := makeIndexPrefixScanKey(newIdxKey, rowId)
+		if !store.Has(prefixedKey) {
+			store.Set(prefixedKey, []byte{0})
+		}
 	}
 	return nil
+}
+
+// difference returns the list of elements that are in a but not in b.
+func difference(a [][]byte, b [][]byte) [][]byte {
+	set := make(map[string]struct{}, len(b))
+	for _, v := range b {
+		set[string(v)] = struct{}{}
+	}
+	var result [][]byte
+	for _, v := range a {
+		if _, ok := set[string(v)]; !ok {
+			result = append(result, v)
+		}
+	}
+	return result
 }
 
 // todo: this feels quite complicated when reading the data. Why not store rowID(s) as payload instead?
@@ -123,15 +147,15 @@ func (i index) onSave(ctx HasKVStore, rowID uint64, key []byte, newValue, oldVal
 	// todo: this is the on create indexer, for update the old value may has to be removed
 	store := prefix.NewStore(ctx.KVStore(i.storeKey), i.prefix)
 	if oldValue == nil {
-		return i.indexer.OnCreate(store, rowID, key, newValue)
+		return i.indexer.OnCreate(store, rowID, newValue)
 	}
-	return i.indexer.OnUpdate(store, rowID, key, newValue, oldValue)
+	return i.indexer.OnUpdate(store, rowID, newValue, oldValue)
 
 }
 
 func (i index) onDelete(ctx HasKVStore, rowId uint64, key []byte, oldValue interface{}) error {
 	store := prefix.NewStore(ctx.KVStore(i.storeKey), i.prefix)
-	return i.indexer.OnDelete(store, rowId, key, oldValue)
+	return i.indexer.OnDelete(store, rowId, oldValue)
 }
 
 type indexIterator struct {
@@ -162,12 +186,12 @@ func (i indexIterator) LoadNext(dest interface{}) (key []byte, err error) {
 	return i.modelGetter(i.ctx, rowId, dest)
 }
 
-func stripRowIDFromIndexKey(indexPrefixKey []byte) uint64 {
-	n := len(indexPrefixKey)
-	return binary.BigEndian.Uint64(indexPrefixKey[n-8:])
-}
-
 func (i indexIterator) Close() error {
 	i.it.Close()
 	return nil
+}
+
+func stripRowIDFromIndexKey(indexPrefixKey []byte) uint64 {
+	n := len(indexPrefixKey)
+	return binary.BigEndian.Uint64(indexPrefixKey[n-8:])
 }

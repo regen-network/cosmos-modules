@@ -14,8 +14,8 @@ type naturalKeyer func(val interface{}) []byte // todo: note: in the api design 
 func NewNaturalKeyTableBuilder(prefix []byte, key sdk.StoreKey, cdc *codec.Codec, model interface{}, getPrimaryKey naturalKeyer) *naturalKeyTableBuilder {
 	builder := NewAutoUInt64TableBuilder(prefix, key, cdc, model)
 
-	idx := NewIndex(builder, naturalKeyIndexPrefix, func(value interface{}) (bytes []byte, err error) {
-		return getPrimaryKey(value), nil
+	idx := NewIndex(builder, naturalKeyIndexPrefix, func(value interface{}) (bytes [][]byte, err error) {
+		return [][]byte{getPrimaryKey(value)}, nil
 	})
 	return &naturalKeyTableBuilder{
 		naturalKeyIndex:        idx,

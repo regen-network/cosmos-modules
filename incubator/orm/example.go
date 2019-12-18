@@ -57,8 +57,8 @@ func NewGroupKeeper(storeKey sdk.StoreKey, cdc *codec.Codec) GroupKeeper {
 
 	groupTableBuilder := NewAutoUInt64TableBuilder(GroupTablePrefix, storeKey, cdc, &GroupMetadata{})
 	// note: quite easy to mess with Index prefixes when managed outside. no fail fast on duplicates
-	k.groupByAdminIndex = NewIndex(groupTableBuilder, GroupByAdminIndexPrefix, func(val interface{}) ([]byte, error) {
-		return val.(*GroupMetadata).Admin, nil
+	k.groupByAdminIndex = NewIndex(groupTableBuilder, GroupByAdminIndexPrefix, func(val interface{}) ([][]byte, error) {
+		return [][]byte{val.(*GroupMetadata).Admin}, nil
 	})
 	k.groupTable = groupTableBuilder.Build()
 
@@ -66,12 +66,12 @@ func NewGroupKeeper(storeKey sdk.StoreKey, cdc *codec.Codec) GroupKeeper {
 	groupMemberTableBuilder := NewNaturalKeyTableBuilder(GroupMemberTablePrefix, storeKey, cdc, &GroupMember{}, func(val interface{}) []byte {
 		return val.(*GroupMember).ID()
 	})
-	k.groupMemberByGroupIndex = NewIndex(groupMemberTableBuilder, GroupMemberByGroupIndexPrefix, func(val interface{}) ([]byte, error) {
+	k.groupMemberByGroupIndex = NewIndex(groupMemberTableBuilder, GroupMemberByGroupIndexPrefix, func(val interface{}) ([][]byte, error) {
 		group := val.(*GroupMember).Group
-		return group, nil
+		return [][]byte{group}, nil
 	})
-	k.groupMemberByMemberIndex = NewIndex(groupMemberTableBuilder, GroupMemberByMemberIndexPrefix, func(val interface{}) ([]byte, error) {
-		return val.(*GroupMember).Member, nil
+	k.groupMemberByMemberIndex = NewIndex(groupMemberTableBuilder, GroupMemberByMemberIndexPrefix, func(val interface{}) ([][]byte, error) {
+		return [][]byte{val.(*GroupMember).Member}, nil
 	})
 	k.groupMemberTable = groupMemberTableBuilder.Build()
 
