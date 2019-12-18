@@ -37,7 +37,7 @@ func (m MockContext) KVStore(key sdk.StoreKey) sdk.KVStore {
 	return m.store.GetCommitKVStore(key)
 }
 
-func TestKeeperEndToEnd(t *testing.T) {
+func TestKeeperEndToEndWithAutoUInt64Table(t *testing.T) {
 	storeKey := sdk.NewKVStoreKey("test")
 	cdc := codec.New()
 	ctx := NewMockContext()
@@ -125,13 +125,132 @@ func TestKeeperEndToEnd(t *testing.T) {
 	}
 }
 
-func first(t *testing.T, it Iterator) ([]byte, GroupMetadata) {
-	t.Helper()
-	defer it.Close()
-	var loaded GroupMetadata
-	binKey, err := it.LoadNext(&loaded)
+func TestKeeperEndToEndWithNaturalKeyTable(t *testing.T) {
+	storeKey := sdk.NewKVStoreKey("test")
+	cdc := codec.New()
+	ctx := NewMockContext()
+
+	k := NewGroupKeeper(storeKey, cdc)
+
+	g := GroupMetadata{
+		Description: "my test",
+		Admin:       sdk.AccAddress([]byte("admin-address")),
+	}
+	groupPrimKey := EncodeSequence(1)
+	m := GroupMember{
+		Group:  sdk.AccAddress(groupPrimKey),
+		Member: sdk.AccAddress([]byte("member-address")),
+		Weight: sdk.NewInt(10),
+	}
+	if _, err := k.groupTable.Create(ctx, &g); err != nil {
+		t.Fatalf("unexpected error: %+v", err)
+	}
+	// when stored
+	err := k.groupMemberTable.Create(ctx, &m)
 	if err != nil {
 		t.Fatalf("unexpected error: %+v", err)
 	}
-	return binKey, loaded
+
+	// then we should find it by natural key
+	naturalKey := m.ID()
+	exists, _ := k.groupMemberTable.Has(ctx, naturalKey)
+	if exp, got := true, exists; exp != got {
+		t.Fatalf("expected %v but got %v", exp, got)
+	}
+	// and load it by natural key
+	it, err := k.groupMemberTable.Get(ctx, naturalKey)
+	if err != nil {
+		t.Fatalf("unexpected error: %+v", err)
+	}
+	var loaded GroupMember
+	rowID, err := First(it, &loaded)
+	if err != nil {
+		t.Fatalf("unexpected error: %+v", err)
+	}
+	// then values should match expectations
+	if exp, got := EncodeSequence(1), rowID; !bytes.Equal(exp, got) {
+		t.Fatalf("expected %X but got %X", exp, got)
+	}
+	if exp, got := m, loaded; !reflect.DeepEqual(exp, got) {
+		t.Fatalf("expected %#v but got %#v", exp, got)
+	}
+
+	// and then the data should exists in index
+	exists, err = k.groupMemberByGroupIndex.Has(ctx, groupPrimKey)
+	if err != nil {
+		t.Fatalf("unexpected error: %+v", err)
+	}
+	if !exists {
+		t.Fatalf("expected entry to exist")
+	}
+	// and when loaded from index
+	it, err = k.groupMemberByGroupIndex.Get(ctx, groupPrimKey)
+	if err != nil {
+		t.Fatalf("unexpected error: %+v", err)
+	}
+	// then
+	rowID, err = First(it, &loaded)
+	if err != nil {
+		t.Fatalf("unexpected error: %+v", err)
+	}
+
+	if exp, got := groupPrimKey, rowID; !bytes.Equal(exp, got) {
+		t.Errorf("expected %X but got %X", exp, got)
+	}
+	if exp, got := m, loaded; !reflect.DeepEqual(exp, got) {
+		t.Errorf("expected %v but got %v", exp, got)
+	}
+	// and when entity updated with new natural key
+	updatedMember := &GroupMember{
+		Group:  m.Group,
+		Member: []byte("new-member-address"),
+		Weight: m.Weight,
+	}
+	err = k.groupMemberTable.Save(ctx, updatedMember)
+
+	// then it should fail as the natural key is immutable
+	if err == nil {
+		t.Fatalf("unexpected error: %+v", err)
+	}
+	// and when entity updated with non natural key attribute modified
+	updatedMember = &GroupMember{
+		Group:  m.Group,
+		Member: m.Member,
+		Weight: sdk.NewInt(99),
+	}
+	err = k.groupMemberTable.Save(ctx, updatedMember)
+
+	// then it should not fail
+	if err != nil {
+		t.Fatalf("unexpected error: %+v", err)
+	}
+
+	// and when entity deleted
+	err = k.groupMemberTable.Delete(ctx, m)
+	if err != nil {
+		t.Fatalf("unexpected error: %+v", err)
+	}
+	// then it is removed from natural key index
+	exists, err = k.groupMemberTable.Has(ctx, naturalKey)
+	if err != nil {
+		t.Fatalf("unexpected error: %+v", err)
+	}
+	if exp, got := false, exists; exp != got {
+		t.Errorf("expected %v but got %v", exp, got)
+	}
+	// and removed from secondary index
+	exists, _ = k.groupMemberByGroupIndex.Has(ctx, groupPrimKey)
+	if exp, got := false, exists; exp != got {
+		t.Fatalf("expected %v but got %v", exp, got)
+	}
+}
+
+func first(t *testing.T, it Iterator) ([]byte, GroupMetadata) {
+	t.Helper()
+	var loaded GroupMetadata
+	key, err := First(it, &loaded)
+	if err != nil {
+		t.Fatalf("unexpected error: %+v", err)
+	}
+	return key, loaded
 }

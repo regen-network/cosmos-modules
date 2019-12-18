@@ -48,7 +48,7 @@ type autoUInt64TableBuilder struct {
 func (a autoUInt64TableBuilder) RowGetter() RowGetter {
 	return func(ctx HasKVStore, rowId uint64, dest interface{}) ([]byte, error) {
 		store := prefix.NewStore(ctx.KVStore(a.storeKey), a.prefix)
-		key := encodeSequence(rowId)
+		key := EncodeSequence(rowId)
 		val := store.Get(key)
 		// todo: how to handle not found?
 		if val == nil {
@@ -111,7 +111,7 @@ func (a autoUInt64Table) Create(ctx HasKVStore, obj interface{}) (uint64, error)
 	}
 
 	// todo: store does not return an error that we can handle or return
-	key := encodeSequence(rowID)
+	key := EncodeSequence(rowID)
 	store.Set(key, v)
 	for i, itc := range a.afterSave {
 		if err := itc(ctx, rowID, key, obj, nil); err != nil {
@@ -143,7 +143,7 @@ func (a autoUInt64Table) Save(ctx HasKVStore, rowID uint64, newValue interface{}
 		return errors.Wrapf(err, "failed to serialize %T", newValue)
 	}
 	// todo: store does not return an error that we can handle or return
-	key := encodeSequence(rowID)
+	key := EncodeSequence(rowID)
 	store.Set(key, v)
 	// todo: impl interceptor calls
 	for i, itc := range a.afterSave {
@@ -167,7 +167,7 @@ func (a autoUInt64Table) assertCorrectType(obj interface{}) error {
 
 func (a autoUInt64Table) Delete(ctx HasKVStore, rowID uint64) error {
 	store := prefix.NewStore(ctx.KVStore(a.storeKey), a.prefix)
-	key := encodeSequence(rowID)
+	key := EncodeSequence(rowID)
 
 	var oldValue = reflect.New(a.model).Interface()
 	it, err := a.Get(ctx, rowID)
@@ -191,12 +191,12 @@ func (a autoUInt64Table) Delete(ctx HasKVStore, rowID uint64) error {
 // todo: there is no error result as store would panic
 func (a autoUInt64Table) Has(ctx HasKVStore, id uint64) (bool, error) {
 	store := prefix.NewStore(ctx.KVStore(a.storeKey), a.prefix)
-	return store.Has(encodeSequence(id)), nil
+	return store.Has(EncodeSequence(id)), nil
 }
 
 func (a autoUInt64Table) Get(ctx HasKVStore, id uint64) (Iterator, error) {
 	store := prefix.NewStore(ctx.KVStore(a.storeKey), a.prefix)
-	key := encodeSequence(id)
+	key := EncodeSequence(id)
 	val := store.Get(key)
 	if val == nil {
 		return nil, ErrNotFound // todo: discuss how to handle this scenario if we drop error return parameter
@@ -210,25 +210,4 @@ func (a autoUInt64Table) PrefixScan(ctx HasKVStore, start uint64, end uint64) (I
 
 func (a autoUInt64Table) ReversePrefixScan(ctx HasKVStore, start uint64, end uint64) (Iterator, error) {
 	panic("implement me")
-}
-
-type iteratorFunc func(dest interface{}) (key []byte, err error)
-
-func (i iteratorFunc) LoadNext(dest interface{}) (key []byte, err error) {
-	return i(dest)
-}
-
-func (i iteratorFunc) Close() error {
-	return nil
-}
-
-func NewSingleValueIterator(cdc *codec.Codec, key []byte, val []byte) Iterator {
-	var closed bool
-	return iteratorFunc(func(dest interface{}) ([]byte, error) {
-		if closed || val == nil {
-			return nil, ErrIteratorDone
-		}
-		closed = true
-		return key, cdc.UnmarshalBinaryBare(val, dest)
-	})
 }

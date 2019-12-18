@@ -20,6 +20,10 @@ type Index interface {
 	ReversePrefixScan(ctx HasKVStore, start []byte, end []byte) (Iterator, error)
 }
 
+type RowIDAwareIndex interface {
+	RowID(ctx HasKVStore, key []byte) (uint64, error)
+}
+
 // UniqueIndex is stored as key = indexKey, and value = rowId
 type UniqueIndex interface {
 	Index
@@ -44,15 +48,19 @@ type UInt64Index interface {
 	ReversePrefixScan(ctx HasKVStore, start uint64, end uint64) (Iterator, error)
 }
 
+// todo: what is the difference between this and TableBase
 type Table interface {
 	UniqueIndex
-	Save(ctx HasKVStore, value interface{}) error
+	// Save without the primKey may copy the object. For example when a new member is added, the primKeyer
+	// would return a new key.
+	Save(ctx HasKVStore, primKey []byte, value interface{}) error
 }
 
 //Iterator allows iteration through a sequence of key value pairs
 type Iterator interface {
 	// LoadNext loads the next value in the sequence into the pointer passed as dest and returns the key. If there
 	// are no more items an error is returned
+	// todo: Returns the "natural key" or the rowID in case of a naturalKeyTable?
 	LoadNext(dest interface{}) (key []byte, err error)
 	// Close releases the iterator and should be called at the end of iteration
 	io.Closer
@@ -78,16 +86,17 @@ type SchemaManager interface {
 type SchemaDescriptor interface {
 	// TODO
 }
+
+// TODO: unused
 type Indexer interface {
 	OnCreate(store sdk.KVStore, rowId uint64, key []byte, value interface{}) error
 	BuildIndex(storeKey sdk.StoreKey, prefix []byte, modelGetter func(ctx HasKVStore, rowId uint64, dest interface{}) (key []byte, err error)) Index
 }
 
 // TableBase provides methods shared by all tables
+// todo: do wee need this?
 type TableBase interface {
 	UniqueIndex
-	// Delete deletes the value at the given key
-	Delete(ctx HasKVStore, key []byte) error
 }
 
 //
@@ -108,7 +117,9 @@ type HasID interface {
 type NaturalKeyTable interface {
 	TableBase
 	// Save saves the value passed in
+	Create(ctx HasKVStore, value HasID) error
 	Save(ctx HasKVStore, value HasID) error
+	Delete(ctx HasKVStore, value HasID) error
 }
 
 //

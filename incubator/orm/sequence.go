@@ -28,9 +28,9 @@ func (s sequence) NextVal(ctx HasKVStore) (uint64, error) {
 	store := prefix.NewStore(ctx.KVStore(s.storeKey), s.prefix)
 	// TODO: store does not return an error. inconsistent method signature above
 	v := store.Get(s.seqKey)
-	seq := decodeSequence(v)
+	seq := DecodeSequence(v)
 	seq += 1
-	store.Set(s.seqKey, encodeSequence(seq))
+	store.Set(s.seqKey, EncodeSequence(seq))
 	return seq, nil
 }
 
@@ -39,10 +39,11 @@ func (s sequence) CurVal(ctx HasKVStore) (uint64, error) {
 	store := prefix.NewStore(ctx.KVStore(s.storeKey), s.prefix)
 	// TODO: store does not return an error. inconsistent method signature above
 	v := store.Get(s.seqKey)
-	return decodeSequence(v), nil
+	return DecodeSequence(v), nil
 }
 
-func decodeSequence(bz []byte) uint64 {
+// DecodeSequence converts the binary representation into an Uint64 value.
+func DecodeSequence(bz []byte) uint64 {
 	if bz == nil {
 		return 0
 	}
@@ -50,7 +51,8 @@ func decodeSequence(bz []byte) uint64 {
 	return val
 }
 
-func encodeSequence(val uint64) []byte {
+// EncodeSequence converts the sequence value into the binary representation.
+func EncodeSequence(val uint64) []byte {
 	bz := make([]byte, 8)
 	binary.BigEndian.PutUint64(bz, val)
 	return bz

@@ -3,15 +3,12 @@ package orm
 import (
 	"bytes"
 	"encoding/binary"
-	"fmt"
 	"math"
 
 	"github.com/cosmos/cosmos-sdk/store/prefix"
 	"github.com/cosmos/cosmos-sdk/store/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 )
-
-var _ Indexer = IndexerFunc(nil)
 
 type IndexerFunc func(value interface{}) ([]byte, error)
 
@@ -58,11 +55,6 @@ func (i IndexerFunc) OnUpdate(store sdk.KVStore, rowId uint64, primaryKey []byte
 	return nil
 }
 
-// TODO: remove function. there should only be 1 way to create an indexer: NewIndex
-func (i IndexerFunc) BuildIndex(storeKey sdk.StoreKey, prefix []byte, modelGetter func(ctx HasKVStore, rowId uint64, dest interface{}) (key []byte, err error)) Index {
-	panic("what should we do here?")
-}
-
 // todo: this feels quite complicated when reading the data. Why not store rowID(s) as payload instead?
 func makeIndexPrefixScanKey(indexKey []byte, rowId uint64) []byte {
 	n := len(indexKey)
@@ -79,7 +71,7 @@ type index struct {
 	indexer   IndexerFunc
 }
 
-func NewIndex(builder TableBuilder, prefix []byte, indexer IndexerFunc) Index {
+func NewIndex(builder TableBuilder, prefix []byte, indexer IndexerFunc) *index {
 	idx := index{
 		storeKey:  builder.StoreKey(),
 		prefix:    prefix,
@@ -104,8 +96,19 @@ func (i index) Has(ctx HasKVStore, key []byte) (bool, error) {
 
 func (i index) Get(ctx HasKVStore, key []byte) (Iterator, error) {
 	store := prefix.NewStore(ctx.KVStore(i.storeKey), i.prefix)
-	it := store.Iterator(key, nil)
+	it := store.Iterator(makeIndexPrefixScanKey(key, 0), makeIndexPrefixScanKey(key, math.MaxUint64))
 	return indexIterator{ctx: ctx, it: it, end: key, modelGetter: i.rowGetter}, nil
+}
+
+// RowID looks up the rowID for an index key. Returns ErrNotFound when not exists in index.
+func (i index) RowID(ctx HasKVStore, key []byte) (uint64, error) {
+	// todo: support multiIndex ?
+	store := prefix.NewStore(ctx.KVStore(i.storeKey), i.prefix)
+	it := store.Iterator(makeIndexPrefixScanKey(key, 0), makeIndexPrefixScanKey(key, math.MaxUint64))
+	if !it.Valid() {
+		return 0, ErrNotFound
+	}
+	return stripRowIDFromIndexKey(it.Key()), nil
 }
 
 func (i index) PrefixScan(ctx HasKVStore, start []byte, end []byte) (Iterator, error) {
@@ -141,7 +144,7 @@ type indexIterator struct {
 
 func (i indexIterator) LoadNext(dest interface{}) (key []byte, err error) {
 	if !i.it.Valid() {
-		return nil, fmt.Errorf("not found")
+		return nil, err
 	}
 	indexPrefixKey := i.it.Key()
 	n := len(indexPrefixKey)
@@ -149,14 +152,19 @@ func (i indexIterator) LoadNext(dest interface{}) (key []byte, err error) {
 	cmp := bytes.Compare(indexKey, i.end)
 	if i.end != nil {
 		if !i.reverse && cmp > 0 {
-			return nil, fmt.Errorf("not found")
+			return nil, err
 		} else if i.reverse && cmp < 0 {
-			return nil, fmt.Errorf("not found")
+			return nil, err
 		}
 	}
-	rowId := binary.BigEndian.Uint64(indexPrefixKey[n-8:])
+	rowId := stripRowIDFromIndexKey(indexPrefixKey)
 	i.it.Next()
 	return i.modelGetter(i.ctx, rowId, dest)
+}
+
+func stripRowIDFromIndexKey(indexPrefixKey []byte) uint64 {
+	n := len(indexPrefixKey)
+	return binary.BigEndian.Uint64(indexPrefixKey[n-8:])
 }
 
 func (i indexIterator) Close() error {
