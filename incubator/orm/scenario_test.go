@@ -1,15 +1,15 @@
 package orm
 
 import (
-	"bytes"
 	"encoding/binary"
-	"reflect"
 	"testing"
 
 	"github.com/cosmos/cosmos-sdk/codec"
 	"github.com/cosmos/cosmos-sdk/store"
 	"github.com/cosmos/cosmos-sdk/store/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	dbm "github.com/tendermint/tm-db"
 )
 
@@ -50,79 +50,62 @@ func TestKeeperEndToEndWithAutoUInt64Table(t *testing.T) {
 	}
 	// when stored
 	rowID, err := k.groupTable.Create(ctx, &g)
-	if err != nil {
-		t.Fatalf("unexpected error: %+v", err)
-	}
+	require.NoError(t, err)
 	// then we should find it
-	exists, _ := k.groupTable.Has(ctx, rowID)
-	if exp, got := true, exists; exp != got {
-		t.Fatalf("expected %v but got %v", exp, got)
-	}
+	exists, err := k.groupTable.Has(ctx, rowID)
+	require.NoError(t, err)
+	require.True(t, exists)
+
 	// and load it
 	it, err := k.groupTable.Get(ctx, rowID)
-	if err != nil {
-		t.Fatalf("unexpected error: %+v", err)
-	}
+	require.NoError(t, err)
+
 	binKey, loaded := first(t, it)
-	if exp, got := rowID, binary.BigEndian.Uint64(binKey); exp != got {
-		t.Errorf("expected %v but got %v", exp, got)
-	}
-	if exp, got := "my test", loaded.Description; exp != got {
-		t.Errorf("expected %v but got %v", exp, got)
-	}
-	if exp, got := sdk.AccAddress([]byte("admin-address")), loaded.Admin; !bytes.Equal(exp, got) {
-		t.Errorf("expected %X but got %X", exp, got)
-	}
+	assert.Equal(t, rowID, binary.BigEndian.Uint64(binKey))
+	assert.Equal(t, "my test", loaded.Description)
+	assert.Equal(t, sdk.AccAddress([]byte("admin-address")), loaded.Admin)
+
 	// and exists in index
 	exists, err = k.groupByAdminIndex.Has(ctx, []byte("admin-address"))
-	if err != nil {
-		t.Fatalf("unexpected error: %+v", err)
-	}
-	if !exists {
-		t.Fatalf("expected entry to exist")
-	}
+	require.NoError(t, err)
+	require.True(t, exists)
+
 	// and when loaded
 	it, err = k.groupByAdminIndex.Get(ctx, []byte("admin-address"))
-	if err != nil {
-		t.Fatalf("unexpected error: %+v", err)
-	}
+	require.NoError(t, err)
+
 	// then
 	binKey, loaded = first(t, it)
-	if exp, got := rowID, binary.BigEndian.Uint64(binKey); exp != got {
-		t.Errorf("expected %v but got %v", exp, got)
-	}
-	if exp, got := g, loaded; !reflect.DeepEqual(exp, got) {
-		t.Errorf("expected %v but got %v", exp, got)
-	}
+	assert.Equal(t, rowID, binary.BigEndian.Uint64(binKey))
+	assert.Equal(t, g, loaded)
+
 	// when updated
 	g.Admin = []byte("new-admin-address")
 	err = k.groupTable.Save(ctx, rowID, &g)
-	if err != nil {
-		t.Fatalf("unexpected error: %+v", err)
-	}
+	require.NoError(t, err)
+
 	// then indexes are updated, too
-	exists, _ = k.groupByAdminIndex.Has(ctx, []byte("new-admin-address"))
-	if exp, got := true, exists; exp != got {
-		t.Fatalf("expected %v but got %v", exp, got)
-	}
-	exists, _ = k.groupByAdminIndex.Has(ctx, []byte("admin-address"))
-	if exp, got := false, exists; exp != got {
-		t.Fatalf("expected %v but got %v", exp, got)
-	}
+	exists, err = k.groupByAdminIndex.Has(ctx, []byte("new-admin-address"))
+	require.NoError(t, err)
+	require.True(t, exists)
+
+	exists, err = k.groupByAdminIndex.Has(ctx, []byte("admin-address"))
+	require.NoError(t, err)
+	require.False(t, exists)
 
 	// when deleted
-	k.groupTable.Delete(ctx, rowID)
+	err = k.groupTable.Delete(ctx, rowID)
+	require.NoError(t, err)
 
 	// then removed from primary index
-	exists, _ = k.groupTable.Has(ctx, rowID)
-	if exp, got := false, exists; exp != got {
-		t.Fatalf("expected %v but got %v", exp, got)
-	}
+	exists, err = k.groupTable.Has(ctx, rowID)
+	require.NoError(t, err)
+	require.False(t, exists)
+
 	// and also removed from secondary index
-	exists, _ = k.groupByAdminIndex.Has(ctx, []byte("new-admin-address"))
-	if exp, got := false, exists; exp != got {
-		t.Fatalf("expected %v but got %v", exp, got)
-	}
+	exists, err = k.groupByAdminIndex.Has(ctx, []byte("new-admin-address"))
+	require.NoError(t, err)
+	require.False(t, exists)
 }
 
 func TestKeeperEndToEndWithNaturalKeyTable(t *testing.T) {
@@ -136,76 +119,54 @@ func TestKeeperEndToEndWithNaturalKeyTable(t *testing.T) {
 		Description: "my test",
 		Admin:       sdk.AccAddress([]byte("admin-address")),
 	}
-	groupPrimKey := EncodeSequence(1)
+
 	m := GroupMember{
-		Group:  sdk.AccAddress(groupPrimKey),
+		Group:  sdk.AccAddress(EncodeSequence(1)),
 		Member: sdk.AccAddress([]byte("member-address")),
 		Weight: sdk.NewInt(10),
 	}
-	if _, err := k.groupTable.Create(ctx, &g); err != nil {
-		t.Fatalf("unexpected error: %+v", err)
-	}
+	groupRowID, err := k.groupTable.Create(ctx, &g)
+	require.NoError(t, err)
+	require.Equal(t, uint64(1), groupRowID)
 	// when stored
-	err := k.groupMemberTable.Create(ctx, &m)
-	if err != nil {
-		t.Fatalf("unexpected error: %+v", err)
-	}
+	err = k.groupMemberTable.Create(ctx, &m)
+	require.NoError(t, err)
 
 	// then we should find it by natural key
 	naturalKey := m.ID()
 	exists, _ := k.groupMemberTable.Has(ctx, naturalKey)
-	if exp, got := true, exists; exp != got {
-		t.Fatalf("expected %v but got %v", exp, got)
-	}
+	require.True(t, exists)
 	// and load it by natural key
 	it, err := k.groupMemberTable.Get(ctx, naturalKey)
-	if err != nil {
-		t.Fatalf("unexpected error: %+v", err)
-	}
+	require.NoError(t, err)
+
 	var loaded GroupMember
 	rowID, err := First(it, &loaded)
-	if err != nil {
-		t.Fatalf("unexpected error: %+v", err)
-	}
+	require.NoError(t, err)
+
 	// then values should match expectations
-	if exp, got := EncodeSequence(1), rowID; !bytes.Equal(exp, got) {
-		t.Fatalf("expected %X but got %X", exp, got)
-	}
-	if exp, got := m, loaded; !reflect.DeepEqual(exp, got) {
-		t.Fatalf("expected %#v but got %#v", exp, got)
-	}
+	require.Equal(t, EncodeSequence(1), rowID)
+	require.Equal(t, m, loaded)
 
 	// and then the data should exists in index
-	exists, err = k.groupMemberByGroupIndex.Has(ctx, groupPrimKey)
-	if err != nil {
-		t.Fatalf("unexpected error: %+v", err)
-	}
-	if !exists {
-		t.Fatalf("expected entry to exist")
-	}
+	exists, err = k.groupMemberByGroupIndex.Has(ctx, EncodeSequence(groupRowID))
+	require.NoError(t, err)
+	require.True(t, exists)
+
 	// and when loaded from index
-	it, err = k.groupMemberByGroupIndex.Get(ctx, groupPrimKey)
-	if err != nil {
-		t.Fatalf("unexpected error: %+v", err)
-	}
+	it, err = k.groupMemberByGroupIndex.Get(ctx, EncodeSequence(groupRowID))
+	require.NoError(t, err)
+
 	// then values should match as before
 	rowID, err = First(it, &loaded)
-	if err != nil {
-		t.Fatalf("unexpected error: %+v", err)
-	}
+	require.NoError(t, err)
 
-	if exp, got := groupPrimKey, rowID; !bytes.Equal(exp, got) {
-		t.Errorf("expected %X but got %X", exp, got)
-	}
-	if exp, got := m, loaded; !reflect.DeepEqual(exp, got) {
-		t.Errorf("expected %v but got %v", exp, got)
-	}
+	assert.Equal(t, EncodeSequence(groupRowID), rowID)
+	assert.Equal(t, m, loaded)
 	// and when we create another entry with the same natural key
 	err = k.groupMemberTable.Create(ctx, &m)
 	// then it should fail as the natural key must be unique
-	if !ErrUniqueConstraint.Is(err) {
-		t.Fatal("expected error but got %#V", err)
-	}
+	require.True(t, ErrUniqueConstraint.Is(err))
 
 	// and when entity updated with new natural key
 	updatedMember := &GroupMember{
@@ -213,51 +174,37 @@ func TestKeeperEndToEndWithNaturalKeyTable(t *testing.T) {
 		Member: []byte("new-member-address"),
 		Weight: m.Weight,
 	}
-	err = k.groupMemberTable.Save(ctx, updatedMember)
-
 	// then it should fail as the natural key is immutable
-	if err == nil {
-		t.Fatal("expected error but got nil")
-	}
+	err = k.groupMemberTable.Save(ctx, updatedMember)
+	require.Error(t, err)
+
 	// and when entity updated with non natural key attribute modified
 	updatedMember = &GroupMember{
 		Group:  m.Group,
 		Member: m.Member,
 		Weight: sdk.NewInt(99),
 	}
-	err = k.groupMemberTable.Save(ctx, updatedMember)
-
 	// then it should not fail
-	if err != nil {
-		t.Fatalf("unexpected error: %+v", err)
-	}
+	err = k.groupMemberTable.Save(ctx, updatedMember)
+	require.NoError(t, err)
 
 	// and when entity deleted
 	err = k.groupMemberTable.Delete(ctx, m)
-	if err != nil {
-		t.Fatalf("unexpected error: %+v", err)
-	}
+	require.NoError(t, err)
+
 	// then it is removed from natural key index
 	exists, err = k.groupMemberTable.Has(ctx, naturalKey)
-	if err != nil {
-		t.Fatalf("unexpected error: %+v", err)
-	}
-	if exp, got := false, exists; exp != got {
-		t.Errorf("expected %v but got %v", exp, got)
-	}
+	require.NoError(t, err)
+	require.False(t, exists)
+
 	// and removed from secondary index
-	exists, _ = k.groupMemberByGroupIndex.Has(ctx, groupPrimKey)
-	if exp, got := false, exists; exp != got {
-		t.Fatalf("expected %v but got %v", exp, got)
-	}
+	exists, _ = k.groupMemberByGroupIndex.Has(ctx, EncodeSequence(groupRowID))
+	require.False(t, exists)
 }
 
 func first(t *testing.T, it Iterator) ([]byte, GroupMetadata) {
-	t.Helper()
 	var loaded GroupMetadata
 	key, err := First(it, &loaded)
-	if err != nil {
-		t.Fatalf("unexpected error: %+v", err)
-	}
+	require.NoError(t, err)
 	return key, loaded
 }
