@@ -9,6 +9,9 @@ import (
 
 var _ Sequence = &sequence{}
 
+var sequenceKeyPrefix = []byte{0xff} // todo: how to identify/ reserve a prefix for this
+
+// sequence is a persistent unique key generator based on a counter.
 type sequence struct {
 	storeKey sdk.StoreKey
 	prefix   []byte
@@ -19,11 +22,11 @@ func NewSequence(storeKey sdk.StoreKey, prefix []byte) *sequence {
 	return &sequence{
 		prefix:   prefix,
 		storeKey: storeKey,
-		seqKey:   []byte("seq"), // todo: should seq key also be a short one?
+		seqKey:   sequenceKeyPrefix,
 	}
 }
 
-// NextVal increments the counter and returns the value.
+// NextVal increments the counter by one and returns the value.
 func (s sequence) NextVal(ctx HasKVStore) (uint64, error) {
 	store := prefix.NewStore(ctx.KVStore(s.storeKey), s.prefix)
 	// TODO: store does not return an error. inconsistent method signature above

@@ -17,6 +17,9 @@ type Indexer struct {
 }
 
 func NewIndexer(indexerFunc IndexerFunc, unique bool) *Indexer {
+	if indexerFunc ==nil{
+		panic("indexer func must not be nil")
+	}
 	i := &Indexer{indexerFunc: indexerFunc}
 	if unique {
 		i.addPolicy = uniqueKeysAddPolicy

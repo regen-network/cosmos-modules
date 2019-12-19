@@ -7,7 +7,7 @@ import (
 
 var _ TableBuilder = &naturalKeyTableBuilder{}
 
-var naturalKeyIndexPrefix = []byte{0xff} // todo: how to identify/ reserve a prefix for this index?
+var naturalKeyIndexPrefix = []byte{0xfe} // todo: how to identify/ reserve a prefix for this index?
 
 type naturalKeyer func(val interface{}) []byte // todo: note: in the api design this does not return an error unlike other indexer functions do
 
