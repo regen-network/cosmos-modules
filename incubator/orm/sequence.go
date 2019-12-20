@@ -9,20 +9,19 @@ import (
 
 var _ Sequence = &sequence{}
 
-var sequenceKeyPrefix = []byte{0xff} // todo: how to identify/ reserve a prefix for this
+// sequenceStorageKey is a fix key to read/ write data on the storage layer
+var sequenceStorageKey = []byte{0x1}
 
 // sequence is a persistent unique key generator based on a counter.
 type sequence struct {
 	storeKey sdk.StoreKey
 	prefix   []byte
-	seqKey   []byte
 }
 
 func NewSequence(storeKey sdk.StoreKey, prefix []byte) *sequence {
 	return &sequence{
 		prefix:   prefix,
 		storeKey: storeKey,
-		seqKey:   sequenceKeyPrefix,
 	}
 }
 
@@ -30,10 +29,10 @@ func NewSequence(storeKey sdk.StoreKey, prefix []byte) *sequence {
 func (s sequence) NextVal(ctx HasKVStore) (uint64, error) {
 	store := prefix.NewStore(ctx.KVStore(s.storeKey), s.prefix)
 	// TODO: store does not return an error. inconsistent method signature above
-	v := store.Get(s.seqKey)
+	v := store.Get(sequenceStorageKey)
 	seq := DecodeSequence(v)
 	seq += 1
-	store.Set(s.seqKey, EncodeSequence(seq))
+	store.Set(sequenceStorageKey, EncodeSequence(seq))
 	return seq, nil
 }
 
@@ -41,7 +40,7 @@ func (s sequence) NextVal(ctx HasKVStore) (uint64, error) {
 func (s sequence) CurVal(ctx HasKVStore) (uint64, error) {
 	store := prefix.NewStore(ctx.KVStore(s.storeKey), s.prefix)
 	// TODO: store does not return an error. inconsistent method signature above
-	v := store.Get(s.seqKey)
+	v := store.Get(sequenceStorageKey)
 	return DecodeSequence(v), nil
 }
 

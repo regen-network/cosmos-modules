@@ -41,21 +41,22 @@ func (g GroupMember) ID() []byte {
 }
 
 var (
-	GroupTablePrefix = []byte{0x0}
 	// todo: better solution than manually assigning a prefix?
 	// array may cause conflicts if [0x1] and [0x1,0x1] is used for example
-	GroupTableSequencePrefix = []byte{0x1}
-	GroupByAdminIndexPrefix  = []byte{0x2}
-
+	GroupTablePrefix               = []byte{0x0}
+	GroupTableSeqPrefix            = []byte{0x1}
+	GroupByAdminIndexPrefix        = []byte{0x2}
 	GroupMemberTablePrefix         = []byte{0x3}
-	GroupMemberByGroupIndexPrefix  = []byte{0x4}
-	GroupMemberByMemberIndexPrefix = []byte{0x5}
+	GroupMemberTableSeqPrefix      = []byte{0x4}
+	GroupMemberTableIndexPrefix    = []byte{0x5}
+	GroupMemberByGroupIndexPrefix  = []byte{0x6}
+	GroupMemberByMemberIndexPrefix = []byte{0x7}
 )
 
 func NewGroupKeeper(storeKey sdk.StoreKey, cdc *codec.Codec) GroupKeeper {
 	k := GroupKeeper{key: storeKey, cdc: cdc}
 
-	groupTableBuilder := NewAutoUInt64TableBuilder(GroupTablePrefix, storeKey, cdc, &GroupMetadata{})
+	groupTableBuilder := NewAutoUInt64TableBuilder(GroupTablePrefix, GroupTableSeqPrefix, storeKey, cdc, &GroupMetadata{})
 	// note: quite easy to mess with Index prefixes when managed outside. no fail fast on duplicates
 	k.groupByAdminIndex = NewIndex(groupTableBuilder, GroupByAdminIndexPrefix, func(val interface{}) ([][]byte, error) {
 		return [][]byte{val.(*GroupMetadata).Admin}, nil
@@ -63,7 +64,7 @@ func NewGroupKeeper(storeKey sdk.StoreKey, cdc *codec.Codec) GroupKeeper {
 	k.groupTable = groupTableBuilder.Build()
 
 	// todo: why pass a primary key generator when object must implement HasID (for Save)
-	groupMemberTableBuilder := NewNaturalKeyTableBuilder(GroupMemberTablePrefix, storeKey, cdc, &GroupMember{}, func(val interface{}) []byte {
+	groupMemberTableBuilder := NewNaturalKeyTableBuilder(GroupMemberTablePrefix, GroupMemberTableSeqPrefix, GroupMemberTableIndexPrefix, storeKey, cdc, &GroupMember{}, func(val interface{}) []byte {
 		return val.(*GroupMember).ID()
 	})
 	k.groupMemberByGroupIndex = NewIndex(groupMemberTableBuilder, GroupMemberByGroupIndexPrefix, func(val interface{}) ([][]byte, error) {

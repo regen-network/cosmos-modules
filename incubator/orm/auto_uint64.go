@@ -5,6 +5,7 @@ import (
 
 	"github.com/cosmos/cosmos-sdk/codec"
 	"github.com/cosmos/cosmos-sdk/store/prefix"
+	"github.com/cosmos/cosmos-sdk/store/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/types/errors"
 )
@@ -17,13 +18,17 @@ var (
 	ErrIteratorDone     = errors.Register(ormCodespace, 101, "iterator done")
 	ErrType             = errors.Register(ormCodespace, 102, "invalid type")
 	ErrUniqueConstraint = errors.Register(ormCodespace, 103, "unique constraint violation")
+	ErrArgument         = errors.Register(ormCodespace, 104, "invalid argument")
 )
 
 var _ TableBuilder = &autoUInt64TableBuilder{}
 
-func NewAutoUInt64TableBuilder(prefix []byte, key sdk.StoreKey, cdc *codec.Codec, model interface{}) *autoUInt64TableBuilder {
-	if len(prefix) == 0 {
-		panic("prefix must not be empty")
+func NewAutoUInt64TableBuilder(prefixData []byte, prefixSeq []byte, key sdk.StoreKey, cdc *codec.Codec, model interface{}) *autoUInt64TableBuilder {
+	if len(prefixData) == 0 {
+		panic("prefixData must not be empty")
+	}
+	if len(prefixSeq) == 0 {
+		panic("prefixSeq must not be empty")
 	}
 	if cdc == nil {
 		panic("codec must not be empty")
@@ -35,12 +40,13 @@ func NewAutoUInt64TableBuilder(prefix []byte, key sdk.StoreKey, cdc *codec.Codec
 	if tp.Kind() == reflect.Ptr {
 		tp = tp.Elem()
 	}
-	return &autoUInt64TableBuilder{prefix: prefix, storeKey: key, cdc: cdc, model: tp}
+	return &autoUInt64TableBuilder{prefixData: prefixData, prefixSeq: prefixSeq, storeKey: key, cdc: cdc, model: tp}
 }
 
 type autoUInt64TableBuilder struct {
 	model       reflect.Type
-	prefix      []byte
+	prefixData  []byte
+	prefixSeq   []byte
 	storeKey    sdk.StoreKey
 	cdc         *codec.Codec
 	afterSave   []AfterSaveInterceptor
@@ -49,15 +55,22 @@ type autoUInt64TableBuilder struct {
 
 // todo: this function gives access to the storage. It does not really fit the builder patter.
 func (a autoUInt64TableBuilder) RowGetter() RowGetter {
+	return typeSafeRowGetter(a.storeKey, a.prefixData, a.cdc, a.model)
+}
+
+func typeSafeRowGetter(storeKey sdk.StoreKey, prefixKey []byte, cdc *codec.Codec, model reflect.Type) RowGetter {
 	return func(ctx HasKVStore, rowId uint64, dest interface{}) ([]byte, error) {
-		store := prefix.NewStore(ctx.KVStore(a.storeKey), a.prefix)
+		if err := assertCorrectType(model, dest); err != nil {
+			return nil, err
+		}
+		store := prefix.NewStore(ctx.KVStore(storeKey), prefixKey)
 		key := EncodeSequence(rowId)
 		val := store.Get(key)
 		// todo: how to handle not found?
 		if val == nil {
 			return nil, ErrNotFound // todo: discuss how to handle this scenario if we drop error return parameter
 		}
-		return key, a.cdc.UnmarshalBinaryBare(val, dest)
+		return key, cdc.UnmarshalBinaryBare(val, dest)
 	}
 }
 
@@ -66,11 +79,11 @@ func (a autoUInt64TableBuilder) StoreKey() sdk.StoreKey {
 }
 
 func (a autoUInt64TableBuilder) Build() autoUInt64Table {
-	seq := NewSequence(a.storeKey, a.prefix)
+	seq := NewSequence(a.storeKey, a.prefixSeq)
 	return autoUInt64Table{
 		model:       a.model,
 		sequence:    seq,
-		prefix:      a.prefix,
+		prefix:      a.prefixData,
 		storeKey:    a.storeKey,
 		cdc:         a.cdc,
 		afterSave:   a.afterSave,
@@ -99,7 +112,7 @@ type autoUInt64Table struct {
 }
 
 func (a autoUInt64Table) Create(ctx HasKVStore, obj interface{}) (uint64, error) {
-	if err := a.assertCorrectType(obj); err != nil {
+	if err := assertCorrectType(a.model, obj); err != nil {
 		return 0, err
 	}
 
@@ -126,7 +139,7 @@ func (a autoUInt64Table) Create(ctx HasKVStore, obj interface{}) (uint64, error)
 }
 
 func (a autoUInt64Table) Save(ctx HasKVStore, rowID uint64, newValue interface{}) error {
-	if err := a.assertCorrectType(newValue); err != nil {
+	if err := assertCorrectType(a.model, newValue); err != nil {
 		return err
 	}
 
@@ -153,17 +166,6 @@ func (a autoUInt64Table) Save(ctx HasKVStore, rowID uint64, newValue interface{}
 		if err := itc(ctx, rowID, key, newValue, oldValue); err != nil {
 			return errors.Wrapf(err, "interceptor %d failed", i)
 		}
-	}
-	return nil
-}
-
-func (a autoUInt64Table) assertCorrectType(obj interface{}) error {
-	tp := reflect.TypeOf(obj)
-	if tp.Kind() != reflect.Ptr {
-		return errors.Wrap(ErrType, "model destination must be a pointer")
-	}
-	if a.model != tp.Elem() {
-		return errors.Wrapf(ErrType, "can not use %T with this bucket", obj)
 	}
 	return nil
 }
@@ -197,9 +199,9 @@ func (a autoUInt64Table) Has(ctx HasKVStore, id uint64) (bool, error) {
 	return store.Has(EncodeSequence(id)), nil
 }
 
-func (a autoUInt64Table) Get(ctx HasKVStore, id uint64) (Iterator, error) {
+func (a autoUInt64Table) Get(ctx HasKVStore, rowID uint64) (Iterator, error) {
 	store := prefix.NewStore(ctx.KVStore(a.storeKey), a.prefix)
-	key := EncodeSequence(id)
+	key := EncodeSequence(rowID)
 	val := store.Get(key)
 	if val == nil {
 		return nil, ErrNotFound // todo: discuss how to handle this scenario if we drop error return parameter
@@ -207,10 +209,59 @@ func (a autoUInt64Table) Get(ctx HasKVStore, id uint64) (Iterator, error) {
 	return NewSingleValueIterator(a.cdc, key, val), nil // todo: SingleValueIterator is only used to satisfy the interface
 }
 
+// end is not included
 func (a autoUInt64Table) PrefixScan(ctx HasKVStore, start uint64, end uint64) (Iterator, error) {
-	panic("implement me")
+	if start >= end {
+		return nil, errors.Wrap(ErrArgument, "start must be before end")
+	}
+	store := prefix.NewStore(ctx.KVStore(a.storeKey), a.prefix)
+	return &autoUInt64Iterator{
+		ctx:       ctx,
+		rowGetter: typeSafeRowGetter(a.storeKey, a.prefix, a.cdc, a.model),
+		it:        store.Iterator(EncodeSequence(start), EncodeSequence(end)),
+	}, nil
 }
 
 func (a autoUInt64Table) ReversePrefixScan(ctx HasKVStore, start uint64, end uint64) (Iterator, error) {
-	panic("implement me")
+	if start >= end {
+		return nil, errors.Wrap(ErrArgument, "start must be before end")
+	}
+	store := prefix.NewStore(ctx.KVStore(a.storeKey), a.prefix)
+	return &autoUInt64Iterator{
+		ctx:       ctx,
+		rowGetter: typeSafeRowGetter(a.storeKey, a.prefix, a.cdc, a.model),
+		it:        store.ReverseIterator(EncodeSequence(start), EncodeSequence(end)),
+	}, nil
+}
+
+// typesafe iterator
+type autoUInt64Iterator struct {
+	ctx       HasKVStore
+	rowGetter RowGetter
+	it        types.Iterator
+}
+
+func (i autoUInt64Iterator) LoadNext(dest interface{}) ([]byte, error) {
+	if !i.it.Valid() {
+		return nil, ErrIteratorDone
+	}
+	rowID := i.it.Key()
+	i.it.Next()
+	return i.rowGetter(i.ctx, DecodeSequence(rowID), dest)
+}
+
+func (i autoUInt64Iterator) Close() error {
+	i.it.Close()
+	return nil
+}
+
+func assertCorrectType(model reflect.Type, obj interface{}) error {
+	tp := reflect.TypeOf(obj)
+	if tp.Kind() != reflect.Ptr {
+		return errors.Wrap(ErrType, "model destination must be a pointer")
+	}
+	if model != tp.Elem() {
+		return errors.Wrapf(ErrType, "can not use %T with this bucket", obj)
+	}
+	return nil
 }

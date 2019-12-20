@@ -17,7 +17,7 @@ type Indexer struct {
 }
 
 func NewIndexer(indexerFunc IndexerFunc, unique bool) *Indexer {
-	if indexerFunc ==nil{
+	if indexerFunc == nil {
 		panic("indexer func must not be nil")
 	}
 	i := &Indexer{indexerFunc: indexerFunc}

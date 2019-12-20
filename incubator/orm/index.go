@@ -8,6 +8,7 @@ import (
 	"github.com/cosmos/cosmos-sdk/store/prefix"
 	"github.com/cosmos/cosmos-sdk/store/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	"github.com/cosmos/cosmos-sdk/types/errors"
 )
 
 // indexer creates and modifies the second index based on the operations and changes on the primary object.
@@ -51,15 +52,23 @@ func (i index) Has(ctx HasKVStore, key []byte) (bool, error) {
 func (i index) Get(ctx HasKVStore, key []byte) (Iterator, error) {
 	store := prefix.NewStore(ctx.KVStore(i.storeKey), i.prefix)
 	it := store.Iterator(makeIndexPrefixScanKey(key, 0), makeIndexPrefixScanKey(key, math.MaxUint64))
-	return indexIterator{ctx: ctx, it: it, end: key, modelGetter: i.rowGetter}, nil
+	return indexIterator{ctx: ctx, it: it, rowGetter: i.rowGetter}, nil
 }
 
 func (i index) PrefixScan(ctx HasKVStore, start []byte, end []byte) (Iterator, error) {
-	panic("implement me")
+	if bytes.Compare(start, end) > 0 {
+		return nil, errors.Wrap(ErrArgument, "start must not be greater than end")
+	}
+	store := prefix.NewStore(ctx.KVStore(i.storeKey), i.prefix)
+	it := store.Iterator(makeIndexPrefixScanKey(start, 0), makeIndexPrefixScanKey(end, math.MaxUint64))
+	return indexIterator{ctx: ctx, it: it, rowGetter: i.rowGetter}, nil
 }
 
 func (i index) ReversePrefixScan(ctx HasKVStore, start []byte, end []byte) (Iterator, error) {
-	panic("implement me")
+	store := prefix.NewStore(ctx.KVStore(i.storeKey), i.prefix)
+	it := store.ReverseIterator(makeIndexPrefixScanKey(start, 0), makeIndexPrefixScanKey(end, math.MaxUint64))
+	return indexIterator{ctx: ctx, it: it, rowGetter: i.rowGetter}, nil
+
 }
 
 func (i index) onSave(ctx HasKVStore, rowID uint64, key []byte, newValue, oldValue interface{}) error {
@@ -106,33 +115,21 @@ func (i uniqueIndex) RowID(ctx HasKVStore, key []byte) (uint64, error) {
 	return stripRowIDFromIndexKey(it.Key()), nil
 }
 
-// indexIterator uses modelGetter to lazy load new model values on request.
+// indexIterator uses rowGetter to lazy load new model values on request.
 type indexIterator struct {
-	ctx         HasKVStore
-	modelGetter func(ctx HasKVStore, rowId uint64, dest interface{}) (key []byte, err error)
-	it          types.Iterator
-	end         []byte
-	reverse     bool
+	ctx       HasKVStore
+	rowGetter RowGetter
+	it        types.Iterator
 }
 
-func (i indexIterator) LoadNext(dest interface{}) (key []byte, err error) {
+func (i indexIterator) LoadNext(dest interface{}) ([]byte, error) {
 	if !i.it.Valid() {
-		return nil, err
+		return nil, ErrIteratorDone
 	}
 	indexPrefixKey := i.it.Key()
-	n := len(indexPrefixKey)
-	indexKey := indexPrefixKey[:n-8]
-	cmp := bytes.Compare(indexKey, i.end)
-	if i.end != nil {
-		if !i.reverse && cmp > 0 {
-			return nil, err
-		} else if i.reverse && cmp < 0 {
-			return nil, err
-		}
-	}
 	rowId := stripRowIDFromIndexKey(indexPrefixKey)
 	i.it.Next()
-	return i.modelGetter(i.ctx, rowId, dest)
+	return i.rowGetter(i.ctx, rowId, dest)
 }
 
 func (i indexIterator) Close() error {

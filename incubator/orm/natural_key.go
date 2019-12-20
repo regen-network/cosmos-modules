@@ -7,14 +7,16 @@ import (
 
 var _ TableBuilder = &naturalKeyTableBuilder{}
 
-var naturalKeyIndexPrefix = []byte{0xfe} // todo: how to identify/ reserve a prefix for this index?
-
 type naturalKeyer func(val interface{}) []byte // todo: note: in the api design this does not return an error unlike other indexer functions do
 
-func NewNaturalKeyTableBuilder(prefix []byte, key sdk.StoreKey, cdc *codec.Codec, model interface{}, getPrimaryKey naturalKeyer) *naturalKeyTableBuilder {
-	builder := NewAutoUInt64TableBuilder(prefix, key, cdc, model)
+func NewNaturalKeyTableBuilder(prefixData, prefixSeq, prefixIndex []byte, key sdk.StoreKey, cdc *codec.Codec, model interface{}, getPrimaryKey naturalKeyer) *naturalKeyTableBuilder {
+	if len(prefixIndex) == 0 {
+		panic("prefixIndex must not be empty")
+	}
 
-	idx := NewUniqueIndex(builder, naturalKeyIndexPrefix, func(value interface{}) (bytes [][]byte, err error) {
+	builder := NewAutoUInt64TableBuilder(prefixData, prefixSeq, key, cdc, model)
+
+	idx := NewUniqueIndex(builder, prefixIndex, func(value interface{}) (bytes [][]byte, err error) {
 		return [][]byte{getPrimaryKey(value)}, nil
 	})
 	return &naturalKeyTableBuilder{
