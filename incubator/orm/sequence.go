@@ -15,10 +15,10 @@ var sequenceStorageKey = []byte{0x1}
 // sequence is a persistent unique key generator based on a counter.
 type sequence struct {
 	storeKey sdk.StoreKey
-	prefix   []byte
+	prefix   byte
 }
 
-func NewSequence(storeKey sdk.StoreKey, prefix []byte) *sequence {
+func NewSequence(storeKey sdk.StoreKey, prefix byte) *sequence {
 	return &sequence{
 		prefix:   prefix,
 		storeKey: storeKey,
@@ -27,7 +27,7 @@ func NewSequence(storeKey sdk.StoreKey, prefix []byte) *sequence {
 
 // NextVal increments the counter by one and returns the value.
 func (s sequence) NextVal(ctx HasKVStore) (uint64, error) {
-	store := prefix.NewStore(ctx.KVStore(s.storeKey), s.prefix)
+	store := prefix.NewStore(ctx.KVStore(s.storeKey), []byte{s.prefix})
 	// TODO: store does not return an error. inconsistent method signature above
 	v := store.Get(sequenceStorageKey)
 	seq := DecodeSequence(v)
@@ -38,7 +38,7 @@ func (s sequence) NextVal(ctx HasKVStore) (uint64, error) {
 
 // CurVal returns the last value used. 0 if none.
 func (s sequence) CurVal(ctx HasKVStore) (uint64, error) {
-	store := prefix.NewStore(ctx.KVStore(s.storeKey), s.prefix)
+	store := prefix.NewStore(ctx.KVStore(s.storeKey), []byte{s.prefix})
 	// TODO: store does not return an error. inconsistent method signature above
 	v := store.Get(sequenceStorageKey)
 	return DecodeSequence(v), nil

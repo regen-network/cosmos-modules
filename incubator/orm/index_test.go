@@ -13,8 +13,10 @@ import (
 func TestIndexPrefixScan(t *testing.T) {
 	storeKey := sdk.NewKVStoreKey("test")
 	cdc := codec.New()
-	testTablePrefix := []byte{0x10}
-	testTableSeqPrefix := []byte{0x11}
+	const (
+		testTablePrefix = iota
+		testTableSeqPrefix
+	)
 	tBuilder := NewAutoUInt64TableBuilder(testTablePrefix, testTableSeqPrefix, storeKey, cdc, &GroupMetadata{})
 	idx := NewIndex(tBuilder, GroupByAdminIndexPrefix, func(val interface{}) ([][]byte, error) {
 		return [][]byte{val.(*GroupMetadata).Admin}, nil

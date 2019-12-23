@@ -24,12 +24,9 @@ var (
 
 var _ TableBuilder = &autoUInt64TableBuilder{}
 
-func NewAutoUInt64TableBuilder(prefixData []byte, prefixSeq []byte, key sdk.StoreKey, cdc *codec.Codec, model interface{}) *autoUInt64TableBuilder {
-	if len(prefixData) == 0 {
-		panic("prefixData must not be empty")
-	}
-	if len(prefixSeq) == 0 {
-		panic("prefixSeq must not be empty")
+func NewAutoUInt64TableBuilder(prefixData byte, prefixSeq byte, key sdk.StoreKey, cdc *codec.Codec, model interface{}) *autoUInt64TableBuilder {
+	if prefixData == prefixSeq {
+		panic("prefixData and prefixSeq must be unique")
 	}
 	if cdc == nil {
 		panic("codec must not be empty")
@@ -46,8 +43,8 @@ func NewAutoUInt64TableBuilder(prefixData []byte, prefixSeq []byte, key sdk.Stor
 
 type autoUInt64TableBuilder struct {
 	model       reflect.Type
-	prefixData  []byte
-	prefixSeq   []byte
+	prefixData  byte
+	prefixSeq   byte
 	storeKey    sdk.StoreKey
 	cdc         *codec.Codec
 	afterSave   []AfterSaveInterceptor
@@ -59,12 +56,12 @@ func (a autoUInt64TableBuilder) RowGetter() RowGetter {
 	return typeSafeRowGetter(a.storeKey, a.prefixData, a.cdc, a.model)
 }
 
-func typeSafeRowGetter(storeKey sdk.StoreKey, prefixKey []byte, cdc *codec.Codec, model reflect.Type) RowGetter {
+func typeSafeRowGetter(storeKey sdk.StoreKey, prefixKey byte, cdc *codec.Codec, model reflect.Type) RowGetter {
 	return func(ctx HasKVStore, rowId uint64, dest interface{}) ([]byte, error) {
 		if err := assertCorrectType(model, dest); err != nil {
 			return nil, err
 		}
-		store := prefix.NewStore(ctx.KVStore(storeKey), prefixKey)
+		store := prefix.NewStore(ctx.KVStore(storeKey), []byte{prefixKey})
 		key := EncodeSequence(rowId)
 		val := store.Get(key)
 		// todo: how to handle not found?
@@ -104,7 +101,7 @@ var _ AutoUInt64Table = autoUInt64Table{}
 
 type autoUInt64Table struct {
 	model       reflect.Type
-	prefix      []byte
+	prefix      byte
 	storeKey    sdk.StoreKey
 	cdc         *codec.Codec
 	sequence    Sequence
@@ -117,7 +114,7 @@ func (a autoUInt64Table) Create(ctx HasKVStore, obj interface{}) (uint64, error)
 		return 0, err
 	}
 
-	store := prefix.NewStore(ctx.KVStore(a.storeKey), a.prefix)
+	store := prefix.NewStore(ctx.KVStore(a.storeKey), []byte{a.prefix})
 	v, err := a.cdc.MarshalBinaryBare(obj)
 	if err != nil {
 		return 0, errors.Wrapf(err, "failed to serialize %T", obj)
@@ -144,7 +141,7 @@ func (a autoUInt64Table) Save(ctx HasKVStore, rowID uint64, newValue interface{}
 		return err
 	}
 
-	store := prefix.NewStore(ctx.KVStore(a.storeKey), a.prefix)
+	store := prefix.NewStore(ctx.KVStore(a.storeKey), []byte{a.prefix})
 	var oldValue = reflect.New(a.model).Interface()
 	it, err := a.Get(ctx, rowID)
 	if err != nil {
@@ -172,7 +169,7 @@ func (a autoUInt64Table) Save(ctx HasKVStore, rowID uint64, newValue interface{}
 }
 
 func (a autoUInt64Table) Delete(ctx HasKVStore, rowID uint64) error {
-	store := prefix.NewStore(ctx.KVStore(a.storeKey), a.prefix)
+	store := prefix.NewStore(ctx.KVStore(a.storeKey), []byte{a.prefix})
 	key := EncodeSequence(rowID)
 
 	var oldValue = reflect.New(a.model).Interface()
@@ -196,12 +193,12 @@ func (a autoUInt64Table) Delete(ctx HasKVStore, rowID uint64) error {
 
 // todo: there is no error result as store would panic
 func (a autoUInt64Table) Has(ctx HasKVStore, id uint64) (bool, error) {
-	store := prefix.NewStore(ctx.KVStore(a.storeKey), a.prefix)
+	store := prefix.NewStore(ctx.KVStore(a.storeKey), []byte{a.prefix})
 	return store.Has(EncodeSequence(id)), nil
 }
 
 func (a autoUInt64Table) Get(ctx HasKVStore, rowID uint64) (Iterator, error) {
-	store := prefix.NewStore(ctx.KVStore(a.storeKey), a.prefix)
+	store := prefix.NewStore(ctx.KVStore(a.storeKey), []byte{a.prefix})
 	key := EncodeSequence(rowID)
 	val := store.Get(key)
 	if val == nil {
@@ -215,7 +212,7 @@ func (a autoUInt64Table) PrefixScan(ctx HasKVStore, start uint64, end uint64) (I
 	if start >= end {
 		return nil, errors.Wrap(ErrArgument, "start must be before end")
 	}
-	store := prefix.NewStore(ctx.KVStore(a.storeKey), a.prefix)
+	store := prefix.NewStore(ctx.KVStore(a.storeKey), []byte{a.prefix})
 	return &autoUInt64Iterator{
 		ctx:       ctx,
 		rowGetter: typeSafeRowGetter(a.storeKey, a.prefix, a.cdc, a.model),
@@ -227,7 +224,7 @@ func (a autoUInt64Table) ReversePrefixScan(ctx HasKVStore, start uint64, end uin
 	if start >= end {
 		return nil, errors.Wrap(ErrArgument, "start must be before end")
 	}
-	store := prefix.NewStore(ctx.KVStore(a.storeKey), a.prefix)
+	store := prefix.NewStore(ctx.KVStore(a.storeKey), []byte{a.prefix})
 	return &autoUInt64Iterator{
 		ctx:       ctx,
 		rowGetter: typeSafeRowGetter(a.storeKey, a.prefix, a.cdc, a.model),

@@ -21,12 +21,12 @@ type indexer interface {
 // index is the entry point for all index related operations.
 type index struct {
 	storeKey  sdk.StoreKey
-	prefix    []byte
+	prefix    byte
 	rowGetter func(ctx HasKVStore, rowId uint64, dest interface{}) (key []byte, err error)
 	indexer   indexer
 }
 
-func NewIndex(builder TableBuilder, prefix []byte, indexer IndexerFunc) *index {
+func NewIndex(builder TableBuilder, prefix byte, indexer IndexerFunc) *index {
 	idx := index{
 		storeKey:  builder.StoreKey(),
 		prefix:    prefix,
@@ -43,14 +43,14 @@ func (i index) Has(ctx HasKVStore, key []byte) (bool, error) {
 	//todo: does not work: return store.Has(key), nil
 	// can only be answered by a prefix scan. see makeIndexPrefixScanKey
 
-	store := prefix.NewStore(ctx.KVStore(i.storeKey), i.prefix)
+	store := prefix.NewStore(ctx.KVStore(i.storeKey), []byte{i.prefix})
 	it := store.Iterator(makeIndexPrefixScanKey(key, 0), makeIndexPrefixScanKey(key, math.MaxUint64))
 	defer it.Close()
 	return it.Valid(), nil
 }
 
 func (i index) Get(ctx HasKVStore, key []byte) (Iterator, error) {
-	store := prefix.NewStore(ctx.KVStore(i.storeKey), i.prefix)
+	store := prefix.NewStore(ctx.KVStore(i.storeKey), []byte{i.prefix})
 	it := store.Iterator(makeIndexPrefixScanKey(key, 0), makeIndexPrefixScanKey(key, math.MaxUint64))
 	return indexIterator{ctx: ctx, it: it, rowGetter: i.rowGetter}, nil
 }
@@ -64,7 +64,7 @@ func (i index) PrefixScan(ctx HasKVStore, start []byte, end []byte) (Iterator, e
 	if start != nil && end != nil && bytes.Compare(start, end) >= 0 {
 		return NewInvalidIterator(), errors.Wrap(ErrArgument, "start must be less than end")
 	}
-	store := prefix.NewStore(ctx.KVStore(i.storeKey), i.prefix)
+	store := prefix.NewStore(ctx.KVStore(i.storeKey), []byte{i.prefix})
 	it := store.Iterator(start, end)
 	return indexIterator{ctx: ctx, it: it, rowGetter: i.rowGetter}, nil
 }
@@ -78,14 +78,14 @@ func (i index) ReversePrefixScan(ctx HasKVStore, start []byte, end []byte) (Iter
 	if start != nil && end != nil && bytes.Compare(start, end) >= 0 {
 		return NewInvalidIterator(), errors.Wrap(ErrArgument, "start must be less than end")
 	}
-	store := prefix.NewStore(ctx.KVStore(i.storeKey), i.prefix)
+	store := prefix.NewStore(ctx.KVStore(i.storeKey), []byte{i.prefix})
 	it := store.ReverseIterator(start, end)
 	return indexIterator{ctx: ctx, it: it, rowGetter: i.rowGetter}, nil
 }
 
 func (i index) onSave(ctx HasKVStore, rowID uint64, key []byte, newValue, oldValue interface{}) error {
 	// todo: this is the on create indexer, for update the old value may has to be removed
-	store := prefix.NewStore(ctx.KVStore(i.storeKey), i.prefix)
+	store := prefix.NewStore(ctx.KVStore(i.storeKey), []byte{i.prefix})
 	if oldValue == nil {
 		return i.indexer.OnCreate(store, rowID, newValue)
 	}
@@ -94,7 +94,7 @@ func (i index) onSave(ctx HasKVStore, rowID uint64, key []byte, newValue, oldVal
 }
 
 func (i index) onDelete(ctx HasKVStore, rowId uint64, key []byte, oldValue interface{}) error {
-	store := prefix.NewStore(ctx.KVStore(i.storeKey), i.prefix)
+	store := prefix.NewStore(ctx.KVStore(i.storeKey), []byte{i.prefix})
 	return i.indexer.OnDelete(store, rowId, oldValue)
 }
 
@@ -102,7 +102,7 @@ type uniqueIndex struct {
 	index
 }
 
-func NewUniqueIndex(builder TableBuilder, prefix []byte, indexerFunc IndexerFunc) *uniqueIndex {
+func NewUniqueIndex(builder TableBuilder, prefix byte, indexerFunc IndexerFunc) *uniqueIndex {
 	idx := uniqueIndex{
 		index: index{
 			storeKey:  builder.StoreKey(),
@@ -118,7 +118,7 @@ func NewUniqueIndex(builder TableBuilder, prefix []byte, indexerFunc IndexerFunc
 
 // RowID looks up the rowID for an index key. Returns ErrNotFound when not exists in index.
 func (i uniqueIndex) RowID(ctx HasKVStore, key []byte) (uint64, error) {
-	store := prefix.NewStore(ctx.KVStore(i.storeKey), i.prefix)
+	store := prefix.NewStore(ctx.KVStore(i.storeKey), []byte{i.prefix})
 	it := store.Iterator(makeIndexPrefixScanKey(key, 0), makeIndexPrefixScanKey(key, math.MaxUint64))
 	defer it.Close()
 	if !it.Valid() {

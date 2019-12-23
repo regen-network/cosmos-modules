@@ -13,9 +13,11 @@ import (
 func TestNaturalKeyTablePrefixScan(t *testing.T) {
 	storeKey := sdk.NewKVStoreKey("test")
 	cdc := codec.New()
-	testTablePrefix := []byte{0x10}
-	testTableSeqPrefix := []byte{0x11}
-	testTableIndexPrefix := []byte{0x12}
+	const (
+		testTablePrefix = iota
+		testTableSeqPrefix
+		testTableIndexPrefix
+	)
 
 	tb := NewNaturalKeyTableBuilder(testTablePrefix, testTableSeqPrefix, testTableIndexPrefix, storeKey, cdc, &GroupMember{},
 		func(val interface{}) []byte {

@@ -9,9 +9,9 @@ var _ TableBuilder = &naturalKeyTableBuilder{}
 
 type naturalKeyer func(val interface{}) []byte // todo: note: in the api design this does not return an error unlike other indexer functions do
 
-func NewNaturalKeyTableBuilder(prefixData, prefixSeq, prefixIndex []byte, key sdk.StoreKey, cdc *codec.Codec, model interface{}, getPrimaryKey naturalKeyer) *naturalKeyTableBuilder {
-	if len(prefixIndex) == 0 {
-		panic("prefixIndex must not be empty")
+func NewNaturalKeyTableBuilder(prefixData, prefixSeq, prefixIndex byte, key sdk.StoreKey, cdc *codec.Codec, model interface{}, getPrimaryKey naturalKeyer) *naturalKeyTableBuilder {
+	if prefixIndex == prefixData || prefixData == prefixSeq {
+		panic("prefixIndex must be unique")
 	}
 
 	builder := NewAutoUInt64TableBuilder(prefixData, prefixSeq, key, cdc, model)

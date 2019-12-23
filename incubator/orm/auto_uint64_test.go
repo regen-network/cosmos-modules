@@ -14,8 +14,10 @@ import (
 func TestAutoUInt64PrefixScan(t *testing.T) {
 	storeKey := sdk.NewKVStoreKey("test")
 	cdc := codec.New()
-	testTablePrefix := []byte{0x10}
-	testTableSeqPrefix := []byte{0x11}
+	const (
+		testTablePrefix = iota
+		testTableSeqPrefix
+	)
 	tb := NewAutoUInt64TableBuilder(testTablePrefix, testTableSeqPrefix, storeKey, cdc, &GroupMetadata{}).Build()
 	ctx := NewMockContext()
 
