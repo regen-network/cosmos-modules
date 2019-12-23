@@ -55,20 +55,32 @@ func (i index) Get(ctx HasKVStore, key []byte) (Iterator, error) {
 	return indexIterator{ctx: ctx, it: it, rowGetter: i.rowGetter}, nil
 }
 
+// PrefixScan returns an Iterator over a domain of keys in ascending order. End is exclusive.
+// Start is an index key or prefix. It must be less than end, or the Iterator is invalid.
+// Iterator must be closed by caller.
+// To iterate over entire domain, use PrefixScan(nil, nil)
+// CONTRACT: No writes may happen within a domain while an iterator exists over it.
 func (i index) PrefixScan(ctx HasKVStore, start []byte, end []byte) (Iterator, error) {
-	if bytes.Compare(start, end) > 0 {
-		return nil, errors.Wrap(ErrArgument, "start must not be greater than end")
+	if start != nil && end != nil && bytes.Compare(start, end) >= 0 {
+		return NewInvalidIterator(), errors.Wrap(ErrArgument, "start must be less than end")
 	}
 	store := prefix.NewStore(ctx.KVStore(i.storeKey), i.prefix)
-	it := store.Iterator(makeIndexPrefixScanKey(start, 0), makeIndexPrefixScanKey(end, math.MaxUint64))
+	it := store.Iterator(start, end)
 	return indexIterator{ctx: ctx, it: it, rowGetter: i.rowGetter}, nil
 }
 
+// ReversePrefixScan returns an Iterator over a domain of keys in descending order. End is exclusive.
+// Start is an index key or prefix. It must be less than end, or the Iterator is invalid.
+// Iterator must be closed by caller.
+// To iterate over entire domain, use PrefixScan(nil, nil)
+// CONTRACT: No writes may happen within a domain while an iterator exists over it.
 func (i index) ReversePrefixScan(ctx HasKVStore, start []byte, end []byte) (Iterator, error) {
+	if start != nil && end != nil && bytes.Compare(start, end) >= 0 {
+		return NewInvalidIterator(), errors.Wrap(ErrArgument, "start must be less than end")
+	}
 	store := prefix.NewStore(ctx.KVStore(i.storeKey), i.prefix)
-	it := store.ReverseIterator(makeIndexPrefixScanKey(start, 0), makeIndexPrefixScanKey(end, math.MaxUint64))
+	it := store.ReverseIterator(start, end)
 	return indexIterator{ctx: ctx, it: it, rowGetter: i.rowGetter}, nil
-
 }
 
 func (i index) onSave(ctx HasKVStore, rowID uint64, key []byte, newValue, oldValue interface{}) error {
@@ -112,7 +124,7 @@ func (i uniqueIndex) RowID(ctx HasKVStore, key []byte) (uint64, error) {
 	if !it.Valid() {
 		return 0, ErrNotFound
 	}
-	return stripRowIDFromIndexKey(it.Key()), nil
+	return stripRowIDFromIndexPrefixScanKey(it.Key()), nil
 }
 
 // indexIterator uses rowGetter to lazy load new model values on request.
@@ -127,7 +139,7 @@ func (i indexIterator) LoadNext(dest interface{}) ([]byte, error) {
 		return nil, ErrIteratorDone
 	}
 	indexPrefixKey := i.it.Key()
-	rowId := stripRowIDFromIndexKey(indexPrefixKey)
+	rowId := stripRowIDFromIndexPrefixScanKey(indexPrefixKey)
 	i.it.Next()
 	return i.rowGetter(i.ctx, rowId, dest)
 }
@@ -137,7 +149,7 @@ func (i indexIterator) Close() error {
 	return nil
 }
 
-func stripRowIDFromIndexKey(indexPrefixKey []byte) uint64 {
+func stripRowIDFromIndexPrefixScanKey(indexPrefixKey []byte) uint64 {
 	n := len(indexPrefixKey)
 	return binary.BigEndian.Uint64(indexPrefixKey[n-8:])
 }

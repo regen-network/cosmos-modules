@@ -16,9 +16,10 @@ var (
 	// todo: ormCodespace ok or do we need to claim error codes somehow?
 	ErrNotFound         = errors.Register(ormCodespace, 100, "not found")
 	ErrIteratorDone     = errors.Register(ormCodespace, 101, "iterator done")
-	ErrType             = errors.Register(ormCodespace, 102, "invalid type")
-	ErrUniqueConstraint = errors.Register(ormCodespace, 103, "unique constraint violation")
-	ErrArgument         = errors.Register(ormCodespace, 104, "invalid argument")
+	ErrIteratorInvalid  = errors.Register(ormCodespace, 102, "iterator invalid")
+	ErrType             = errors.Register(ormCodespace, 110, "invalid type")
+	ErrUniqueConstraint = errors.Register(ormCodespace, 111, "unique constraint violation")
+	ErrArgument         = errors.Register(ormCodespace, 112, "invalid argument")
 )
 
 var _ TableBuilder = &autoUInt64TableBuilder{}

@@ -21,6 +21,7 @@ type Index interface {
 }
 
 type RowIDAwareIndex interface {
+	Index
 	RowID(ctx HasKVStore, key []byte) (uint64, error)
 }
 

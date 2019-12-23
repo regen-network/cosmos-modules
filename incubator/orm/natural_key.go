@@ -95,9 +95,9 @@ func (a naturalKeyTable) Get(ctx HasKVStore, primKey []byte) (Iterator, error) {
 }
 
 func (a naturalKeyTable) PrefixScan(ctx HasKVStore, start, end []byte) (Iterator, error) {
-	panic("implement me")
+	return a.naturalKeyIndex.PrefixScan(ctx, start, end)
 }
 
 func (a naturalKeyTable) ReversePrefixScan(ctx HasKVStore, start, end []byte) (Iterator, error) {
-	panic("implement me")
+	return a.naturalKeyIndex.ReversePrefixScan(ctx, start, end)
 }

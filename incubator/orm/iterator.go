@@ -28,6 +28,13 @@ func NewSingleValueIterator(cdc *codec.Codec, rowID []byte, val []byte) Iterator
 	})
 }
 
+// Iterator that return ErrIteratorInvalid only.
+func NewInvalidIterator() Iterator {
+	return iteratorFunc(func(dest interface{}) ([]byte, error) {
+		return nil, ErrIteratorInvalid
+	})
+}
+
 // First loads the first element into the given destination type and closes the iterator.
 // When the iterator is closed or has no elements the according error is passed as return value.
 func First(it Iterator, dest interface{}) ([]byte, error) {
@@ -49,7 +56,8 @@ func First(it Iterator, dest interface{}) ([]byte, error) {
 type ModelSlicePtr interface{}
 
 // ReadAll consumes all values for the iterator and stores them in a new slice at the passed ModelSlicePtr.
-// The iterator is closed afterwards.
+// The slice can be empty when the iterator does not return any values but not nil. The iterator
+// is closed afterwards.
 // Example:
 // 			var loaded []GroupMetadata
 //			rowIDs, err := ReadAll(it, &loaded)

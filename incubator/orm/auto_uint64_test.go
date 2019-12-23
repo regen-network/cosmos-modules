@@ -11,7 +11,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestAutoUInt64Iterator(t *testing.T) {
+func TestAutoUInt64PrefixScan(t *testing.T) {
 	storeKey := sdk.NewKVStoreKey("test")
 	cdc := codec.New()
 	testTablePrefix := []byte{0x10}
