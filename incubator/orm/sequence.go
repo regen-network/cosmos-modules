@@ -7,41 +7,37 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 )
 
-var _ Sequence = &sequence{}
-
 // sequenceStorageKey is a fix key to read/ write data on the storage layer
 var sequenceStorageKey = []byte{0x1}
 
 // sequence is a persistent unique key generator based on a counter.
-type sequence struct {
+type Sequence struct {
 	storeKey sdk.StoreKey
 	prefix   byte
 }
 
-func NewSequence(storeKey sdk.StoreKey, prefix byte) *sequence {
-	return &sequence{
+func NewSequence(storeKey sdk.StoreKey, prefix byte) *Sequence {
+	return &Sequence{
 		prefix:   prefix,
 		storeKey: storeKey,
 	}
 }
 
 // NextVal increments the counter by one and returns the value.
-func (s sequence) NextVal(ctx HasKVStore) (uint64, error) {
+func (s Sequence) NextVal(ctx HasKVStore) uint64 {
 	store := prefix.NewStore(ctx.KVStore(s.storeKey), []byte{s.prefix})
-	// TODO: store does not return an error. inconsistent method signature above
 	v := store.Get(sequenceStorageKey)
 	seq := DecodeSequence(v)
 	seq += 1
 	store.Set(sequenceStorageKey, EncodeSequence(seq))
-	return seq, nil
+	return seq
 }
 
 // CurVal returns the last value used. 0 if none.
-func (s sequence) CurVal(ctx HasKVStore) (uint64, error) {
+func (s Sequence) CurVal(ctx HasKVStore) uint64 {
 	store := prefix.NewStore(ctx.KVStore(s.storeKey), []byte{s.prefix})
-	// TODO: store does not return an error. inconsistent method signature above
 	v := store.Get(sequenceStorageKey)
-	return DecodeSequence(v), nil
+	return DecodeSequence(v)
 }
 
 // DecodeSequence converts the binary representation into an Uint64 value.

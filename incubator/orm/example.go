@@ -18,7 +18,6 @@ type GroupKeeper struct {
 	proposalTable            AutoUInt64Table
 	proposalByGroupIndex     Index
 	voteTable                NaturalKeyTable
-	voteByProposalIndex      UInt64Index
 	voteByVoterIndex         Index
 }
 
@@ -33,7 +32,7 @@ type GroupMember struct {
 	Weight sdk.Int
 }
 
-func (g GroupMember) ID() []byte {
+func (g GroupMember) NaturalKey() []byte {
 	result := make([]byte, 0, len(g.Group)+len(g.Member))
 	result = append(result, g.Group...)
 	result = append(result, g.Member...)
@@ -61,10 +60,8 @@ func NewGroupKeeper(storeKey sdk.StoreKey, cdc *codec.Codec) GroupKeeper {
 	})
 	k.groupTable = groupTableBuilder.Build()
 
-	// todo: why pass a primary key generator when object must implement HasID (for Save)
-	groupMemberTableBuilder := NewNaturalKeyTableBuilder(GroupMemberTablePrefix, GroupMemberTableSeqPrefix, GroupMemberTableIndexPrefix, storeKey, cdc, &GroupMember{}, func(val interface{}) []byte {
-		return val.(*GroupMember).ID()
-	})
+	groupMemberTableBuilder := NewNaturalKeyTableBuilder(GroupMemberTablePrefix, GroupMemberTableSeqPrefix, GroupMemberTableIndexPrefix, storeKey, cdc, &GroupMember{})
+
 	k.groupMemberByGroupIndex = NewIndex(groupMemberTableBuilder, GroupMemberByGroupIndexPrefix, func(val interface{}) ([][]byte, error) {
 		group := val.(*GroupMember).Group
 		return [][]byte{group}, nil
@@ -81,7 +78,7 @@ func NewGroupKeeper(storeKey sdk.StoreKey, cdc *codec.Codec) GroupKeeper {
 //	k := GroupKeeper{}
 //
 //	groupTableBuilder := NewAutoUInt64TableBuilder(mgr, "group", func setId(model interface{}, id uint64) {
-//		model.ID = id
+//		model.NaturalKey = id
 //	})
 //	k.groupByAdminIndex = NewIndex(groupTableBuilder, func(val interface{}) []byte {
 //		return val.(GroupMetadata).Admin

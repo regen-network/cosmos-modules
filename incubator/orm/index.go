@@ -11,56 +11,54 @@ import (
 	"github.com/cosmos/cosmos-sdk/types/errors"
 )
 
-// indexer creates and modifies the second index based on the operations and changes on the primary object.
+// indexer creates and modifies the second MultiKeyIndex based on the operations and changes on the primary object.
 type indexer interface {
 	OnCreate(store sdk.KVStore, rowId uint64, value interface{}) error
 	OnDelete(store sdk.KVStore, rowId uint64, value interface{}) error
 	OnUpdate(store sdk.KVStore, rowId uint64, newValue, oldValue interface{}) error
 }
 
-// index is the entry point for all index related operations.
-type index struct {
+// MultiKeyIndex is an index where multiple entries can point to the same underlying object as opposite to a unique index
+// where only one entry is allowed.
+type MultiKeyIndex struct {
 	storeKey  sdk.StoreKey
 	prefix    byte
 	rowGetter func(ctx HasKVStore, rowId uint64, dest interface{}) (key []byte, err error)
 	indexer   indexer
 }
 
-func NewIndex(builder TableBuilder, prefix byte, indexer IndexerFunc) *index {
-	idx := index{
+func NewIndex(builder Indexable, prefix byte, indexer IndexerFunc) *MultiKeyIndex {
+	idx := MultiKeyIndex{
 		storeKey:  builder.StoreKey(),
 		prefix:    prefix,
 		rowGetter: builder.RowGetter(),
-		indexer:   NewIndexer(indexer, false),
+		indexer:   NewIndexer(indexer),
 	}
 	builder.AddAfterSaveInterceptor(idx.onSave)
 	builder.AddAfterDeleteInterceptor(idx.onDelete)
 	return &idx
 }
 
-// todo: store panics on errors. why return an error here?
-func (i index) Has(ctx HasKVStore, key []byte) (bool, error) {
-	//todo: does not work: return store.Has(key), nil
+func (i MultiKeyIndex) Has(ctx HasKVStore, key []byte) bool {
 	// can only be answered by a prefix scan. see makeIndexPrefixScanKey
-
 	store := prefix.NewStore(ctx.KVStore(i.storeKey), []byte{i.prefix})
 	it := store.Iterator(makeIndexPrefixScanKey(key, 0), makeIndexPrefixScanKey(key, math.MaxUint64))
 	defer it.Close()
-	return it.Valid(), nil
+	return it.Valid()
 }
 
-func (i index) Get(ctx HasKVStore, key []byte) (Iterator, error) {
+func (i MultiKeyIndex) Get(ctx HasKVStore, key []byte) (Iterator, error) {
 	store := prefix.NewStore(ctx.KVStore(i.storeKey), []byte{i.prefix})
 	it := store.Iterator(makeIndexPrefixScanKey(key, 0), makeIndexPrefixScanKey(key, math.MaxUint64))
 	return indexIterator{ctx: ctx, it: it, rowGetter: i.rowGetter}, nil
 }
 
 // PrefixScan returns an Iterator over a domain of keys in ascending order. End is exclusive.
-// Start is an index key or prefix. It must be less than end, or the Iterator is invalid.
+// Start is an MultiKeyIndex key or prefix. It must be less than end, or the Iterator is invalid.
 // Iterator must be closed by caller.
 // To iterate over entire domain, use PrefixScan(nil, nil)
 // CONTRACT: No writes may happen within a domain while an iterator exists over it.
-func (i index) PrefixScan(ctx HasKVStore, start []byte, end []byte) (Iterator, error) {
+func (i MultiKeyIndex) PrefixScan(ctx HasKVStore, start []byte, end []byte) (Iterator, error) {
 	if start != nil && end != nil && bytes.Compare(start, end) >= 0 {
 		return NewInvalidIterator(), errors.Wrap(ErrArgument, "start must be less than end")
 	}
@@ -70,11 +68,11 @@ func (i index) PrefixScan(ctx HasKVStore, start []byte, end []byte) (Iterator, e
 }
 
 // ReversePrefixScan returns an Iterator over a domain of keys in descending order. End is exclusive.
-// Start is an index key or prefix. It must be less than end, or the Iterator is invalid.
+// Start is an MultiKeyIndex key or prefix. It must be less than end, or the Iterator is invalid.
 // Iterator must be closed by caller.
 // To iterate over entire domain, use PrefixScan(nil, nil)
 // CONTRACT: No writes may happen within a domain while an iterator exists over it.
-func (i index) ReversePrefixScan(ctx HasKVStore, start []byte, end []byte) (Iterator, error) {
+func (i MultiKeyIndex) ReversePrefixScan(ctx HasKVStore, start []byte, end []byte) (Iterator, error) {
 	if start != nil && end != nil && bytes.Compare(start, end) >= 0 {
 		return NewInvalidIterator(), errors.Wrap(ErrArgument, "start must be less than end")
 	}
@@ -83,8 +81,7 @@ func (i index) ReversePrefixScan(ctx HasKVStore, start []byte, end []byte) (Iter
 	return indexIterator{ctx: ctx, it: it, rowGetter: i.rowGetter}, nil
 }
 
-func (i index) onSave(ctx HasKVStore, rowID uint64, key []byte, newValue, oldValue interface{}) error {
-	// todo: this is the on create indexer, for update the old value may has to be removed
+func (i MultiKeyIndex) onSave(ctx HasKVStore, rowID uint64, newValue, oldValue interface{}) error {
 	store := prefix.NewStore(ctx.KVStore(i.storeKey), []byte{i.prefix})
 	if oldValue == nil {
 		return i.indexer.OnCreate(store, rowID, newValue)
@@ -93,22 +90,22 @@ func (i index) onSave(ctx HasKVStore, rowID uint64, key []byte, newValue, oldVal
 
 }
 
-func (i index) onDelete(ctx HasKVStore, rowId uint64, key []byte, oldValue interface{}) error {
+func (i MultiKeyIndex) onDelete(ctx HasKVStore, rowId uint64, oldValue interface{}) error {
 	store := prefix.NewStore(ctx.KVStore(i.storeKey), []byte{i.prefix})
 	return i.indexer.OnDelete(store, rowId, oldValue)
 }
 
-type uniqueIndex struct {
-	index
+type UniqueIndex struct {
+	MultiKeyIndex
 }
 
-func NewUniqueIndex(builder TableBuilder, prefix byte, indexerFunc IndexerFunc) *uniqueIndex {
-	idx := uniqueIndex{
-		index: index{
+func NewUniqueIndex(builder Indexable, prefix byte, uniqueIndexerFunc UniqueIndexerFunc) *UniqueIndex {
+	idx := UniqueIndex{
+		MultiKeyIndex: MultiKeyIndex{
 			storeKey:  builder.StoreKey(),
 			prefix:    prefix,
 			rowGetter: builder.RowGetter(),
-			indexer:   NewIndexer(indexerFunc, true),
+			indexer:   NewUniqueIndexer(uniqueIndexerFunc),
 		},
 	}
 	builder.AddAfterSaveInterceptor(idx.onSave)
@@ -116,8 +113,8 @@ func NewUniqueIndex(builder TableBuilder, prefix byte, indexerFunc IndexerFunc) 
 	return &idx
 }
 
-// RowID looks up the rowID for an index key. Returns ErrNotFound when not exists in index.
-func (i uniqueIndex) RowID(ctx HasKVStore, key []byte) (uint64, error) {
+// RowID looks up the rowID for an MultiKeyIndex key. Returns ErrNotFound when not exists in MultiKeyIndex.
+func (i UniqueIndex) RowID(ctx HasKVStore, key []byte) (uint64, error) {
 	store := prefix.NewStore(ctx.KVStore(i.storeKey), []byte{i.prefix})
 	it := store.Iterator(makeIndexPrefixScanKey(key, 0), makeIndexPrefixScanKey(key, math.MaxUint64))
 	defer it.Close()

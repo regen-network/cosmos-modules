@@ -3,101 +3,100 @@ package orm
 import (
 	"github.com/cosmos/cosmos-sdk/codec"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	"github.com/cosmos/cosmos-sdk/types/errors"
 )
 
-var _ TableBuilder = &naturalKeyTableBuilder{}
+var _ Indexable = &naturalKeyTableBuilder{}
 
-type naturalKeyer func(val interface{}) []byte // todo: note: in the api design this does not return an error unlike other indexer functions do
-
-func NewNaturalKeyTableBuilder(prefixData, prefixSeq, prefixIndex byte, key sdk.StoreKey, cdc *codec.Codec, model interface{}, getPrimaryKey naturalKeyer) *naturalKeyTableBuilder {
+func NewNaturalKeyTableBuilder(prefixData, prefixSeq, prefixIndex byte, key sdk.StoreKey, cdc *codec.Codec, model NaturalKeyed) *naturalKeyTableBuilder {
 	if prefixIndex == prefixData || prefixData == prefixSeq {
 		panic("prefixIndex must be unique")
 	}
 
 	builder := NewAutoUInt64TableBuilder(prefixData, prefixSeq, key, cdc, model)
 
-	idx := NewUniqueIndex(builder, prefixIndex, func(value interface{}) (bytes [][]byte, err error) {
-		return [][]byte{getPrimaryKey(value)}, nil
+	idx := NewUniqueIndex(builder, prefixIndex, func(value interface{}) ([]byte, error) {
+		obj, ok := value.(NaturalKeyed)
+		if !ok {
+			return nil, errors.Wrapf(ErrType, "%T", value)
+		}
+		return obj.NaturalKey(), nil
 	})
 	return &naturalKeyTableBuilder{
 		naturalKeyIndex:        idx,
-		autoUInt64TableBuilder: builder,
+		AutoUInt64TableBuilder: builder,
 	}
 }
 
 type naturalKeyTableBuilder struct {
-	*autoUInt64TableBuilder
-	naturalKeyIndex RowIDAwareIndex
+	*AutoUInt64TableBuilder
+	naturalKeyIndex *UniqueIndex
 }
 
-func (a naturalKeyTableBuilder) Build() naturalKeyTable {
-	return naturalKeyTable{
-		autoTable:       a.autoUInt64TableBuilder.Build(),
+func (a naturalKeyTableBuilder) Build() NaturalKeyTable {
+	return NaturalKeyTable{
+		autoTable:       a.AutoUInt64TableBuilder.Build(),
 		naturalKeyIndex: a.naturalKeyIndex,
 	}
 }
 
-var _ NaturalKeyTable = naturalKeyTable{}
-
-type naturalKeyTable struct {
-	getPrimaryKey   naturalKeyer
-	autoTable       autoUInt64Table
-	naturalKeyIndex RowIDAwareIndex
+// NaturalKeyed defines an object type that is aware of it's immutable natural key.
+type NaturalKeyed interface {
+	// NaturalKey returns the immutable and serialized natural key of this object
+	NaturalKey() []byte
 }
 
-func (a naturalKeyTable) GetOne(ctx HasKVStore, primKey []byte, dest interface{}) ([]byte, error) {
-	it, err := a.Get(ctx, primKey)
-	if err != nil {
-		return nil, err
-	}
-	return First(it, dest)
+// NaturalKeyTable provides simpler object style orm methods without passing database rowIDs.
+// Entries are persisted and loaded with a reference to their natural key.
+type NaturalKeyTable struct {
+	autoTable       AutoUInt64Table
+	naturalKeyIndex *UniqueIndex
 }
 
-func (a naturalKeyTable) Create(ctx HasKVStore, obj HasID) error {
+func (a NaturalKeyTable) Create(ctx HasKVStore, obj NaturalKeyed) error {
 	_, err := a.autoTable.Create(ctx, obj)
 	return err
 }
 
-func (a naturalKeyTable) Save(ctx HasKVStore, newValue HasID) error {
-	rowID, err := a.naturalKeyIndex.RowID(ctx, newValue.ID())
+func (a NaturalKeyTable) Save(ctx HasKVStore, newValue NaturalKeyed) error {
+	rowID, err := a.naturalKeyIndex.RowID(ctx, newValue.NaturalKey())
 	if err != nil {
 		return err
 	}
 	return a.autoTable.Save(ctx, rowID, newValue)
 }
 
-func (a naturalKeyTable) Delete(ctx HasKVStore, obj HasID) error {
-	rowID, err := a.naturalKeyIndex.RowID(ctx, obj.ID())
+func (a NaturalKeyTable) Delete(ctx HasKVStore, obj NaturalKeyed) error {
+	rowID, err := a.naturalKeyIndex.RowID(ctx, obj.NaturalKey())
 	if err != nil {
 		return err
 	}
 	return a.autoTable.Delete(ctx, rowID)
 }
 
-// todo: there is no error result as store would panic
-func (a naturalKeyTable) Has(ctx HasKVStore, primKey []byte) (bool, error) {
+func (a NaturalKeyTable) Has(ctx HasKVStore, primKey []byte) bool {
 	rowID, err := a.naturalKeyIndex.RowID(ctx, primKey)
 	if err != nil {
 		if err == ErrNotFound {
-			return false, nil
+			return false
 		}
-		return false, err
+		return false
 	}
 	return a.autoTable.Has(ctx, rowID)
 }
 
-func (a naturalKeyTable) Get(ctx HasKVStore, primKey []byte) (Iterator, error) {
+func (a NaturalKeyTable) GetOne(ctx HasKVStore, primKey []byte, dest interface{}) ([]byte, error) {
 	rowID, err := a.naturalKeyIndex.RowID(ctx, primKey)
 	if err != nil {
 		return nil, err
 	}
-	return a.autoTable.Get(ctx, rowID)
+	return a.autoTable.GetOne(ctx, rowID, dest)
 }
 
-func (a naturalKeyTable) PrefixScan(ctx HasKVStore, start, end []byte) (Iterator, error) {
+func (a NaturalKeyTable) PrefixScan(ctx HasKVStore, start, end []byte) (Iterator, error) {
 	return a.naturalKeyIndex.PrefixScan(ctx, start, end)
 }
 
-func (a naturalKeyTable) ReversePrefixScan(ctx HasKVStore, start, end []byte) (Iterator, error) {
+func (a NaturalKeyTable) ReversePrefixScan(ctx HasKVStore, start, end []byte) (Iterator, error) {
 	return a.naturalKeyIndex.ReversePrefixScan(ctx, start, end)
 }

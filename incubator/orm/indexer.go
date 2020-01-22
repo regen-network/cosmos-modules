@@ -5,28 +5,47 @@ import (
 	"math"
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	"github.com/cosmos/cosmos-sdk/types/errors"
 )
 
-// IndexerFunc creates one or multiple index keys for the source object.
+// IndexerFunc creates one or multiple MultiKeyIndex keys for the source object.
 type IndexerFunc func(value interface{}) ([][]byte, error)
 
-// Indexer manages the persistence for an index based on searchable keys and operations.
+// IndexerFunc creates exactly one index key for the source object.
+type UniqueIndexerFunc func(value interface{}) ([]byte, error)
+
+// Indexer manages the persistence for an MultiKeyIndex based on searchable keys and operations.
 type Indexer struct {
 	indexerFunc IndexerFunc
 	addPolicy   func(store sdk.KVStore, secondaryIndexKey []byte, rowId uint64) error
 }
 
-func NewIndexer(indexerFunc IndexerFunc, unique bool) *Indexer {
+// NewIndexer returns an indexer that supports multiple reference keys for an entity.
+func NewIndexer(indexerFunc IndexerFunc) *Indexer {
 	if indexerFunc == nil {
 		panic("indexer func must not be nil")
 	}
-	i := &Indexer{indexerFunc: indexerFunc}
-	if unique {
-		i.addPolicy = uniqueKeysAddPolicy
-	} else {
-		i.addPolicy = multiKeyAddPolicy
+	return &Indexer{
+		indexerFunc: indexerFunc,
+		addPolicy:   multiKeyAddPolicy,
 	}
-	return i
+}
+
+// NewUniqueIndexer returns an indexer that requires exactly one reference keys for an entity.
+func NewUniqueIndexer(f UniqueIndexerFunc) indexer {
+	if f == nil {
+		panic("indexer func must not be nil")
+	}
+	adaptor := func(indexerFunc UniqueIndexerFunc) IndexerFunc {
+		return func(v interface{}) ([][]byte, error) {
+			k, err := indexerFunc(v)
+			return [][]byte{k}, err
+		}
+	}
+	return &Indexer{
+		indexerFunc: adaptor(f),
+		addPolicy:   uniqueKeysAddPolicy,
+	}
 }
 
 func (u Indexer) OnCreate(store sdk.KVStore, rowId uint64, value interface{}) error {
@@ -77,6 +96,9 @@ func (u Indexer) OnUpdate(store sdk.KVStore, rowId uint64, newValue, oldValue in
 
 // uniqueKeysAddPolicy enforces keys to be unique
 func uniqueKeysAddPolicy(store sdk.KVStore, secondaryIndexKey []byte, rowId uint64) error {
+	if len(secondaryIndexKey) == 0 {
+		return errors.Wrap(ErrArgument, "empty index key")
+	}
 	it := store.Iterator(makeIndexPrefixScanKey(secondaryIndexKey, 0), makeIndexPrefixScanKey(secondaryIndexKey, math.MaxUint64))
 	defer it.Close()
 	if it.Valid() {
@@ -90,6 +112,10 @@ func uniqueKeysAddPolicy(store sdk.KVStore, secondaryIndexKey []byte, rowId uint
 
 // multiKeyAddPolicy allows multiple entries for a key
 func multiKeyAddPolicy(store sdk.KVStore, secondaryIndexKey []byte, rowId uint64) error {
+	if len(secondaryIndexKey) == 0 {
+		return errors.Wrap(ErrArgument, "empty index key")
+	}
+
 	indexKey := makeIndexPrefixScanKey(secondaryIndexKey, rowId)
 	if !store.Has(indexKey) {
 		store.Set(indexKey, []byte{0})
@@ -112,7 +138,7 @@ func difference(a [][]byte, b [][]byte) [][]byte {
 	return result
 }
 
-// todo: this feels quite complicated when reading the data. Why not store rowID(s) as payload instead?
+// makeIndexPrefixScanKey combines the indexKey with the rowID
 func makeIndexPrefixScanKey(indexKey []byte, rowId uint64) []byte {
 	n := len(indexKey)
 	res := make([]byte, n+8)

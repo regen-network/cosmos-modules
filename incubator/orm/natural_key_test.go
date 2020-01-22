@@ -19,11 +19,8 @@ func TestNaturalKeyTablePrefixScan(t *testing.T) {
 		testTableIndexPrefix
 	)
 
-	tb := NewNaturalKeyTableBuilder(testTablePrefix, testTableSeqPrefix, testTableIndexPrefix, storeKey, cdc, &GroupMember{},
-		func(val interface{}) []byte {
-			return val.(*GroupMember).ID()
-		},
-	).Build()
+	tb := NewNaturalKeyTableBuilder(testTablePrefix, testTableSeqPrefix, testTableIndexPrefix, storeKey, cdc, &GroupMember{}).
+		Build()
 
 	ctx := NewMockContext()
 
@@ -55,15 +52,15 @@ func TestNaturalKeyTablePrefixScan(t *testing.T) {
 		method     func(ctx HasKVStore, start, end []byte) (Iterator, error)
 	}{
 		"exact match with a single result": {
-			start:     []byte("group-amember-one"), // == m1.ID()
-			end:       []byte("group-amember-two"), // == m2.ID()
+			start:     []byte("group-amember-one"), // == m1.NaturalKey()
+			end:       []byte("group-amember-two"), // == m2.NaturalKey()
 			method:    tb.PrefixScan,
 			expResult: []GroupMember{m1},
 			expRowIDs: [][]byte{EncodeSequence(1)},
 		},
 		"one result by prefix": {
 			start:     []byte("group-a"),
-			end:       []byte("group-amember-two"), // == m2.ID()
+			end:       []byte("group-amember-two"), // == m2.NaturalKey()
 			method:    tb.PrefixScan,
 			expResult: []GroupMember{m1},
 			expRowIDs: [][]byte{EncodeSequence(1)},
@@ -129,15 +126,15 @@ func TestNaturalKeyTablePrefixScan(t *testing.T) {
 			expError: ErrArgument,
 		},
 		"reverse: exact match with a single result": {
-			start:     []byte("group-amember-one"), // == m1.ID()
-			end:       []byte("group-amember-two"), // == m2.ID()
+			start:     []byte("group-amember-one"), // == m1.NaturalKey()
+			end:       []byte("group-amember-two"), // == m2.NaturalKey()
 			method:    tb.ReversePrefixScan,
 			expResult: []GroupMember{m1},
 			expRowIDs: [][]byte{EncodeSequence(1)},
 		},
 		"reverse: one result by prefix": {
 			start:     []byte("group-a"),
-			end:       []byte("group-amember-two"), // == m2.ID()
+			end:       []byte("group-amember-two"), // == m2.NaturalKey()
 			method:    tb.ReversePrefixScan,
 			expResult: []GroupMember{m1},
 			expRowIDs: [][]byte{EncodeSequence(1)},
