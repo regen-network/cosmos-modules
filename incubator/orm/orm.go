@@ -1,185 +1,97 @@
-/* Package orm (object-relational mapping) provides a set of tools on top of the KV store interface to handle
-things like secondary indexes and auto-generated ID's that would otherwise need to be hand-generated on a case by
-case basis.
+/*
+Package orm is a convenient object to data store mapper.
 */
 package orm
 
 import (
-	"fmt"
+	"io"
+	"reflect"
+
 	"github.com/cosmos/cosmos-sdk/codec"
 	"github.com/cosmos/cosmos-sdk/store/prefix"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	"github.com/cosmos/cosmos-sdk/types/errors"
 )
 
-//type IntIndex interface {
-//	Has(ctx HasKVStore, key sdk.Int) (bool, error)
-//	Get(ctx HasKVStore, key sdk.Int) (Iterator, error)
-//	PrefixScan(ctx HasKVStore, start sdk.Int, end sdk.Int) (Iterator, error)
-//	ReversePrefixScan(ctx HasKVStore, start sdk.Int, end sdk.Int) (Iterator, error)
-//}
-//
-type bucketBase struct {
-	uniqueIndex
-	key          sdk.StoreKey
-	bucketPrefix []byte
-	cdc          *codec.Codec
-	indexers     []Indexer
+const ormCodespace = "orm"
+
+var (
+	ErrNotFound         = errors.Register(ormCodespace, 100, "not found")
+	ErrIteratorDone     = errors.Register(ormCodespace, 101, "iterator done")
+	ErrIteratorInvalid  = errors.Register(ormCodespace, 102, "iterator invalid")
+	ErrType             = errors.Register(ormCodespace, 110, "invalid type")
+	ErrUniqueConstraint = errors.Register(ormCodespace, 111, "unique constraint violation")
+	ErrArgument         = errors.Register(ormCodespace, 112, "invalid argument")
+)
+
+// HasKVStore is a subset of the cosmos-sdk context defined for loose coupling and simpler test setups.
+type HasKVStore interface {
+	KVStore(key sdk.StoreKey) sdk.KVStore
 }
 
-var _ TableBase = bucketBase{}
-
-func (b bucketBase) rootStore(ctx HasKVStore) prefix.Store {
-	return prefix.NewStore(ctx.KVStore(b.key), []byte(b.bucketPrefix))
+// Index allows efficient prefix scans is stored as key = concat(indexKeyBytes, rowIDUint64) with value empty
+// so that the row NaturalKey is allows a fixed with 8 byte integer. This allows the MultiKeyIndex key bytes to be
+// variable length and scanned iteratively. The
+type Index interface {
+	Has(ctx HasKVStore, key []byte) bool
+	Get(ctx HasKVStore, key []byte) (Iterator, error)
+	PrefixScan(ctx HasKVStore, start []byte, end []byte) (Iterator, error)
+	ReversePrefixScan(ctx HasKVStore, start []byte, end []byte) (Iterator, error)
 }
 
-func (b bucketBase) indexStore(ctx HasKVStore, indexName string) prefix.Store {
-	return prefix.NewStore(ctx.KVStore(b.key), []byte(fmt.Sprintf("%s/%s", b.bucketPrefix, indexName)))
+// Iterator allows iteration through a sequence of key value pairs
+type Iterator interface {
+	// LoadNext loads the next value in the sequence into the pointer passed as dest and returns the key. If there
+	// are no more items the ErrIteratorDone error is returned
+	// The key is the rowID and not any MultiKeyIndex key.
+	LoadNext(dest interface{}) (key []byte, err error)
+	// Close releases the iterator and should be called at the end of iteration
+	io.Closer
 }
 
-type externalKeyBucket struct {
-	bucketBase
+// Indexable types are used to setup new tables.
+// This interface provides a set of functions that can be called by indexes to register and interact with the tables.
+type Indexable interface {
+	StoreKey() sdk.StoreKey
+	AddAfterSaveInterceptor(interceptor AfterSaveInterceptor)
+	AddAfterDeleteInterceptor(interceptor AfterDeleteInterceptor)
+	RowGetter() RowGetter
 }
 
-//func NewExternalKeyBucket(key sdk.StoreKey, bucketPrefix string, cdc *codec.Codec, indexes []Index) ExternalKeyTable {
-//	return &externalKeyBucket{bucketBase{
-//		key,
-//		bucketPrefix,
-//		cdc,
-//		indexes,
-//	}}
-//}
+// AfterSaveInterceptor defines a callback function to be called on Create + Update.
+type AfterSaveInterceptor func(ctx HasKVStore, rowID uint64, newValue, oldValue interface{}) error
 
-func (b bucketBase) save(ctx HasKVStore, key []byte, value interface{}) error {
-	rootStore := b.rootStore(ctx)
-	bz, err := b.cdc.MarshalBinaryBare(value)
-	if err != nil {
-		return err
+// AfterDeleteInterceptor defines a callback function to be called on Delete operations.
+type AfterDeleteInterceptor func(ctx HasKVStore, rowID uint64, value interface{}) error
+
+// RowGetter loads a persistent object by row ID into the destination object. The dest parameter must therefore be a pointer.
+// The key returned is the serialized row ID.
+// Any implementation must return `ErrNotFound` when no object for the rowID exists
+type RowGetter func(ctx HasKVStore, rowID uint64, dest interface{}) (key []byte, err error)
+
+// NewTypeSafeRowGetter returns a `RowGetter` with type check on the dest parameter.
+func NewTypeSafeRowGetter(storeKey sdk.StoreKey, prefixKey byte, cdc *codec.Codec, model reflect.Type) RowGetter {
+	return func(ctx HasKVStore, rowID uint64, dest interface{}) ([]byte, error) {
+		if err := assertCorrectType(model, dest); err != nil {
+			return nil, err
+		}
+		store := prefix.NewStore(ctx.KVStore(storeKey), []byte{prefixKey})
+		key := EncodeSequence(rowID)
+		val := store.Get(key)
+		if val == nil {
+			return nil, ErrNotFound
+		}
+		return key, cdc.UnmarshalBinaryBare(val, dest)
 	}
-	rootStore.Set(key, bz)
+}
+
+func assertCorrectType(model reflect.Type, obj interface{}) error {
+	tp := reflect.TypeOf(obj)
+	if tp.Kind() != reflect.Ptr {
+		return errors.Wrap(ErrType, "model destination must be a pointer")
+	}
+	if model != tp.Elem() {
+		return errors.Wrapf(ErrType, "can not use %T with this bucket", obj)
+	}
 	return nil
 }
-
-func (b externalKeyBucket) Save(ctx HasKVStore, key []byte, value interface{}) error {
-	return b.save(ctx, key, value)
-}
-
-func (b bucketBase) Delete(ctx HasKVStore, key []byte) error {
-	rootStore := b.rootStore(ctx)
-	rootStore.Delete(key)
-	// TODO: delete indexes
-	return nil
-}
-
-//type naturalKeyBucket struct {
-//	bucketBase
-//}
-//
-//func NewNaturalKeyBucket(key sdk.StoreKey, bucketPrefix string, cdc *codec.Codec, indexes []Index) NaturalKeyTable {
-//	return &naturalKeyBucket{bucketBase{key, bucketPrefix, cdc, indexes}}
-//}
-//
-//func (n naturalKeyBucket) Save(ctx HasKVStore, value HasID) error {
-//	return n.save(ctx, value.ID(), value)
-//}
-//
-//func NewAutoIDBucket(key sdk.StoreKey, bucketPrefix string, cdc *codec.Codec, indexes []Index, idGenerator func(x uint64) []byte) AutoKeyTable {
-//	return &autoIDBucket{externalKeyBucket{bucketBase{key, bucketPrefix, cdc, indexes}}, idGenerator}
-//}
-//
-//type autoIDBucket struct {
-//	externalKeyBucket
-//	idGenerator func(x uint64) []byte
-//}
-//
-//func writeUInt64(x uint64) []byte {
-//	buf := make([]byte, binary.MaxVarintLen64)
-//	n := binary.PutUvarint(buf, x)
-//	return buf[:n]
-//}
-//
-//func readUInt64(bz []byte) (uint64, error) {
-//	x, n := binary.Uvarint(bz)
-//	if n <= 0 {
-//		return 0, fmt.Errorf("can't read var uint64")
-//	}
-//	return x, nil
-//}
-//
-//func (a autoIDBucket) Create(ctx HasKVStore, value interface{}) ([]byte, error) {
-//	st := a.indexStore(ctx, "$")
-//	bz := st.Get([]byte("$"))
-//	var nextID uint64 = 0
-//	var err error
-//	if bz != nil {
-//		nextID, err = readUInt64(bz)
-//		if err != nil {
-//			return nil, err
-//		}
-//	}
-//	st.Set([]byte("$"), writeUInt64(nextID))
-//	return a.idGenerator(nextID), nil
-//}
-//
-//type iterator struct {
-//	cdc *codec.Codec
-//	it  sdk.Iterator
-//}
-//
-//func (i *iterator) LoadNext(dest interface{}) (key []byte, err error) {
-//	if !i.it.Valid() {
-//		return nil, fmt.Errorf("invalid")
-//	}
-//	key = i.it.Key()
-//	err = i.cdc.UnmarshalBinaryBare(i.it.Value(), dest)
-//	if err != nil {
-//		return nil, err
-//	}
-//	i.it.Next()
-//	return key, nil
-//}
-//
-//func (i *iterator) Close() {
-//	i.it.Close()
-//}
-//
-//type indexIterator struct {
-//	bucketBase
-//	ctx HasKVStore
-//	it    sdk.Iterator
-//	start []byte
-//	end   []byte
-//}
-//
-//func (i indexIterator) LoadNext(dest interface{}) (key []byte, err error) {
-//	if !i.it.Valid() {
-//		return nil, fmt.Errorf("invalid")
-//	}
-//	pieces := strings.Split(string(i.it.Key()), "/")
-//	if len(pieces) != 2 {
-//		return nil, fmt.Errorf("unexpected index key")
-//	}
-//	indexPrefix, err := hex.DecodeString(pieces[0])
-//	if err != nil {
-//		return nil, err
-//	}
-//	// check out of range
-//	if !((i.start == nil || bytes.Compare(i.start, indexPrefix) >= 0) && (i.end == nil || bytes.Compare(indexPrefix, i.end) <= 0)) {
-//		return nil, fmt.Errorf("done")
-//	}
-//	key, err = hex.DecodeString(pieces[1])
-//	if err != nil {
-//		return nil, err
-//	}
-//	err = i.bucketBase.GetOne(i.ctx, key, dest)
-//	if err != nil {
-//		return nil, err
-//	}
-//	return key, nil
-//}
-//
-//func (i indexIterator) Close() {
-//	i.it.Close()
-//}
-//
-//
-
