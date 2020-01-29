@@ -1,0 +1,7 @@
+syntax = "proto3";
+
+message Member {
+    bytes address = 1;
+    string weight = 2;
+    string description = 3;
+}
