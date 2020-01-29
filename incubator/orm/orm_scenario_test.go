@@ -5,37 +5,10 @@ import (
 	"testing"
 
 	"github.com/cosmos/cosmos-sdk/codec"
-	"github.com/cosmos/cosmos-sdk/store"
-	"github.com/cosmos/cosmos-sdk/store/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	dbm "github.com/tendermint/tm-db"
 )
-
-type MockContext struct {
-	db    *dbm.MemDB
-	store types.CommitMultiStore
-}
-
-func NewMockContext() *MockContext {
-	db := dbm.NewMemDB()
-	return &MockContext{
-		db:    dbm.NewMemDB(),
-		store: store.NewCommitMultiStore(db),
-	}
-
-}
-func (m MockContext) KVStore(key sdk.StoreKey) sdk.KVStore {
-	if s := m.store.GetCommitKVStore(key); s != nil {
-		return s
-	}
-	m.store.MountStoreWithDB(key, sdk.StoreTypeIAVL, m.db)
-	if err := m.store.LoadLatestVersion(); err != nil {
-		panic(err)
-	}
-	return m.store.GetCommitKVStore(key)
-}
 
 func TestKeeperEndToEndWithAutoUInt64Table(t *testing.T) {
 	storeKey := sdk.NewKVStoreKey("test")

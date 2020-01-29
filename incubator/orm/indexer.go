@@ -17,7 +17,7 @@ type UniqueIndexerFunc func(value interface{}) ([]byte, error)
 // Indexer manages the persistence for an MultiKeyIndex based on searchable keys and operations.
 type Indexer struct {
 	indexerFunc IndexerFunc
-	addPolicy   func(store sdk.KVStore, secondaryIndexKey []byte, rowId uint64) error
+	addPolicy   func(store sdk.KVStore, secondaryIndexKey []byte, rowID uint64) error
 }
 
 // NewIndexer returns an indexer that supports multiple reference keys for an entity.
@@ -32,7 +32,7 @@ func NewIndexer(indexerFunc IndexerFunc) *Indexer {
 }
 
 // NewUniqueIndexer returns an indexer that requires exactly one reference keys for an entity.
-func NewUniqueIndexer(f UniqueIndexerFunc) indexer {
+func NewUniqueIndexer(f UniqueIndexerFunc) *Indexer {
 	if f == nil {
 		panic("indexer func must not be nil")
 	}
@@ -48,33 +48,33 @@ func NewUniqueIndexer(f UniqueIndexerFunc) indexer {
 	}
 }
 
-func (u Indexer) OnCreate(store sdk.KVStore, rowId uint64, value interface{}) error {
+func (u Indexer) OnCreate(store sdk.KVStore, rowID uint64, value interface{}) error {
 	secondaryIndexKeys, err := u.indexerFunc(value)
 	if err != nil {
 		return err
 	}
 
 	for _, secondaryIndexKey := range secondaryIndexKeys {
-		if err := u.addPolicy(store, secondaryIndexKey, rowId); err != nil {
+		if err := u.addPolicy(store, secondaryIndexKey, rowID); err != nil {
 			return err
 		}
 	}
 	return nil
 }
 
-func (u Indexer) OnDelete(store sdk.KVStore, rowId uint64, value interface{}) error {
+func (u Indexer) OnDelete(store sdk.KVStore, rowID uint64, value interface{}) error {
 	secondaryIndexKeys, err := u.indexerFunc(value)
 	if err != nil {
 		return err
 	}
 	for _, secondaryIndexKey := range secondaryIndexKeys {
-		indexKey := makeIndexPrefixScanKey(secondaryIndexKey, rowId)
+		indexKey := makeIndexPrefixScanKey(secondaryIndexKey, rowID)
 		store.Delete(indexKey)
 	}
 	return nil
 }
 
-func (u Indexer) OnUpdate(store sdk.KVStore, rowId uint64, newValue, oldValue interface{}) error {
+func (u Indexer) OnUpdate(store sdk.KVStore, rowID uint64, newValue, oldValue interface{}) error {
 	oldSecIdxKeys, err := u.indexerFunc(oldValue)
 	if err != nil {
 		return err
@@ -84,10 +84,10 @@ func (u Indexer) OnUpdate(store sdk.KVStore, rowId uint64, newValue, oldValue in
 		return err
 	}
 	for _, oldIdxKey := range difference(oldSecIdxKeys, newSecIdxKeys) {
-		store.Delete(makeIndexPrefixScanKey(oldIdxKey, rowId))
+		store.Delete(makeIndexPrefixScanKey(oldIdxKey, rowID))
 	}
 	for _, newIdxKey := range difference(newSecIdxKeys, oldSecIdxKeys) {
-		if err := u.addPolicy(store, newIdxKey, rowId); err != nil {
+		if err := u.addPolicy(store, newIdxKey, rowID); err != nil {
 			return err
 		}
 	}
@@ -95,7 +95,7 @@ func (u Indexer) OnUpdate(store sdk.KVStore, rowId uint64, newValue, oldValue in
 }
 
 // uniqueKeysAddPolicy enforces keys to be unique
-func uniqueKeysAddPolicy(store sdk.KVStore, secondaryIndexKey []byte, rowId uint64) error {
+func uniqueKeysAddPolicy(store sdk.KVStore, secondaryIndexKey []byte, rowID uint64) error {
 	if len(secondaryIndexKey) == 0 {
 		return errors.Wrap(ErrArgument, "empty index key")
 	}
@@ -105,18 +105,18 @@ func uniqueKeysAddPolicy(store sdk.KVStore, secondaryIndexKey []byte, rowId uint
 		return ErrUniqueConstraint
 	}
 
-	indexKey := makeIndexPrefixScanKey(secondaryIndexKey, rowId)
+	indexKey := makeIndexPrefixScanKey(secondaryIndexKey, rowID)
 	store.Set(indexKey, []byte{0})
 	return nil
 }
 
 // multiKeyAddPolicy allows multiple entries for a key
-func multiKeyAddPolicy(store sdk.KVStore, secondaryIndexKey []byte, rowId uint64) error {
+func multiKeyAddPolicy(store sdk.KVStore, secondaryIndexKey []byte, rowID uint64) error {
 	if len(secondaryIndexKey) == 0 {
 		return errors.Wrap(ErrArgument, "empty index key")
 	}
 
-	indexKey := makeIndexPrefixScanKey(secondaryIndexKey, rowId)
+	indexKey := makeIndexPrefixScanKey(secondaryIndexKey, rowID)
 	if !store.Has(indexKey) {
 		store.Set(indexKey, []byte{0})
 	}
@@ -138,11 +138,13 @@ func difference(a [][]byte, b [][]byte) [][]byte {
 	return result
 }
 
+const encodedSeqLength = 8
+
 // makeIndexPrefixScanKey combines the indexKey with the rowID
-func makeIndexPrefixScanKey(indexKey []byte, rowId uint64) []byte {
+func makeIndexPrefixScanKey(indexKey []byte, rowID uint64) []byte {
 	n := len(indexKey)
-	res := make([]byte, n+8)
+	res := make([]byte, n+encodedSeqLength)
 	copy(res, indexKey)
-	binary.BigEndian.PutUint64(res[n:], rowId)
+	binary.BigEndian.PutUint64(res[n:], rowID)
 	return res
 }

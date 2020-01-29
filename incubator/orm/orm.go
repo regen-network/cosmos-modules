@@ -16,7 +16,6 @@ import (
 const ormCodespace = "orm"
 
 var (
-	// todo: ormCodespace ok or do we need to claim error codes somehow?
 	ErrNotFound         = errors.Register(ormCodespace, 100, "not found")
 	ErrIteratorDone     = errors.Register(ormCodespace, 101, "iterator done")
 	ErrIteratorInvalid  = errors.Register(ormCodespace, 102, "iterator invalid")
@@ -60,24 +59,27 @@ type Indexable interface {
 }
 
 // AfterSaveInterceptor defines a callback function to be called on Create + Update.
-type AfterSaveInterceptor func(ctx HasKVStore, rowId uint64, newValue, oldValue interface{}) error
+type AfterSaveInterceptor func(ctx HasKVStore, rowID uint64, newValue, oldValue interface{}) error
 
 // AfterDeleteInterceptor defines a callback function to be called on Delete operations.
-type AfterDeleteInterceptor func(ctx HasKVStore, rowId uint64, value interface{}) error
+type AfterDeleteInterceptor func(ctx HasKVStore, rowID uint64, value interface{}) error
 
-// RowGetter loads a persistent object by row ID into the destination object. The key returned is the serialized row ID.
-type RowGetter func(ctx HasKVStore, rowId uint64, dest interface{}) (key []byte, err error)
+// RowGetter loads a persistent object by row ID into the destination object. The dest parameter must therefore be a pointer.
+// The key returned is the serialized row ID.
+// Any implementation must return `ErrNotFound` when no object for the rowID exists
+type RowGetter func(ctx HasKVStore, rowID uint64, dest interface{}) (key []byte, err error)
 
+// NewTypeSafeRowGetter returns a `RowGetter` with type check on the dest parameter.
 func NewTypeSafeRowGetter(storeKey sdk.StoreKey, prefixKey byte, cdc *codec.Codec, model reflect.Type) RowGetter {
-	return func(ctx HasKVStore, rowId uint64, dest interface{}) ([]byte, error) {
+	return func(ctx HasKVStore, rowID uint64, dest interface{}) ([]byte, error) {
 		if err := assertCorrectType(model, dest); err != nil {
 			return nil, err
 		}
 		store := prefix.NewStore(ctx.KVStore(storeKey), []byte{prefixKey})
-		key := EncodeSequence(rowId)
+		key := EncodeSequence(rowID)
 		val := store.Get(key)
 		if val == nil {
-			return nil, ErrNotFound // todo: discuss how to handle this scenario if we drop error return parameter
+			return nil, ErrNotFound
 		}
 		return key, cdc.UnmarshalBinaryBare(val, dest)
 	}

@@ -7,19 +7,25 @@ import (
 	"github.com/cosmos/cosmos-sdk/types/errors"
 )
 
-type iteratorFunc func(dest interface{}) (key []byte, err error)
+// IteratorFunc is a function type that satisfies the Iterator interface
+// The passed function is called on LoadNext operations.
+type IteratorFunc func(dest interface{}) (key []byte, err error)
 
-func (i iteratorFunc) LoadNext(dest interface{}) (key []byte, err error) {
+// LoadNext loads the next value in the sequence into the pointer passed as dest and returns the key. If there
+// are no more items the ErrIteratorDone error is returned
+// The key is the rowID and not any MultiKeyIndex key.
+func (i IteratorFunc) LoadNext(dest interface{}) (key []byte, err error) {
 	return i(dest)
 }
 
-func (i iteratorFunc) Close() error {
+// Close always returns nil
+func (i IteratorFunc) Close() error {
 	return nil
 }
 
 func NewSingleValueIterator(cdc *codec.Codec, rowID []byte, val []byte) Iterator {
 	var closed bool
-	return iteratorFunc(func(dest interface{}) ([]byte, error) {
+	return IteratorFunc(func(dest interface{}) ([]byte, error) {
 		if closed || val == nil {
 			return nil, ErrIteratorDone
 		}
@@ -30,9 +36,44 @@ func NewSingleValueIterator(cdc *codec.Codec, rowID []byte, val []byte) Iterator
 
 // Iterator that return ErrIteratorInvalid only.
 func NewInvalidIterator() Iterator {
-	return iteratorFunc(func(dest interface{}) ([]byte, error) {
+	return IteratorFunc(func(dest interface{}) ([]byte, error) {
 		return nil, ErrIteratorInvalid
 	})
+}
+
+// LimitedIterator returns up to defined maximum number of elements.
+type LimitedIterator struct {
+	remainingCount int
+	parentIterator Iterator
+}
+
+// LimitIterator returns a new iterator that returns max number of elements.
+// The parent iterator must not be nil
+// max can be 0 or any positive number
+func LimitIterator(parent Iterator, max int) *LimitedIterator {
+	if max < 0 {
+		panic("quantity must not be negative")
+	}
+	if parent == nil {
+		panic("parent iterator must not be nil")
+	}
+	return &LimitedIterator{remainingCount: max, parentIterator: parent}
+}
+
+// LoadNext loads the next value in the sequence into the pointer passed as dest and returns the key. If there
+// are no more items or the defined max number of elements was returned the `ErrIteratorDone` error is returned
+// The key is the rowID and not any MultiKeyIndex key.
+func (i *LimitedIterator) LoadNext(dest interface{}) (key []byte, err error) {
+	if i.remainingCount == 0 {
+		return nil, ErrIteratorDone
+	}
+	i.remainingCount--
+	return i.parentIterator.LoadNext(dest)
+}
+
+// Close releases the iterator and should be called at the end of iteration
+func (i LimitedIterator) Close() error {
+	return i.parentIterator.Close()
 }
 
 // First loads the first element into the given destination type and closes the iterator.
@@ -100,5 +141,4 @@ func ReadAll(it Iterator, dest ModelSlicePtr) ([][]byte, error) {
 		}
 		rowIDs = append(rowIDs, binKey)
 	}
-	return rowIDs, nil
 }

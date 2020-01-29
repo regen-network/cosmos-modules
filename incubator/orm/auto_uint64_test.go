@@ -154,5 +154,4 @@ func TestAutoUInt64PrefixScan(t *testing.T) {
 			assert.Equal(t, spec.expRowIDs, rowIDs)
 		})
 	}
-
 }

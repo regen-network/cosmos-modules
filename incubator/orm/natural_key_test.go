@@ -214,5 +214,4 @@ func TestNaturalKeyTablePrefixScan(t *testing.T) {
 			assert.Equal(t, spec.expRowIDs, rowIDs)
 		})
 	}
-
 }

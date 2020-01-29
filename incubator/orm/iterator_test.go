@@ -61,7 +61,7 @@ func TestReadAll(t *testing.T) {
 			expErr:    ErrArgument,
 		},
 		"dest slice is not a pointer": {
-			srcIT:     iteratorFunc(nil),
+			srcIT:     IteratorFunc(nil),
 			destSlice: func() ModelSlicePtr { return make([]GroupMetadata, 1) },
 			expErr:    ErrArgument,
 		},
@@ -79,6 +79,47 @@ func TestReadAll(t *testing.T) {
 	}
 }
 
+func TestLimitedIterator(t *testing.T) {
+	sliceIter := func(s ...string) Iterator {
+		var pos int
+		return IteratorFunc(func(dest interface{}) (key []byte, err error) {
+			if pos == len(s) {
+				return nil, ErrIteratorDone
+			}
+			v := s[pos]
+
+			*dest.(*string) = v // dest is a pointer so we set the value here
+			pos++
+			return []byte(v), nil
+		})
+	}
+	specs := map[string]struct {
+		src Iterator
+		exp []string
+	}{
+		"all from range with max > length": {
+			src: LimitIterator(sliceIter("a", "b", "c"), 4),
+			exp: []string{"a", "b", "c"},
+		},
+		"up to max": {
+			src: LimitIterator(sliceIter("a", "b", "c"), 2),
+			exp: []string{"a", "b"},
+		},
+		"none when max = 0": {
+			src: LimitIterator(sliceIter("a", "b", "c"), 0),
+			exp: []string{},
+		},
+	}
+	for msg, spec := range specs {
+		t.Run(msg, func(t *testing.T) {
+			var loaded []string
+			_, err := ReadAll(spec.src, &loaded)
+			require.NoError(t, err)
+			assert.Equal(t, spec.exp, loaded)
+		})
+	}
+}
+
 // mockIter amino encodes + decodes value object.
 func mockIter(rowID []byte, val interface{}) Iterator {
 	cdc := codec.New()
@@ -90,7 +131,7 @@ func mockIter(rowID []byte, val interface{}) Iterator {
 }
 
 func noopIter() Iterator {
-	return iteratorFunc(func(dest interface{}) (key []byte, err error) {
+	return IteratorFunc(func(dest interface{}) (key []byte, err error) {
 		return nil, nil
 	})
 }

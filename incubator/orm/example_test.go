@@ -13,12 +13,6 @@ type GroupKeeper struct {
 	groupMemberTable         NaturalKeyTable
 	groupMemberByGroupIndex  Index
 	groupMemberByMemberIndex Index
-	groupAccountByGroupIndex Index
-	groupAccountByAdminIndex Index
-	proposalTable            AutoUInt64Table
-	proposalByGroupIndex     Index
-	voteTable                NaturalKeyTable
-	voteByVoterIndex         Index
 }
 
 type GroupMetadata struct {
@@ -73,29 +67,3 @@ func NewGroupKeeper(storeKey sdk.StoreKey, cdc *codec.Codec) GroupKeeper {
 
 	return k
 }
-
-//func NewGroupKeeper2(mgr SchemaManager) GroupKeeper {
-//	k := GroupKeeper{}
-//
-//	groupTableBuilder := NewAutoUInt64TableBuilder(mgr, "group", func setId(model interface{}, id uint64) {
-//		model.NaturalKey = id
-//	})
-//	k.groupByAdminIndex = NewIndex(groupTableBuilder, func(val interface{}) []byte {
-//		return val.(GroupMetadata).Admin
-//	})
-//	k.groupTable = groupTableBuilder.Build()
-//
-//	groupMemberTableBuilder := NewNaturalKeyTableBuilder(GroupMemberTablePrefix, storeKey, cdc, func(val interface{}) []byte {
-//		gm := val.(GroupMember)
-//		return arrays.Concat(gm.Group, gm.Member)
-//	})
-//	k.groupMemberByGroupIndex = NewIndex(groupMemberTableBuilder, GroupMemberByGroupIndexPrefix, func(val interface{}) []byte {
-//		return val.(GroupMember).Group
-//	})
-//	k.groupMemberByMemberIndex = NewIndex(groupMemberTableBuilder, GroupMemberByMemberIndexPrefix, func(val interface{}) []byte {
-//		return val.(GroupMember).Member
-//	})
-//	k.groupMemberTable = groupMemberTableBuilder.Build()
-//
-//	return k
-//}

@@ -197,5 +197,4 @@ func TestIndexPrefixScan(t *testing.T) {
 			assert.Equal(t, spec.expRowIDs, rowIDs)
 		})
 	}
-
 }

@@ -28,12 +28,12 @@ func (s Sequence) NextVal(ctx HasKVStore) uint64 {
 	store := prefix.NewStore(ctx.KVStore(s.storeKey), []byte{s.prefix})
 	v := store.Get(sequenceStorageKey)
 	seq := DecodeSequence(v)
-	seq += 1
+	seq++
 	store.Set(sequenceStorageKey, EncodeSequence(seq))
 	return seq
 }
 
-// CurVal returns the last value used. 0 if none.
+// CurVal returns the last value used. 0Nex if none.
 func (s Sequence) CurVal(ctx HasKVStore) uint64 {
 	store := prefix.NewStore(ctx.KVStore(s.storeKey), []byte{s.prefix})
 	v := store.Get(sequenceStorageKey)

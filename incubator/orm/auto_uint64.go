@@ -39,7 +39,6 @@ type AutoUInt64TableBuilder struct {
 	afterDelete []AfterDeleteInterceptor
 }
 
-// todo: this function gives access to the storage. It does not really fit the builder patter.
 func (a AutoUInt64TableBuilder) RowGetter() RowGetter {
 	return NewTypeSafeRowGetter(a.storeKey, a.prefixData, a.cdc, a.model)
 }
@@ -69,6 +68,7 @@ func (a *AutoUInt64TableBuilder) AddAfterDeleteInterceptor(interceptor AfterDele
 	a.afterDelete = append(a.afterDelete, interceptor)
 }
 
+// AutoUInt64Table is the base table type which an auto incrementing ID.
 type AutoUInt64Table struct {
 	model       reflect.Type
 	prefix      byte

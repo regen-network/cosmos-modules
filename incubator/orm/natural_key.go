@@ -6,9 +6,9 @@ import (
 	"github.com/cosmos/cosmos-sdk/types/errors"
 )
 
-var _ Indexable = &naturalKeyTableBuilder{}
+var _ Indexable = &NaturalKeyTableBuilder{}
 
-func NewNaturalKeyTableBuilder(prefixData, prefixSeq, prefixIndex byte, key sdk.StoreKey, cdc *codec.Codec, model NaturalKeyed) *naturalKeyTableBuilder {
+func NewNaturalKeyTableBuilder(prefixData, prefixSeq, prefixIndex byte, key sdk.StoreKey, cdc *codec.Codec, model NaturalKeyed) *NaturalKeyTableBuilder {
 	if prefixIndex == prefixData || prefixData == prefixSeq {
 		panic("prefixIndex must be unique")
 	}
@@ -22,18 +22,18 @@ func NewNaturalKeyTableBuilder(prefixData, prefixSeq, prefixIndex byte, key sdk.
 		}
 		return obj.NaturalKey(), nil
 	})
-	return &naturalKeyTableBuilder{
+	return &NaturalKeyTableBuilder{
 		naturalKeyIndex:        idx,
 		AutoUInt64TableBuilder: builder,
 	}
 }
 
-type naturalKeyTableBuilder struct {
+type NaturalKeyTableBuilder struct {
 	*AutoUInt64TableBuilder
 	naturalKeyIndex *UniqueIndex
 }
 
-func (a naturalKeyTableBuilder) Build() NaturalKeyTable {
+func (a NaturalKeyTableBuilder) Build() NaturalKeyTable {
 	return NaturalKeyTable{
 		autoTable:       a.AutoUInt64TableBuilder.Build(),
 		naturalKeyIndex: a.naturalKeyIndex,
