@@ -18,7 +18,7 @@ func TestIndexPrefixScan(t *testing.T) {
 		testTableSeqPrefix
 	)
 	tBuilder := NewAutoUInt64TableBuilder(testTablePrefix, testTableSeqPrefix, storeKey, cdc, &GroupMetadata{})
-	idx := NewIndex(tBuilder, GroupByAdminIndexPrefix, func(val interface{}) ([][]byte, error) {
+	idx := NewMultiKeyIndex(tBuilder, GroupByAdminIndexPrefix, func(val interface{}) ([][]byte, error) {
 		return [][]byte{val.(*GroupMetadata).Admin}, nil
 	})
 	tb := tBuilder.Build()

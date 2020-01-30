@@ -27,12 +27,12 @@ type MultiKeyIndex struct {
 	indexer   indexer
 }
 
-func NewIndex(builder Indexable, prefix byte, indexer IndexerFunc) *MultiKeyIndex {
+func NewMultiKeyIndex(builder Indexable, prefix byte, indexer IndexerFunc) *MultiKeyIndex {
 	idx := MultiKeyIndex{
 		storeKey:  builder.StoreKey(),
 		prefix:    prefix,
 		rowGetter: builder.RowGetter(),
-		indexer:   NewIndexer(indexer),
+		indexer:   NewMultiKeyIndexer(indexer),
 	}
 	builder.AddAfterSaveInterceptor(idx.onSave)
 	builder.AddAfterDeleteInterceptor(idx.onDelete)

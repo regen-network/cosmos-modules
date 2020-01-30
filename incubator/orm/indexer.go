@@ -20,8 +20,8 @@ type Indexer struct {
 	addPolicy   func(store sdk.KVStore, secondaryIndexKey []byte, rowID uint64) error
 }
 
-// NewIndexer returns an indexer that supports multiple reference keys for an entity.
-func NewIndexer(indexerFunc IndexerFunc) *Indexer {
+// NewMultiKeyIndexer returns an indexer that supports multiple reference keys for an entity.
+func NewMultiKeyIndexer(indexerFunc IndexerFunc) *Indexer {
 	if indexerFunc == nil {
 		panic("indexer func must not be nil")
 	}
