@@ -4,6 +4,7 @@ import (
 	"io"
 
 	"github.com/cosmos/cosmos-sdk/store"
+	"github.com/cosmos/cosmos-sdk/store/gaskv"
 	"github.com/cosmos/cosmos-sdk/store/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	dbm "github.com/tendermint/tm-db"
@@ -69,4 +70,29 @@ func (a AlwaysPanicKVStore) Iterator(start, end []byte) types.Iterator {
 
 func (a AlwaysPanicKVStore) ReverseIterator(start, end []byte) types.Iterator {
 	panic("Not implemented")
+}
+
+
+type GasCountingMockContext struct {
+	parent   HasKVStore
+	GasMeter sdk.GasMeter
+}
+
+func NewGasCountingMockContext(parent HasKVStore) *GasCountingMockContext {
+	return &GasCountingMockContext{
+		parent:   parent,
+		GasMeter: sdk.NewInfiniteGasMeter(),
+	}
+}
+
+func (g GasCountingMockContext) KVStore(key sdk.StoreKey) sdk.KVStore {
+	return gaskv.NewStore(g.parent.KVStore(key), g.GasMeter, types.KVGasConfig())
+}
+
+func (g GasCountingMockContext) GasConsumed() types.Gas {
+	return g.GasMeter.GasConsumed()
+}
+
+func (g *GasCountingMockContext) ResetGasMeter() {
+	g.GasMeter = sdk.NewInfiniteGasMeter()
 }

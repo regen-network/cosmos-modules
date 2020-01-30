@@ -162,6 +162,46 @@ func TestKeeperEndToEndWithNaturalKeyTable(t *testing.T) {
 	require.False(t, exists)
 }
 
+func TestGasCostsNaturalKeyTable(t *testing.T) {
+	storeKey := sdk.NewKVStoreKey("test")
+	cdc := codec.New()
+	ctx := NewMockContext()
+
+	k := NewGroupKeeper(storeKey, cdc)
+
+	g := GroupMetadata{
+		Description: "my test",
+		Admin:       sdk.AccAddress([]byte("admin-address")),
+	}
+
+	m := GroupMember{
+		Group:  sdk.AccAddress(EncodeSequence(1)),
+		Member: sdk.AccAddress([]byte("member-address")),
+		Weight: sdk.NewInt(10),
+	}
+	groupRowID, err := k.groupTable.Create(ctx, &g)
+	require.NoError(t, err)
+	require.Equal(t, uint64(1), groupRowID)
+	gCtx := NewGasCountingMockContext(ctx)
+	err = k.groupMemberTable.Create(gCtx, &m)
+	require.NoError(t, err)
+	t.Logf("gas consumed on create: %d", gCtx.GasConsumed())
+
+	// get
+	var loaded GroupMember
+	gCtx.ResetGasMeter()
+	_, err = k.groupMemberTable.GetOne(gCtx, m.NaturalKey(), &loaded)
+	require.NoError(t, err)
+	t.Logf("gas consumed on get by natural key: %d", gCtx.GasConsumed())
+
+	// delete
+	gCtx.ResetGasMeter()
+	err = k.groupMemberTable.Delete(gCtx, m)
+	require.NoError(t, err)
+	t.Logf("gas consumed on delete by natural key: %d", gCtx.GasConsumed())
+
+}
+
 func first(t *testing.T, it Iterator) ([]byte, GroupMetadata) {
 	var loaded GroupMetadata
 	key, err := First(it, &loaded)
