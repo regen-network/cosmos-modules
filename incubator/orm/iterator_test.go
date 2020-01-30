@@ -3,7 +3,6 @@ package orm
 import (
 	"testing"
 
-	"github.com/cosmos/cosmos-sdk/codec"
 	"github.com/cosmos/cosmos-sdk/types/errors"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -41,7 +40,8 @@ func TestReadAll(t *testing.T) {
 				x := make([]GroupMetadata, 0)
 				return &x
 			},
-			expResult: &[]GroupMetadata{},
+			expIDs:    [][]byte{EncodeSequence(1)},
+			expResult: &[]GroupMetadata{{}},
 		},
 		"dest pointer with nil value": {
 			srcIT: mockIter(EncodeSequence(1), &GroupMetadata{}),
@@ -82,56 +82,67 @@ func TestReadAll(t *testing.T) {
 func TestLimitedIterator(t *testing.T) {
 	sliceIter := func(s ...string) Iterator {
 		var pos int
-		return IteratorFunc(func(dest interface{}) (key []byte, err error) {
+		return IteratorFunc(func(dest Persistent) (key []byte, err error) {
 			if pos == len(s) {
 				return nil, ErrIteratorDone
 			}
 			v := s[pos]
 
-			*dest.(*string) = v // dest is a pointer so we set the value here
+			*dest.(*persistentString) = persistentString(v)
 			pos++
 			return []byte(v), nil
 		})
 	}
 	specs := map[string]struct {
 		src Iterator
-		exp []string
+		exp []persistentString
 	}{
 		"all from range with max > length": {
 			src: LimitIterator(sliceIter("a", "b", "c"), 4),
-			exp: []string{"a", "b", "c"},
+			exp: []persistentString{"a", "b", "c"},
 		},
 		"up to max": {
 			src: LimitIterator(sliceIter("a", "b", "c"), 2),
-			exp: []string{"a", "b"},
+			exp: []persistentString{"a", "b"},
 		},
 		"none when max = 0": {
 			src: LimitIterator(sliceIter("a", "b", "c"), 0),
-			exp: []string{},
+			exp: []persistentString{},
 		},
 	}
 	for msg, spec := range specs {
 		t.Run(msg, func(t *testing.T) {
-			var loaded []string
+			var loaded []persistentString
 			_, err := ReadAll(spec.src, &loaded)
 			require.NoError(t, err)
-			assert.Equal(t, spec.exp, loaded)
+			assert.EqualValues(t, spec.exp, loaded)
 		})
 	}
 }
 
 // mockIter amino encodes + decodes value object.
-func mockIter(rowID []byte, val interface{}) Iterator {
-	cdc := codec.New()
-	b, err := cdc.MarshalBinaryBare(val)
+func mockIter(rowID []byte, val Persistent) Iterator {
+	b, err := val.Marshal()
 	if err != nil {
 		panic(err)
 	}
-	return NewSingleValueIterator(cdc, rowID, b)
+	return NewSingleValueIterator(rowID, b)
 }
 
 func noopIter() Iterator {
-	return IteratorFunc(func(dest interface{}) (key []byte, err error) {
+	return IteratorFunc(func(dest Persistent) (key []byte, err error) {
 		return nil, nil
 	})
+}
+
+type persistentString string
+
+func (p persistentString) Marshal() ([]byte, error) {
+	return []byte(p), nil
+}
+
+func (p *persistentString) Unmarshal(b []byte) error {
+	s := persistentString(string(b))
+	p = &s
+	return nil
 }

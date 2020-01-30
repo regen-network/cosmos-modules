@@ -3,7 +3,6 @@ package orm
 import (
 	"testing"
 
-	"github.com/cosmos/cosmos-sdk/codec"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/types/errors"
 	"github.com/stretchr/testify/assert"
@@ -12,12 +11,11 @@ import (
 
 func TestIndexPrefixScan(t *testing.T) {
 	storeKey := sdk.NewKVStoreKey("test")
-	cdc := codec.New()
 	const (
 		testTablePrefix = iota
 		testTableSeqPrefix
 	)
-	tBuilder := NewAutoUInt64TableBuilder(testTablePrefix, testTableSeqPrefix, storeKey, cdc, &GroupMetadata{})
+	tBuilder := NewAutoUInt64TableBuilder(testTablePrefix, testTableSeqPrefix, storeKey, &GroupMetadata{})
 	idx := NewIndex(tBuilder, GroupByAdminIndexPrefix, func(val interface{}) ([][]byte, error) {
 		return [][]byte{val.(*GroupMetadata).Admin}, nil
 	})

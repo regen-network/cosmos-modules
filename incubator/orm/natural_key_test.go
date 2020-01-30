@@ -3,7 +3,6 @@ package orm
 import (
 	"testing"
 
-	"github.com/cosmos/cosmos-sdk/codec"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/types/errors"
 	"github.com/stretchr/testify/assert"
@@ -12,19 +11,18 @@ import (
 
 func TestNaturalKeyTablePrefixScan(t *testing.T) {
 	storeKey := sdk.NewKVStoreKey("test")
-	cdc := codec.New()
 	const (
 		testTablePrefix = iota
 		testTableSeqPrefix
 		testTableIndexPrefix
 	)
 
-	tb := NewNaturalKeyTableBuilder(testTablePrefix, testTableSeqPrefix, testTableIndexPrefix, storeKey, cdc, &GroupMember{}).
+	tb := NewNaturalKeyTableBuilder(testTablePrefix, testTableSeqPrefix, testTableIndexPrefix, storeKey, &GroupMember{}).
 		Build()
 
 	ctx := NewMockContext()
 
-	anyWeight := sdk.NewInt(1)
+	const anyWeight = 1
 	m1 := GroupMember{
 		Group:  []byte("group-a"),
 		Member: []byte("member-one"),
