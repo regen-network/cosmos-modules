@@ -2,6 +2,7 @@ package orm
 
 import (
 	"encoding/binary"
+	"fmt"
 	"testing"
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
@@ -187,12 +188,23 @@ func TestGasCostsNaturalKeyTable(t *testing.T) {
 	require.NoError(t, err)
 	t.Logf("gas consumed on create: %d", gCtx.GasConsumed())
 
-	// get
-	var loaded GroupMember
+	// get by natural key
 	gCtx.ResetGasMeter()
+	var loaded GroupMember
 	_, err = k.groupMemberTable.GetOne(gCtx, m.NaturalKey(), &loaded)
 	require.NoError(t, err)
 	t.Logf("gas consumed on get by natural key: %d", gCtx.GasConsumed())
+
+	// get by secondary index
+	gCtx.ResetGasMeter()
+	// and when loaded from MultiKeyIndex
+	it, err := k.groupMemberByGroupIndex.Get(gCtx, EncodeSequence(groupRowID))
+	require.NoError(t, err)
+	var loadedSlice []GroupMember
+	_, err = ReadAll(it, &loadedSlice)
+	require.NoError(t, err)
+
+	t.Logf("gas consumed on get by multi index key: %d", gCtx.GasConsumed())
 
 	// delete
 	gCtx.ResetGasMeter()
@@ -200,6 +212,49 @@ func TestGasCostsNaturalKeyTable(t *testing.T) {
 	require.NoError(t, err)
 	t.Logf("gas consumed on delete by natural key: %d", gCtx.GasConsumed())
 
+	// with 3 elements
+	for i := 1; i < 4; i++ {
+		gCtx.ResetGasMeter()
+		m := GroupMember{
+			Group:  sdk.AccAddress(EncodeSequence(1)),
+			Member: sdk.AccAddress([]byte(fmt.Sprintf("member-addres%d", i))),
+			Weight: sdk.NewInt(10),
+		}
+		err = k.groupMemberTable.Create(gCtx, &m)
+		require.NoError(t, err)
+		t.Logf("%d: gas consumed on create: %d", i, gCtx.GasConsumed())
+	}
+
+	for i := 1; i < 4; i++ {
+		gCtx.ResetGasMeter()
+		m := GroupMember{
+			Group:  sdk.AccAddress(EncodeSequence(1)),
+			Member: sdk.AccAddress([]byte(fmt.Sprintf("member-addres%d", i))),
+			Weight: sdk.NewInt(10),
+		}
+		_, err = k.groupMemberTable.GetOne(gCtx, m.NaturalKey(), &loaded)
+		require.NoError(t, err)
+		t.Logf("%d: gas consumed on get by natural key: %d", i, gCtx.GasConsumed())
+	}
+
+	// get by secondary index
+	gCtx.ResetGasMeter()
+	// and when loaded from MultiKeyIndex
+	it, err = k.groupMemberByGroupIndex.Get(gCtx, EncodeSequence(groupRowID))
+	require.NoError(t, err)
+	_, err = ReadAll(it, &loadedSlice)
+	require.NoError(t, err)
+	require.Len(t, loadedSlice, 3)
+	t.Logf("gas consumed on get by multi index key: %d", gCtx.GasConsumed())
+
+	// delete
+	for i, m := range loadedSlice {
+		gCtx.ResetGasMeter()
+
+		err = k.groupMemberTable.Delete(gCtx, &m)
+		require.NoError(t, err)
+		t.Logf("%d: gas consumed on delete: %d", i, gCtx.GasConsumed())
+	}
 }
 
 func first(t *testing.T, it Iterator) ([]byte, GroupMetadata) {
