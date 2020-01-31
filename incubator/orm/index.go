@@ -23,7 +23,7 @@ type indexer interface {
 type MultiKeyIndex struct {
 	storeKey  sdk.StoreKey
 	prefix    byte
-	rowGetter func(ctx HasKVStore, rowID uint64, dest interface{}) (key []byte, err error)
+	rowGetter RowGetter
 	indexer   indexer
 }
 
@@ -96,7 +96,7 @@ func (i MultiKeyIndex) ReversePrefixScan(ctx HasKVStore, start []byte, end []byt
 	return indexIterator{ctx: ctx, it: it, rowGetter: i.rowGetter}, nil
 }
 
-func (i MultiKeyIndex) onSave(ctx HasKVStore, rowID uint64, newValue, oldValue interface{}) error {
+func (i MultiKeyIndex) onSave(ctx HasKVStore, rowID uint64, newValue, oldValue Persistent) error {
 	store := prefix.NewStore(ctx.KVStore(i.storeKey), []byte{i.prefix})
 	if oldValue == nil {
 		return i.indexer.OnCreate(store, rowID, newValue)
@@ -104,7 +104,7 @@ func (i MultiKeyIndex) onSave(ctx HasKVStore, rowID uint64, newValue, oldValue i
 	return i.indexer.OnUpdate(store, rowID, newValue, oldValue)
 }
 
-func (i MultiKeyIndex) onDelete(ctx HasKVStore, rowID uint64, oldValue interface{}) error {
+func (i MultiKeyIndex) onDelete(ctx HasKVStore, rowID uint64, oldValue Persistent) error {
 	store := prefix.NewStore(ctx.KVStore(i.storeKey), []byte{i.prefix})
 	return i.indexer.OnDelete(store, rowID, oldValue)
 }
@@ -149,7 +149,7 @@ type indexIterator struct {
 // LoadNext loads the next value in the sequence into the pointer passed as dest and returns the key. If there
 // are no more items the ErrIteratorDone error is returned
 // The key is the rowID and not any MultiKeyIndex key.
-func (i indexIterator) LoadNext(dest interface{}) ([]byte, error) {
+func (i indexIterator) LoadNext(dest Persistent) ([]byte, error) {
 	if !i.it.Valid() {
 		return nil, ErrIteratorDone
 	}

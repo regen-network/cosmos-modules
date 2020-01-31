@@ -3,7 +3,6 @@ package orm
 import (
 	"reflect"
 
-	"github.com/cosmos/cosmos-sdk/codec"
 	"github.com/cosmos/cosmos-sdk/store/prefix"
 	"github.com/cosmos/cosmos-sdk/store/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
@@ -12,12 +11,9 @@ import (
 
 var _ Indexable = &AutoUInt64TableBuilder{}
 
-func NewAutoUInt64TableBuilder(prefixData byte, prefixSeq byte, key sdk.StoreKey, cdc *codec.Codec, model interface{}) *AutoUInt64TableBuilder {
+func NewAutoUInt64TableBuilder(prefixData byte, prefixSeq byte, key sdk.StoreKey, model Persistent) *AutoUInt64TableBuilder {
 	if prefixData == prefixSeq {
 		panic("prefixData and prefixSeq must be unique")
-	}
-	if cdc == nil {
-		panic("codec must not be empty")
 	}
 	if model == nil {
 		panic("model must not be empty")
@@ -26,7 +22,7 @@ func NewAutoUInt64TableBuilder(prefixData byte, prefixSeq byte, key sdk.StoreKey
 	if tp.Kind() == reflect.Ptr {
 		tp = tp.Elem()
 	}
-	return &AutoUInt64TableBuilder{prefixData: prefixData, prefixSeq: prefixSeq, storeKey: key, cdc: cdc, model: tp}
+	return &AutoUInt64TableBuilder{prefixData: prefixData, prefixSeq: prefixSeq, storeKey: key, model: tp}
 }
 
 type AutoUInt64TableBuilder struct {
@@ -34,13 +30,12 @@ type AutoUInt64TableBuilder struct {
 	prefixData  byte
 	prefixSeq   byte
 	storeKey    sdk.StoreKey
-	cdc         *codec.Codec
 	afterSave   []AfterSaveInterceptor
 	afterDelete []AfterDeleteInterceptor
 }
 
 func (a AutoUInt64TableBuilder) RowGetter() RowGetter {
-	return NewTypeSafeRowGetter(a.storeKey, a.prefixData, a.cdc, a.model)
+	return NewTypeSafeRowGetter(a.storeKey, a.prefixData, a.model)
 }
 
 func (a AutoUInt64TableBuilder) StoreKey() sdk.StoreKey {
@@ -54,7 +49,6 @@ func (a AutoUInt64TableBuilder) Build() AutoUInt64Table {
 		sequence:    seq,
 		prefix:      a.prefixData,
 		storeKey:    a.storeKey,
-		cdc:         a.cdc,
 		afterSave:   a.afterSave,
 		afterDelete: a.afterDelete,
 	}
@@ -73,19 +67,18 @@ type AutoUInt64Table struct {
 	model       reflect.Type
 	prefix      byte
 	storeKey    sdk.StoreKey
-	cdc         *codec.Codec
 	sequence    *Sequence
 	afterSave   []AfterSaveInterceptor
 	afterDelete []AfterDeleteInterceptor
 }
 
-func (a AutoUInt64Table) Create(ctx HasKVStore, obj interface{}) (uint64, error) {
+func (a AutoUInt64Table) Create(ctx HasKVStore, obj Persistent) (uint64, error) {
 	if err := assertCorrectType(a.model, obj); err != nil {
 		return 0, err
 	}
 
 	store := prefix.NewStore(ctx.KVStore(a.storeKey), []byte{a.prefix})
-	v, err := a.cdc.MarshalBinaryBare(obj)
+	v, err := obj.Marshal()
 	if err != nil {
 		return 0, errors.Wrapf(err, "failed to serialize %T", obj)
 	}
@@ -102,18 +95,18 @@ func (a AutoUInt64Table) Create(ctx HasKVStore, obj interface{}) (uint64, error)
 	return rowID, nil
 }
 
-func (a AutoUInt64Table) Save(ctx HasKVStore, rowID uint64, newValue interface{}) error {
+func (a AutoUInt64Table) Save(ctx HasKVStore, rowID uint64, newValue Persistent) error {
 	if err := assertCorrectType(a.model, newValue); err != nil {
 		return err
 	}
 
 	store := prefix.NewStore(ctx.KVStore(a.storeKey), []byte{a.prefix})
-	var oldValue = reflect.New(a.model).Interface()
+	var oldValue = reflect.New(a.model).Interface().(Persistent)
 	_, err := a.GetOne(ctx, rowID, oldValue)
 	if err != nil {
 		return errors.Wrap(err, "load old value")
 	}
-	newValueEncoded, err := a.cdc.MarshalBinaryBare(newValue)
+	newValueEncoded, err := newValue.Marshal()
 	if err != nil {
 		return errors.Wrapf(err, "failed to serialize %T", newValue)
 	}
@@ -132,7 +125,7 @@ func (a AutoUInt64Table) Delete(ctx HasKVStore, rowID uint64) error {
 	store := prefix.NewStore(ctx.KVStore(a.storeKey), []byte{a.prefix})
 	key := EncodeSequence(rowID)
 
-	var oldValue = reflect.New(a.model).Interface()
+	var oldValue = reflect.New(a.model).Interface().(Persistent)
 	_, err := a.GetOne(ctx, rowID, oldValue)
 	if err != nil {
 		return errors.Wrap(err, "load old value")
@@ -152,8 +145,8 @@ func (a AutoUInt64Table) Has(ctx HasKVStore, id uint64) bool {
 	return store.Has(EncodeSequence(id))
 }
 
-func (a AutoUInt64Table) GetOne(ctx HasKVStore, rowID uint64, dest interface{}) ([]byte, error) {
-	x := NewTypeSafeRowGetter(a.storeKey, a.prefix, a.cdc, a.model)
+func (a AutoUInt64Table) GetOne(ctx HasKVStore, rowID uint64, dest Persistent) ([]byte, error) {
+	x := NewTypeSafeRowGetter(a.storeKey, a.prefix, a.model)
 	return x(ctx, rowID, dest)
 }
 
@@ -165,7 +158,7 @@ func (a AutoUInt64Table) PrefixScan(ctx HasKVStore, start uint64, end uint64) (I
 	store := prefix.NewStore(ctx.KVStore(a.storeKey), []byte{a.prefix})
 	return &autoUInt64Iterator{
 		ctx:       ctx,
-		rowGetter: NewTypeSafeRowGetter(a.storeKey, a.prefix, a.cdc, a.model),
+		rowGetter: NewTypeSafeRowGetter(a.storeKey, a.prefix, a.model),
 		it:        store.Iterator(EncodeSequence(start), EncodeSequence(end)),
 	}, nil
 }
@@ -177,7 +170,7 @@ func (a AutoUInt64Table) ReversePrefixScan(ctx HasKVStore, start uint64, end uin
 	store := prefix.NewStore(ctx.KVStore(a.storeKey), []byte{a.prefix})
 	return &autoUInt64Iterator{
 		ctx:       ctx,
-		rowGetter: NewTypeSafeRowGetter(a.storeKey, a.prefix, a.cdc, a.model),
+		rowGetter: NewTypeSafeRowGetter(a.storeKey, a.prefix, a.model),
 		it:        store.ReverseIterator(EncodeSequence(start), EncodeSequence(end)),
 	}, nil
 }
@@ -189,7 +182,7 @@ type autoUInt64Iterator struct {
 	it        types.Iterator
 }
 
-func (i autoUInt64Iterator) LoadNext(dest interface{}) ([]byte, error) {
+func (i autoUInt64Iterator) LoadNext(dest Persistent) ([]byte, error) {
 	if !i.it.Valid() {
 		return nil, ErrIteratorDone
 	}

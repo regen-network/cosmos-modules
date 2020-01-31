@@ -4,7 +4,6 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/cosmos/cosmos-sdk/codec"
 	"github.com/cosmos/cosmos-sdk/store/prefix"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/types/errors"
@@ -14,11 +13,13 @@ import (
 
 func TestTypeSafeRowGetter(t *testing.T) {
 	storeKey := sdk.NewKVStoreKey("test")
-	cdc := codec.New()
 	ctx := NewMockContext()
 	const prefixKey = 0x2
 	store := prefix.NewStore(ctx.KVStore(storeKey), []byte{prefixKey})
-	store.Set(EncodeSequence(1), cdc.MustMarshalBinaryBare("foo"))
+	md := GroupMetadata{Description: "foo"}
+	bz, err := md.Marshal()
+	require.NoError(t, err)
+	store.Set(EncodeSequence(1), bz)
 
 	specs := map[string]struct {
 		srcRowID     uint64
@@ -28,27 +29,27 @@ func TestTypeSafeRowGetter(t *testing.T) {
 	}{
 		"happy path": {
 			srcRowID:     1,
-			srcModelType: reflect.TypeOf(""),
-			expObj:       "foo",
+			srcModelType: reflect.TypeOf(GroupMetadata{}),
+			expObj:       GroupMetadata{Description: "foo"},
 		},
 		"unknown rowID should return ErrNotFound": {
 			srcRowID:     999,
-			srcModelType: reflect.TypeOf(""),
+			srcModelType: reflect.TypeOf(GroupMetadata{}),
 			expErr:       ErrNotFound,
 		},
 		"wrong type should cause ErrType": {
 			srcRowID:     1,
-			srcModelType: reflect.TypeOf(1),
+			srcModelType: reflect.TypeOf(GroupMember{}),
 			expErr:       ErrType,
 		},
 	}
 	for msg, spec := range specs {
 		t.Run(msg, func(t *testing.T) {
-			getter := NewTypeSafeRowGetter(storeKey, prefixKey, cdc, spec.srcModelType)
-			var loadedObj string
+			getter := NewTypeSafeRowGetter(storeKey, prefixKey, spec.srcModelType)
+			var loadedObj GroupMetadata
 			key, err := getter(ctx, spec.srcRowID, &loadedObj)
 			if spec.expErr != nil {
-				require.True(t, spec.expErr.Is(err))
+				require.True(t, spec.expErr.Is(err), err)
 				return
 			}
 			require.NoError(t, err)
