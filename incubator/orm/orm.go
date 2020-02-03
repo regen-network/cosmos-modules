@@ -89,11 +89,12 @@ func NewTypeSafeRowGetter(storeKey sdk.StoreKey, prefixKey byte, model reflect.T
 		}
 		store := prefix.NewStore(ctx.KVStore(storeKey), []byte{prefixKey})
 		key := EncodeSequence(rowID)
-		val := store.Get(key)
-		if val == nil {
+		it := store.Iterator(key, EncodeSequence(rowID+1))
+		if !it.Valid() {
 			return nil, ErrNotFound
 		}
-		return key, dest.Unmarshal(val)
+		defer it.Close()
+		return key, dest.Unmarshal(it.Value())
 	}
 }
 
