@@ -195,6 +195,12 @@ func TestGasCostsNaturalKeyTable(t *testing.T) {
 	require.NoError(t, err)
 	t.Logf("gas consumed on get by natural key: %d", gCtx.GasConsumed())
 
+	// get by rowID
+	gCtx.ResetGasMeter()
+	_, err = k.groupMemberTable.autoTable.GetOne(gCtx, 1, &loaded)
+	require.NoError(t, err)
+	t.Logf("gas consumed on get by rowID: %d", gCtx.GasConsumed())
+
 	// get by secondary index
 	gCtx.ResetGasMeter()
 	// and when loaded from MultiKeyIndex
