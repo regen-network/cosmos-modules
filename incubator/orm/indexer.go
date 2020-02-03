@@ -8,20 +8,20 @@ import (
 	"github.com/cosmos/cosmos-sdk/types/errors"
 )
 
-// IndexerFunc creates one or multiple MultiKeyIndex keys for the source object.
-type IndexerFunc func(value interface{}) ([][]byte, error)
+// MultiKeyIndexerFunc creates one or multiple MultiKeyIndex keys for the source object.
+type MultiKeyIndexerFunc func(value interface{}) ([][]byte, error)
 
-// IndexerFunc creates exactly one index key for the source object.
+// MultiKeyIndexerFunc creates exactly one index key for the source object.
 type UniqueIndexerFunc func(value interface{}) ([]byte, error)
 
 // Indexer manages the persistence for an MultiKeyIndex based on searchable keys and operations.
 type Indexer struct {
-	indexerFunc IndexerFunc
+	indexerFunc MultiKeyIndexerFunc
 	addPolicy   func(store sdk.KVStore, secondaryIndexKey []byte, rowID uint64) error
 }
 
 // NewMultiKeyIndexer returns an indexer that supports multiple reference keys for an entity.
-func NewMultiKeyIndexer(indexerFunc IndexerFunc) *Indexer {
+func NewMultiKeyIndexer(indexerFunc MultiKeyIndexerFunc) *Indexer {
 	if indexerFunc == nil {
 		panic("indexer func must not be nil")
 	}
@@ -36,7 +36,7 @@ func NewUniqueIndexer(f UniqueIndexerFunc) *Indexer {
 	if f == nil {
 		panic("indexer func must not be nil")
 	}
-	adaptor := func(indexerFunc UniqueIndexerFunc) IndexerFunc {
+	adaptor := func(indexerFunc UniqueIndexerFunc) MultiKeyIndexerFunc {
 		return func(v interface{}) ([][]byte, error) {
 			k, err := indexerFunc(v)
 			return [][]byte{k}, err

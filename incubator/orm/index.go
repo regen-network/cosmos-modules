@@ -27,7 +27,7 @@ type MultiKeyIndex struct {
 	indexer   indexer
 }
 
-func NewMultiKeyIndex(builder Indexable, prefix byte, indexer IndexerFunc) *MultiKeyIndex {
+func NewMultiKeyIndex(builder Indexable, prefix byte, indexer MultiKeyIndexerFunc) *MultiKeyIndex {
 	idx := MultiKeyIndex{
 		storeKey:  builder.StoreKey(),
 		prefix:    prefix,
