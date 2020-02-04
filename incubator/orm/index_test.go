@@ -219,11 +219,45 @@ func TestUInt64Index(t *testing.T) {
 	err := groupMemberTable.Create(ctx, &m)
 	require.NoError(t, err)
 
-	it, err := idx.Get(ctx, uint64('m'))
+	indexedKey := uint64('m')
+
+	// Has
+	assert.True(t, idx.Has(ctx, indexedKey))
+
+	// Get
+	it, err := idx.Get(ctx, indexedKey)
 	require.NoError(t, err)
 	var loaded GroupMember
 	rowID, err := it.LoadNext(&loaded)
 	require.NoError(t, err)
 	require.Equal(t, uint64(1), DecodeSequence(rowID))
 	require.Equal(t, m, loaded)
+
+	// PrefixScan match
+	it, err = idx.PrefixScan(ctx, 0, 255)
+	require.NoError(t, err)
+	rowID, err = it.LoadNext(&loaded)
+	require.NoError(t, err)
+	require.Equal(t, uint64(1), DecodeSequence(rowID))
+	require.Equal(t, m, loaded)
+
+	// PrefixScan no match
+	it, err = idx.PrefixScan(ctx, indexedKey+1, 255)
+	require.NoError(t, err)
+	rowID, err = it.LoadNext(&loaded)
+	require.Error(t, ErrIteratorDone, err)
+
+	// ReversePrefixScan match
+	it, err = idx.ReversePrefixScan(ctx, 0, 255)
+	require.NoError(t, err)
+	rowID, err = it.LoadNext(&loaded)
+	require.NoError(t, err)
+	require.Equal(t, uint64(1), DecodeSequence(rowID))
+	require.Equal(t, m, loaded)
+
+	// ReversePrefixScan no match
+	it, err = idx.ReversePrefixScan(ctx, indexedKey+1, 255)
+	require.NoError(t, err)
+	rowID, err = it.LoadNext(&loaded)
+	require.Error(t, ErrIteratorDone, err)
 }
