@@ -198,3 +198,32 @@ func TestIndexPrefixScan(t *testing.T) {
 		})
 	}
 }
+
+func TestUInt64Index(t *testing.T) {
+	storeKey := sdk.NewKVStoreKey("test")
+	cdc := codec.New()
+
+	groupMemberTableBuilder := NewNaturalKeyTableBuilder(GroupMemberTablePrefix, GroupMemberTableSeqPrefix, GroupMemberTableIndexPrefix, storeKey, cdc, &GroupMember{})
+	idx := NewUInt64Index(groupMemberTableBuilder, GroupMemberByMemberIndexPrefix, func(val interface{}) ([]uint64, error) {
+		return []uint64{uint64(val.(*GroupMember).Member[0])}, nil
+	})
+	groupMemberTable := groupMemberTableBuilder.Build()
+
+	ctx := NewMockContext()
+
+	m := GroupMember{
+		Group:  sdk.AccAddress(EncodeSequence(1)),
+		Member: sdk.AccAddress([]byte("member-address")),
+		Weight: sdk.NewInt(10),
+	}
+	err := groupMemberTable.Create(ctx, &m)
+	require.NoError(t, err)
+
+	it, err := idx.Get(ctx, uint64('m'))
+	require.NoError(t, err)
+	var loaded GroupMember
+	rowID, err := it.LoadNext(&loaded)
+	require.NoError(t, err)
+	require.Equal(t, uint64(1), DecodeSequence(rowID))
+	require.Equal(t, m, loaded)
+}
