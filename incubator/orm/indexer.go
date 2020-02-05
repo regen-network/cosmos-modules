@@ -14,23 +14,6 @@ type IndexerFunc func(value interface{}) ([][]byte, error)
 // IndexerFunc creates exactly one index key for the source object.
 type UniqueIndexerFunc func(value interface{}) ([]byte, error)
 
-// UInt64IndexerFunc creates one or multiple multiKeyIndex keys of type uint64 for the source object.
-type UInt64IndexerFunc func(value interface{}) ([]uint64, error)
-
-func UInt64MultiKeyAdapter(indexer UInt64IndexerFunc) IndexerFunc {
-	return func(value interface{}) ([][]byte, error) {
-		d, err := indexer(value)
-		if err != nil {
-			return nil, err
-		}
-		r := make([][]byte, len(d))
-		for i, v := range d {
-			r[i] = EncodeSequence(v)
-		}
-		return r, nil
-	}
-}
-
 // Indexer manages the persistence for an MultiKeyIndex based on searchable keys and operations.
 type Indexer struct {
 	indexerFunc IndexerFunc
