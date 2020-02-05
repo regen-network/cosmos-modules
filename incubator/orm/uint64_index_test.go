@@ -1,6 +1,7 @@
 package orm
 
 import (
+	"errors"
 	"testing"
 
 	"github.com/cosmos/cosmos-sdk/codec"
@@ -70,4 +71,55 @@ func TestUInt64Index(t *testing.T) {
 	require.NoError(t, err)
 	rowID, err = it.LoadNext(&loaded)
 	require.Error(t, ErrIteratorDone, err)
+}
+
+func TestUInt64MultiKeyAdapter(t *testing.T) {
+	specs := map[string]struct {
+		srcFunc UInt64IndexerFunc
+		exp     [][]byte
+		expErr  error
+	}{
+		"single key": {
+			srcFunc: func(value interface{}) ([]uint64, error) {
+				return []uint64{1}, nil
+			},
+			exp: [][]byte{{0, 0, 0, 0, 0, 0, 0, 1}},
+		},
+		"multi key": {
+			srcFunc: func(value interface{}) ([]uint64, error) {
+				return []uint64{1, 1 << 56}, nil
+			},
+			exp: [][]byte{{0, 0, 0, 0, 0, 0, 0, 1}, {1, 0, 0, 0, 0, 0, 0, 0}},
+		},
+		"empty key": {
+			srcFunc: func(value interface{}) ([]uint64, error) {
+				return []uint64{}, nil
+			},
+			exp: [][]byte{},
+		},
+		"nil key": {
+			srcFunc: func(value interface{}) ([]uint64, error) {
+				return nil, nil
+			},
+			exp: [][]byte{},
+		},
+		"error case": {
+			srcFunc: func(value interface{}) ([]uint64, error) {
+				return nil, errors.New("test")
+			},
+			expErr: errors.New("test"),
+		},
+	}
+	for msg, spec := range specs {
+		t.Run(msg, func(t *testing.T) {
+			fn := UInt64MultiKeyAdapter(spec.srcFunc)
+			r, err := fn(nil)
+			if spec.expErr != nil {
+				require.Equal(t, spec.expErr, err)
+				return
+			}
+			require.NoError(t, err)
+			assert.Equal(t, spec.exp, r)
+		})
+	}
 }
