@@ -4,7 +4,6 @@ import (
 	"encoding/binary"
 	"testing"
 
-	"github.com/cosmos/cosmos-sdk/codec"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -12,10 +11,9 @@ import (
 
 func TestKeeperEndToEndWithAutoUInt64Table(t *testing.T) {
 	storeKey := sdk.NewKVStoreKey("test")
-	cdc := codec.New()
 	ctx := NewMockContext()
 
-	k := NewGroupKeeper(storeKey, cdc)
+	k := NewGroupKeeper(storeKey)
 
 	g := GroupMetadata{
 		Description: "my test",
@@ -78,10 +76,9 @@ func TestKeeperEndToEndWithAutoUInt64Table(t *testing.T) {
 
 func TestKeeperEndToEndWithNaturalKeyTable(t *testing.T) {
 	storeKey := sdk.NewKVStoreKey("test")
-	cdc := codec.New()
 	ctx := NewMockContext()
 
-	k := NewGroupKeeper(storeKey, cdc)
+	k := NewGroupKeeper(storeKey)
 
 	g := GroupMetadata{
 		Description: "my test",
@@ -91,7 +88,7 @@ func TestKeeperEndToEndWithNaturalKeyTable(t *testing.T) {
 	m := GroupMember{
 		Group:  sdk.AccAddress(EncodeSequence(1)),
 		Member: sdk.AccAddress([]byte("member-address")),
-		Weight: sdk.NewInt(10),
+		Weight: 10,
 	}
 	groupRowID, err := k.groupTable.Create(ctx, &g)
 	require.NoError(t, err)
@@ -146,14 +143,14 @@ func TestKeeperEndToEndWithNaturalKeyTable(t *testing.T) {
 	updatedMember = &GroupMember{
 		Group:  m.Group,
 		Member: m.Member,
-		Weight: sdk.NewInt(99),
+		Weight: 99,
 	}
 	// then it should not fail
 	err = k.groupMemberTable.Save(ctx, updatedMember)
 	require.NoError(t, err)
 
 	// and when entity deleted
-	err = k.groupMemberTable.Delete(ctx, m)
+	err = k.groupMemberTable.Delete(ctx, &m)
 	require.NoError(t, err)
 
 	// then it is removed from natural key MultiKeyIndex

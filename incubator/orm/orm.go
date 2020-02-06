@@ -7,7 +7,6 @@ import (
 	"io"
 	"reflect"
 
-	"github.com/cosmos/cosmos-sdk/codec"
 	"github.com/cosmos/cosmos-sdk/store/prefix"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/types/errors"
@@ -29,6 +28,19 @@ type HasKVStore interface {
 	KVStore(key sdk.StoreKey) sdk.KVStore
 }
 
+// Persistent supports Marshal and Unmarshal
+//
+// This is separated from Marshal, as this almost always requires
+// a pointer, and functions that only need to marshal bytes can
+// use the Marshaller interface to access non-pointers.
+//
+// As with Marshaller, this may do internal validation on the data
+// and errors should be expected.
+type Persistent interface {
+	Marshal() ([]byte, error)
+	Unmarshal([]byte) error
+}
+
 // Index allows efficient prefix scans is stored as key = concat(indexKeyBytes, rowIDUint64) with value empty
 // so that the row NaturalKey is allows a fixed with 8 byte integer. This allows the MultiKeyIndex key bytes to be
 // variable length and scanned iteratively. The
@@ -44,7 +56,7 @@ type Iterator interface {
 	// LoadNext loads the next value in the sequence into the pointer passed as dest and returns the key. If there
 	// are no more items the ErrIteratorDone error is returned
 	// The key is the rowID and not any MultiKeyIndex key.
-	LoadNext(dest interface{}) (key []byte, err error)
+	LoadNext(dest Persistent) (key []byte, err error)
 	// Close releases the iterator and should be called at the end of iteration
 	io.Closer
 }
@@ -59,19 +71,19 @@ type Indexable interface {
 }
 
 // AfterSaveInterceptor defines a callback function to be called on Create + Update.
-type AfterSaveInterceptor func(ctx HasKVStore, rowID uint64, newValue, oldValue interface{}) error
+type AfterSaveInterceptor func(ctx HasKVStore, rowID uint64, newValue, oldValue Persistent) error
 
 // AfterDeleteInterceptor defines a callback function to be called on Delete operations.
-type AfterDeleteInterceptor func(ctx HasKVStore, rowID uint64, value interface{}) error
+type AfterDeleteInterceptor func(ctx HasKVStore, rowID uint64, value Persistent) error
 
 // RowGetter loads a persistent object by row ID into the destination object. The dest parameter must therefore be a pointer.
 // The key returned is the serialized row ID.
 // Any implementation must return `ErrNotFound` when no object for the rowID exists
-type RowGetter func(ctx HasKVStore, rowID uint64, dest interface{}) (key []byte, err error)
+type RowGetter func(ctx HasKVStore, rowID uint64, dest Persistent) (key []byte, err error)
 
 // NewTypeSafeRowGetter returns a `RowGetter` with type check on the dest parameter.
-func NewTypeSafeRowGetter(storeKey sdk.StoreKey, prefixKey byte, cdc *codec.Codec, model reflect.Type) RowGetter {
-	return func(ctx HasKVStore, rowID uint64, dest interface{}) ([]byte, error) {
+func NewTypeSafeRowGetter(storeKey sdk.StoreKey, prefixKey byte, model reflect.Type) RowGetter {
+	return func(ctx HasKVStore, rowID uint64, dest Persistent) ([]byte, error) {
 		if err := assertCorrectType(model, dest); err != nil {
 			return nil, err
 		}
@@ -81,11 +93,11 @@ func NewTypeSafeRowGetter(storeKey sdk.StoreKey, prefixKey byte, cdc *codec.Code
 		if val == nil {
 			return nil, ErrNotFound
 		}
-		return key, cdc.UnmarshalBinaryBare(val, dest)
+		return key, dest.Unmarshal(val)
 	}
 }
 
-func assertCorrectType(model reflect.Type, obj interface{}) error {
+func assertCorrectType(model reflect.Type, obj Persistent) error {
 	tp := reflect.TypeOf(obj)
 	if tp.Kind() != reflect.Ptr {
 		return errors.Wrap(ErrType, "model destination must be a pointer")

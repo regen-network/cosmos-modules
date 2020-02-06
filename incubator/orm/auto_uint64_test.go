@@ -4,7 +4,6 @@ import (
 	"math"
 	"testing"
 
-	"github.com/cosmos/cosmos-sdk/codec"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/types/errors"
 	"github.com/stretchr/testify/assert"
@@ -13,12 +12,11 @@ import (
 
 func TestAutoUInt64PrefixScan(t *testing.T) {
 	storeKey := sdk.NewKVStoreKey("test")
-	cdc := codec.New()
 	const (
 		testTablePrefix = iota
 		testTableSeqPrefix
 	)
-	tb := NewAutoUInt64TableBuilder(testTablePrefix, testTableSeqPrefix, storeKey, cdc, &GroupMetadata{}).Build()
+	tb := NewAutoUInt64TableBuilder(testTablePrefix, testTableSeqPrefix, storeKey, &GroupMetadata{}).Build()
 	ctx := NewMockContext()
 
 	g1 := GroupMetadata{

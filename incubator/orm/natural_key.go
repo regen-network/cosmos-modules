@@ -1,19 +1,18 @@
 package orm
 
 import (
-	"github.com/cosmos/cosmos-sdk/codec"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/types/errors"
 )
 
 var _ Indexable = &NaturalKeyTableBuilder{}
 
-func NewNaturalKeyTableBuilder(prefixData, prefixSeq, prefixIndex byte, key sdk.StoreKey, cdc *codec.Codec, model NaturalKeyed) *NaturalKeyTableBuilder {
+func NewNaturalKeyTableBuilder(prefixData, prefixSeq, prefixIndex byte, key sdk.StoreKey, model NaturalKeyed) *NaturalKeyTableBuilder {
 	if prefixIndex == prefixData || prefixData == prefixSeq {
 		panic("prefixIndex must be unique")
 	}
 
-	builder := NewAutoUInt64TableBuilder(prefixData, prefixSeq, key, cdc, model)
+	builder := NewAutoUInt64TableBuilder(prefixData, prefixSeq, key, model)
 
 	idx := NewUniqueIndex(builder, prefixIndex, func(value interface{}) ([]byte, error) {
 		obj, ok := value.(NaturalKeyed)
@@ -44,6 +43,7 @@ func (a NaturalKeyTableBuilder) Build() NaturalKeyTable {
 type NaturalKeyed interface {
 	// NaturalKey returns the immutable and serialized natural key of this object
 	NaturalKey() []byte
+	Persistent
 }
 
 // NaturalKeyTable provides simpler object style orm methods without passing database rowIDs.
@@ -85,7 +85,7 @@ func (a NaturalKeyTable) Has(ctx HasKVStore, primKey []byte) bool {
 	return a.autoTable.Has(ctx, rowID)
 }
 
-func (a NaturalKeyTable) GetOne(ctx HasKVStore, primKey []byte, dest interface{}) ([]byte, error) {
+func (a NaturalKeyTable) GetOne(ctx HasKVStore, primKey []byte, dest Persistent) ([]byte, error) {
 	rowID, err := a.naturalKeyIndex.RowID(ctx, primKey)
 	if err != nil {
 		return nil, err

@@ -3,18 +3,17 @@ package orm
 import (
 	"reflect"
 
-	"github.com/cosmos/cosmos-sdk/codec"
 	"github.com/cosmos/cosmos-sdk/types/errors"
 )
 
 // IteratorFunc is a function type that satisfies the Iterator interface
 // The passed function is called on LoadNext operations.
-type IteratorFunc func(dest interface{}) (key []byte, err error)
+type IteratorFunc func(dest Persistent) (key []byte, err error)
 
 // LoadNext loads the next value in the sequence into the pointer passed as dest and returns the key. If there
 // are no more items the ErrIteratorDone error is returned
 // The key is the rowID and not any MultiKeyIndex key.
-func (i IteratorFunc) LoadNext(dest interface{}) (key []byte, err error) {
+func (i IteratorFunc) LoadNext(dest Persistent) (key []byte, err error) {
 	return i(dest)
 }
 
@@ -23,20 +22,23 @@ func (i IteratorFunc) Close() error {
 	return nil
 }
 
-func NewSingleValueIterator(cdc *codec.Codec, rowID []byte, val []byte) Iterator {
+func NewSingleValueIterator(rowID []byte, val []byte) Iterator {
 	var closed bool
-	return IteratorFunc(func(dest interface{}) ([]byte, error) {
+	return IteratorFunc(func(dest Persistent) ([]byte, error) {
+		if dest == nil {
+			return nil, errors.Wrap(ErrArgument, "destination object must not be nil")
+		}
 		if closed || val == nil {
 			return nil, ErrIteratorDone
 		}
 		closed = true
-		return rowID, cdc.UnmarshalBinaryBare(val, dest)
+		return rowID, dest.Unmarshal(val)
 	})
 }
 
 // Iterator that return ErrIteratorInvalid only.
 func NewInvalidIterator() Iterator {
-	return IteratorFunc(func(dest interface{}) ([]byte, error) {
+	return IteratorFunc(func(dest Persistent) ([]byte, error) {
 		return nil, ErrIteratorInvalid
 	})
 }
@@ -63,7 +65,7 @@ func LimitIterator(parent Iterator, max int) *LimitedIterator {
 // LoadNext loads the next value in the sequence into the pointer passed as dest and returns the key. If there
 // are no more items or the defined max number of elements was returned the `ErrIteratorDone` error is returned
 // The key is the rowID and not any MultiKeyIndex key.
-func (i *LimitedIterator) LoadNext(dest interface{}) (key []byte, err error) {
+func (i *LimitedIterator) LoadNext(dest Persistent) (key []byte, err error) {
 	if i.remainingCount == 0 {
 		return nil, ErrIteratorDone
 	}
@@ -78,7 +80,7 @@ func (i LimitedIterator) Close() error {
 
 // First loads the first element into the given destination type and closes the iterator.
 // When the iterator is closed or has no elements the according error is passed as return value.
-func First(it Iterator, dest interface{}) ([]byte, error) {
+func First(it Iterator, dest Persistent) ([]byte, error) {
 	if it == nil {
 		return nil, errors.Wrap(ErrArgument, "iterator must not be nil")
 	}
@@ -125,14 +127,28 @@ func ReadAll(it Iterator, dest ModelSlicePtr) ([][]byte, error) {
 	}
 
 	typ := reflect.TypeOf(dest).Elem().Elem()
+
+	persistence := reflect.TypeOf((*Persistent)(nil)).Elem()
+	if !typ.Implements(persistence) &&
+		!reflect.PtrTo(typ).Implements(persistence) {
+		return nil, errors.Wrapf(ErrArgument, "unsupported type :%s", typ)
+	}
+
 	t := reflect.MakeSlice(reflect.SliceOf(typ), 0, 0)
 	var rowIDs [][]byte
 	for {
 		obj := reflect.New(typ)
-		binKey, err := it.LoadNext(obj.Interface())
+		val := obj.Elem()
+		model := obj
+		if typ.Kind() == reflect.Ptr {
+			val.Set(reflect.New(typ.Elem()))
+			model = val
+		}
+
+		binKey, err := it.LoadNext(model.Interface().(Persistent))
 		switch {
 		case err == nil:
-			t = reflect.Append(t, obj.Elem())
+			t = reflect.Append(t, val)
 		case ErrIteratorDone.Is(err):
 			slice.Set(t)
 			return rowIDs, nil
