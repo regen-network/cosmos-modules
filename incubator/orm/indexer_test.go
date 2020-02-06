@@ -1,13 +1,11 @@
 package orm
 
 import (
-	"bytes"
-	"errors"
-	"io"
+	stdErrors "errors"
 	"testing"
 
-	"github.com/cosmos/cosmos-sdk/store/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	"github.com/cosmos/cosmos-sdk/types/errors"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -40,6 +38,12 @@ func TestIndexerOnCreate(t *testing.T) {
 		},
 		"empty key in slice": {
 			srcFunc: func(value interface{}) ([][]byte, error) {
+				return [][]byte{{}}, nil
+			},
+			expAddPolicyCalled: false,
+		},
+		"nil key in slice": {
+			srcFunc: func(value interface{}) ([][]byte, error) {
 				return [][]byte{nil}, nil
 			},
 			expAddPolicyCalled: false,
@@ -58,9 +62,9 @@ func TestIndexerOnCreate(t *testing.T) {
 		},
 		"error case": {
 			srcFunc: func(value interface{}) ([][]byte, error) {
-				return nil, errors.New("test")
+				return nil, stdErrors.New("test")
 			},
-			expErr:             errors.New("test"),
+			expErr:             stdErrors.New("test"),
 			expAddPolicyCalled: false,
 		},
 	}
@@ -116,11 +120,21 @@ func TestIndexerOnDelete(t *testing.T) {
 				return nil, nil
 			},
 		},
+		"empty key in slice": {
+			srcFunc: func(value interface{}) ([][]byte, error) {
+				return [][]byte{{}}, nil
+			},
+		},
+		"nil key in slice": {
+			srcFunc: func(value interface{}) ([][]byte, error) {
+				return [][]byte{nil}, nil
+			},
+		},
 		"error case": {
 			srcFunc: func(value interface{}) ([][]byte, error) {
-				return nil, errors.New("test")
+				return nil, stdErrors.New("test")
 			},
-			expErr: errors.New("test"),
+			expErr: stdErrors.New("test"),
 		},
 	}
 	for msg, spec := range specs {
@@ -149,31 +163,40 @@ func TestIndexerOnUpdate(t *testing.T) {
 	}{
 		"single key - same key, no update": {
 			srcFunc: func(value interface{}) ([][]byte, error) {
-				return [][]byte{{0, 0, 0, 0, 0, 0, 0, 1}}, nil
+				return [][]byte{EncodeSequence(1)}, nil
 			},
 		},
 		"single key - different key, replaced": {
 			srcFunc: func(value interface{}) ([][]byte, error) {
-				keys := [][]byte{{0, 0, 0, 0, 0, 0, 0, 1}, {0, 0, 0, 0, 0, 0, 0, 2}}
-				i := value.(int)
-				return [][]byte{keys[i]}, nil
+				keys := [][]byte{EncodeSequence(1), EncodeSequence(2)}
+				return [][]byte{keys[value.(int)]}, nil
 			},
 			expAddedKeys: [][]byte{
-				makeIndexPrefixScanKey([]byte{0, 0, 0, 0, 0, 0, 0, 2}, myRowID),
+				makeIndexPrefixScanKey(EncodeSequence(2), myRowID),
 			},
 			expDeletedKeys: [][]byte{
-				makeIndexPrefixScanKey([]byte{0, 0, 0, 0, 0, 0, 0, 1}, myRowID),
+				makeIndexPrefixScanKey(EncodeSequence(1), myRowID),
 			},
 		},
-		//"multi key": {
-		//	srcFunc: func(value interface{}) ([][]byte, error) {
-		//		return [][]byte{{0, 0, 0, 0, 0, 0, 0, 1}, {1, 0, 0, 0, 0, 0, 0, 0}}, nil
-		//	},
-		//	expIndexKeys: [][]byte{
-		//		makeIndexPrefixScanKey([]byte{0, 0, 0, 0, 0, 0, 0, 1}, myRowID),
-		//		makeIndexPrefixScanKey([]byte{1, 0, 0, 0, 0, 0, 0, 0}, myRowID),
-		//	},
-		//},
+		"multi key - same key, no update": {
+			srcFunc: func(value interface{}) ([][]byte, error) {
+				return [][]byte{EncodeSequence(1), EncodeSequence(2)}, nil
+			},
+		},
+		"multi key - replaced": {
+			srcFunc: func(value interface{}) ([][]byte, error) {
+				keys := [][]byte{EncodeSequence(1), EncodeSequence(2), EncodeSequence(3), EncodeSequence(4)}
+				return [][]byte{keys[value.(int)], keys[value.(int)+2]}, nil
+			},
+			expAddedKeys: [][]byte{
+				makeIndexPrefixScanKey(EncodeSequence(2), myRowID),
+				makeIndexPrefixScanKey(EncodeSequence(4), myRowID),
+			},
+			expDeletedKeys: [][]byte{
+				makeIndexPrefixScanKey(EncodeSequence(1), myRowID),
+				makeIndexPrefixScanKey(EncodeSequence(3), myRowID),
+			},
+		},
 		"empty key": {
 			srcFunc: func(value interface{}) ([][]byte, error) {
 				return [][]byte{}, nil
@@ -184,11 +207,21 @@ func TestIndexerOnUpdate(t *testing.T) {
 				return nil, nil
 			},
 		},
+		"empty key in slice": {
+			srcFunc: func(value interface{}) ([][]byte, error) {
+				return [][]byte{{}}, nil
+			},
+		},
+		"nil key in slice": {
+			srcFunc: func(value interface{}) ([][]byte, error) {
+				return [][]byte{nil}, nil
+			},
+		},
 		"error case": {
 			srcFunc: func(value interface{}) ([][]byte, error) {
-				return nil, errors.New("test")
+				return nil, stdErrors.New("test")
 			},
-			expErr: errors.New("test"),
+			expErr: stdErrors.New("test"),
 		},
 	}
 	for msg, spec := range specs {
@@ -207,6 +240,121 @@ func TestIndexerOnUpdate(t *testing.T) {
 	}
 }
 
+func TestUniqueKeyAddPolicy(t *testing.T) {
+	const myRowID = 1
+	myPresetKey := makeIndexPrefixScanKey([]byte("my-preset-key"), myRowID)
+	specs := map[string]struct {
+		srcKey           []byte
+		expErr           *errors.Error
+		expExistingEntry []byte
+	}{
+
+		"create when not exists": {
+			srcKey:           []byte("my-index-key"),
+			expExistingEntry: append([]byte("my-index-key"), EncodeSequence(myRowID)...),
+		},
+		"error when exists already": {
+			srcKey: []byte("my-preset-key"),
+			expErr: ErrUniqueConstraint,
+		},
+		"nil key not allowed": {
+			srcKey: nil,
+			expErr: ErrArgument,
+		},
+		"empty key not allowed": {
+			srcKey: []byte{},
+			expErr: ErrArgument,
+		},
+	}
+	for msg, spec := range specs {
+		t.Run(msg, func(t *testing.T) {
+			storeKey := sdk.NewKVStoreKey("test")
+			store := NewMockContext().KVStore(storeKey)
+			store.Set(myPresetKey, []byte{})
+			err := uniqueKeysAddPolicy(store, spec.srcKey, myRowID)
+			require.True(t, spec.expErr.Is(err))
+			if spec.expErr != nil {
+				return
+			}
+			assert.True(t, store.Has(spec.expExistingEntry), "not found")
+		})
+	}
+}
+
+func TestMultiKeyAddPolicy(t *testing.T) {
+	const myRowID = 1
+	myPresetKey := makeIndexPrefixScanKey([]byte("my-preset-key"), myRowID)
+	specs := map[string]struct {
+		srcKey           []byte
+		expErr           *errors.Error
+		expExistingEntry []byte
+	}{
+
+		"create when not exists": {
+			srcKey:           []byte("my-index-key"),
+			expExistingEntry: append([]byte("my-index-key"), EncodeSequence(myRowID)...),
+		},
+		"noop when exists already": {
+			srcKey:           []byte("my-preset-key"),
+			expExistingEntry: myPresetKey,
+		},
+		"nil key not allowed": {
+			srcKey: nil,
+			expErr: ErrArgument,
+		},
+		"empty key not allowed": {
+			srcKey: []byte{},
+			expErr: ErrArgument,
+		},
+	}
+	for msg, spec := range specs {
+		t.Run(msg, func(t *testing.T) {
+			storeKey := sdk.NewKVStoreKey("test")
+			store := NewMockContext().KVStore(storeKey)
+			store.Set(myPresetKey, []byte{})
+			err := multiKeyAddPolicy(store, spec.srcKey, myRowID)
+			require.True(t, spec.expErr.Is(err))
+			if spec.expErr != nil {
+				return
+			}
+			assert.True(t, store.Has(spec.expExistingEntry))
+		})
+	}
+}
+
+func TestDifference(t *testing.T) {
+	asByte := func(s []string) [][]byte {
+		r := make([][]byte, len(s))
+		for i := 0; i < len(s); i++ {
+			r[i] = []byte(s[i])
+		}
+		return r
+	}
+
+	specs := map[string]struct {
+		srcA      []string
+		srcB      []string
+		expResult [][]byte
+	}{
+		"all of A": {
+			srcA:      []string{"a", "b"},
+			srcB:      []string{"c"},
+			expResult: [][]byte{[]byte("a"), []byte("b")},
+		},
+		"A - B": {
+			srcA:      []string{"a", "b"},
+			srcB:      []string{"b", "c", "d"},
+			expResult: [][]byte{[]byte("a")},
+		},
+	}
+	for msg, spec := range specs {
+		t.Run(msg, func(t *testing.T) {
+			got := difference(asByte(spec.srcA), asByte(spec.srcB))
+			assert.Equal(t, spec.expResult, got)
+		})
+	}
+}
+
 type addPolicyRecorder struct {
 	secondaryIndexKeys [][]byte
 	rowIDs             []uint64
@@ -220,26 +368,8 @@ func (c *addPolicyRecorder) add(store sdk.KVStore, key []byte, rowID uint64) err
 	return nil
 }
 
-type updateKVStoreRecorder struct {
-	deleteKVStoreRecorder
-	stored tuples
-}
-
-func (u *updateKVStoreRecorder) Set(key, value []byte) {
-	u.stored = append(u.stored, tuple{key, value})
-}
-
-func (u updateKVStoreRecorder) Has(key []byte) bool {
-	for _, v := range u.stored {
-		if bytes.Equal(key, v.key) {
-			return true
-		}
-	}
-	return false
-}
-
 type deleteKVStoreRecorder struct {
-	alwaysPanicKVStore
+	AlwaysPanicKVStore
 	deletes [][]byte
 }
 
@@ -247,42 +377,18 @@ func (m *deleteKVStoreRecorder) Delete(key []byte) {
 	m.deletes = append(m.deletes, key)
 }
 
-type alwaysPanicKVStore struct{}
-
-func (a alwaysPanicKVStore) GetStoreType() types.StoreType {
-	panic("implement me")
+type updateKVStoreRecorder struct {
+	deleteKVStoreRecorder
+	stored    tuples
+	hasResult bool
 }
 
-func (a alwaysPanicKVStore) CacheWrap() types.CacheWrap {
-	panic("implement me")
+func (u *updateKVStoreRecorder) Set(key, value []byte) {
+	u.stored = append(u.stored, tuple{key, value})
 }
 
-func (a alwaysPanicKVStore) CacheWrapWithTrace(w io.Writer, tc types.TraceContext) types.CacheWrap {
-	panic("implement me")
-}
-
-func (a alwaysPanicKVStore) Get(key []byte) []byte {
-	panic("implement me")
-}
-
-func (a alwaysPanicKVStore) Has(key []byte) bool {
-	panic("implement me")
-}
-
-func (a alwaysPanicKVStore) Set(key, value []byte) {
-	panic("implement me")
-}
-
-func (a alwaysPanicKVStore) Delete(key []byte) {
-	panic("implement me")
-}
-
-func (a alwaysPanicKVStore) Iterator(start, end []byte) types.Iterator {
-	panic("implement me")
-}
-
-func (a alwaysPanicKVStore) ReverseIterator(start, end []byte) types.Iterator {
-	panic("implement me")
+func (u updateKVStoreRecorder) Has(key []byte) bool {
+	return u.hasResult
 }
 
 type tuple struct {
