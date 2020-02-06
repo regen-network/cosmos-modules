@@ -106,7 +106,7 @@ func uniqueKeysAddPolicy(store sdk.KVStore, secondaryIndexKey []byte, rowID uint
 	}
 
 	indexKey := makeIndexPrefixScanKey(secondaryIndexKey, rowID)
-	store.Set(indexKey, []byte{0})
+	store.Set(indexKey, []byte{})
 	return nil
 }
 
@@ -118,7 +118,7 @@ func multiKeyAddPolicy(store sdk.KVStore, secondaryIndexKey []byte, rowID uint64
 
 	indexKey := makeIndexPrefixScanKey(secondaryIndexKey, rowID)
 	if !store.Has(indexKey) {
-		store.Set(indexKey, []byte{0})
+		store.Set(indexKey, []byte{})
 	}
 	return nil
 }
