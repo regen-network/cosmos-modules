@@ -1,0 +1,153 @@
+syntax = "proto3";
+
+import "google/protobuf/duration.proto";
+
+message Msg {
+    oneof sum {
+        MsgCreateGroup create_group = 1; // returns uint64 GroupID
+        MsgUpdateGroupMembers update_group_members = 2;
+        MsgUpdateGroupAdmin update_group_admin = 3;
+        MsgUpdateGroupComment update_group_comment = 4;
+        MsgCreateGroupAccount create_group_account = 5; // returns sdk.AccAddress
+        MsgUpdateGroupAccountAdmin update_group_account_admin = 6;
+        MsgUpdateGroupAccountDecisionPolicy update_group_account_decision_policy = 7;
+        MsgUpdateGroupAccountComment update_group_account_comment = 8;
+        MsgPropose propose = 9;
+        MsgVote vote = 10;
+        MsgExec exec = 11;
+    }
+}
+
+message MsgCreateGroup {
+    bytes admin = 1; // sdk.AccAddress
+    repeated Member members = 2;
+    string comment = 3;
+}
+
+message MsgUpdateGroupMembers {
+    bytes admin = 1; // sdk.AccAddress
+    uint64 group = 2; // GroupID
+    repeated Member member_updates = 3; // set power to 0 to remove
+}
+
+message MsgUpdateGroupAdmin {
+    bytes admin = 1; // sdk.AccAddress
+    uint64 group = 2; // GroupID
+    bytes new_admin = 3; // sdk.AccAddress
+}
+
+message MsgUpdateGroupComment {
+    bytes admin = 1; // sdk.AccAddress
+    uint64 group = 2; // GroupID
+    string comment = 3;
+}
+
+message Member {
+    bytes address = 1; // sdk.AccAddress
+    string power = 2; // sdk.Dec
+    string comment = 3;
+}
+
+message MsgCreateGroupAccount {
+    bytes admin = 1; // sdk.AccAddress
+    uint64 group = 2; // GroupID
+    DecisionPolicy decision_policy = 3;
+    string comment = 4;
+}
+
+message MsgUpdateGroupAccountAdmin {
+    bytes admin = 1; // sdk.AccAddress
+    bytes group_acount = 2; // sdk.AccAddress
+    bytes new_admin = 3; // sdk.AccAddress
+}
+
+message MsgUpdateGroupAccountDecisionPolicy {
+    bytes admin = 1; // sdk.AccAddress
+    bytes group_acount = 2; // sdk.AccAddress
+    DecisionPolicy decision_policy = 3;
+}
+
+message MsgUpdateGroupAccountComment {
+    bytes admin = 1; // sdk.AccAddress
+    bytes group_acount = 2; // sdk.AccAddress
+    string comment = 3;
+}
+
+message DecisionPolicy {
+    oneof sum {
+        ThresholdDecisionPolicy threshold = 1;
+    }
+}
+
+message ThresholdDecisionPolicy {
+    string threshold = 1; // sdk.Dec
+    google.protobuf.Duration min_voting_window = 2;
+    google.protobuf.Duration max_voting_window = 3;
+}
+
+message MsgPropose {
+    bytes group_account = 1; // sdk.AccAddress
+    repeated bytes signers = 2; // []sdk.AccAddress
+    repeated bytes msg = 3; // []sdk.Msg
+    string comment = 4;
+    bool exec_now = 5;
+}
+
+enum Choice {
+    NO = 0;
+    YES = 1;
+    ABSTAIN = 2;
+    VETO = 3;
+}
+
+message MsgVote {
+    uint64 proposal = 1; // ProposalID
+    repeated bytes voters = 2; // []sdk.AccAddress
+    Choice choice = 3;
+    string comment = 4;
+}
+
+message MsgExec {
+    uint64 proposal = 1; // ProposalID
+    bytes signer = 2; // sdk.AccAddress
+}
+
+message GroupMetadata {
+    uint64 group = 1; // GroupID
+    bytes admin = 2; // sdk.AccAddress
+    string comment = 3;
+    // version is used to track changes to a group's membership structure that
+    // would break existing proposals. Whenever any members power is changed,
+    // or any member is added or removed this version is incremented and will
+    // cause proposals based on older versions of this group to fail
+    uint64 version = 4;
+}
+
+message GroupAccountMetadata {
+    bytes group_account = 1; // sdk.AccAddress
+    uint64 group = 2; // GroupID
+    bytes admin = 3; // sdk.AccAddress
+    string comment = 4;
+    DecisionPolicy decision_policy = 5;
+}
+
+message GroupsByMemberRequest {
+    bytes member = 1; // sdk.AccAddress
+    uint64 offset = 2;
+    uint64 limit = 3;
+}
+
+message GroupsList {
+    repeated uint64 groups = 1;
+}
+
+//message GroupsAccountsList {
+//    repeated byte group_accounts = 1;
+//}
+//
+service Query {
+    rpc GroupMetadata(uint64) returns (GroupMetadata);
+    rpc GroupAccountMetadata(bytes) returns (GroupAccountMetadata);
+    rpc GroupsByMember(GroupsByMemberRequest) returns (GroupsList)
+//    rpc GroupsAccountsByGroup(GroupsByMemberRequest) returns (GroupsList)
+}
