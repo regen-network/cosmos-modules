@@ -131,7 +131,9 @@ func (a Table) Delete(ctx HasKVStore, rowID RowID) error {
 
 func (a Table) Has(ctx HasKVStore, rowID RowID) bool {
 	store := prefix.NewStore(ctx.KVStore(a.storeKey), []byte{a.prefix})
-	return store.Has(rowID)
+	it := store.Iterator(prefixRange(rowID))
+	defer it.Close()
+	return it.Valid()
 }
 
 func (a Table) GetOne(ctx HasKVStore, rowID RowID, dest Persistent) error {
@@ -139,7 +141,6 @@ func (a Table) GetOne(ctx HasKVStore, rowID RowID, dest Persistent) error {
 	return x(ctx, rowID, dest)
 }
 
-// end is not included
 func (a Table) PrefixScan(ctx HasKVStore, start, end RowID) (Iterator, error) {
 	if start != nil && end != nil && bytes.Compare(start, end) >= 0 {
 		return nil, errors.Wrap(ErrArgument, "start must be before end")

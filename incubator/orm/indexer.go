@@ -114,9 +114,7 @@ func multiKeyAddPolicy(store sdk.KVStore, secondaryIndexKey []byte, rowID RowID)
 	}
 
 	indexKey := makeIndexPrefixScanKey(secondaryIndexKey, rowID)
-	if !store.Has(indexKey) {
-		store.Set(indexKey, []byte{})
-	}
+	store.Set(indexKey, []byte{})
 	return nil
 }
 

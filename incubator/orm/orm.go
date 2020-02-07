@@ -90,11 +90,14 @@ func NewTypeSafeRowGetter(storeKey sdk.StoreKey, prefixKey byte, model reflect.T
 		if err := assertCorrectType(model, dest); err != nil {
 			return err
 		}
+
 		store := prefix.NewStore(ctx.KVStore(storeKey), []byte{prefixKey})
-		if !store.Has(rowID) { // using Has for readability. An Iterator is cheaper in terms of gas
+		it := store.Iterator(prefixRange(rowID))
+		defer it.Close()
+		if !it.Valid() {
 			return ErrNotFound
 		}
-		return dest.Unmarshal(store.Get(rowID))
+		return dest.Unmarshal(it.Value())
 	}
 }
 
