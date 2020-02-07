@@ -355,6 +355,84 @@ func TestDifference(t *testing.T) {
 	}
 }
 
+func TestPruneEmptyKeys(t *testing.T) {
+	specs := map[string]struct {
+		srcFunc   IndexerFunc
+		expResult [][]byte
+		expError  error
+	}{
+		"non empty": {
+			srcFunc: func(v interface{}) ([][]byte, error) {
+				return [][]byte{{0}, {1}}, nil
+			},
+			expResult: [][]byte{{0}, {1}},
+		},
+		"empty": {
+			srcFunc: func(v interface{}) ([][]byte, error) {
+				return [][]byte{}, nil
+			},
+			expResult: [][]byte{},
+		},
+		"nil": {
+			srcFunc: func(v interface{}) ([][]byte, error) {
+				return nil, nil
+			},
+		},
+		"nil in the beginning": {
+			srcFunc: func(v interface{}) ([][]byte, error) {
+				return [][]byte{nil, {0}, {1}}, nil
+			},
+			expResult: [][]byte{{0}, {1}},
+		},
+		"nil in the middle": {
+			srcFunc: func(v interface{}) ([][]byte, error) {
+				return [][]byte{{0}, nil, {1}}, nil
+			},
+			expResult: [][]byte{{0}, {1}},
+		},
+		"nil at the end": {
+			srcFunc: func(v interface{}) ([][]byte, error) {
+				return [][]byte{{0}, nil, {1}}, nil
+			},
+			expResult: [][]byte{{0}, {1}},
+		},
+		"empty in the beginning": {
+			srcFunc: func(v interface{}) ([][]byte, error) {
+				return [][]byte{{}, {0}, {1}}, nil
+			},
+			expResult: [][]byte{{0}, {1}},
+		},
+		"empty in the middle": {
+			srcFunc: func(v interface{}) ([][]byte, error) {
+				return [][]byte{{0}, {}, {1}}, nil
+			},
+			expResult: [][]byte{{0}, {1}},
+		},
+		"empty at the end": {
+			srcFunc: func(v interface{}) ([][]byte, error) {
+				return [][]byte{{0}, {}, {1}}, nil
+			},
+			expResult: [][]byte{{0}, {1}},
+		},
+		"error passed": {
+			srcFunc: func(v interface{}) ([][]byte, error) {
+				return nil, stdErrors.New("test")
+			},
+			expError: stdErrors.New("test"),
+		},
+	}
+	for msg, spec := range specs {
+		t.Run(msg, func(t *testing.T) {
+			r, err := pruneEmptyKeys(spec.srcFunc)(nil)
+			require.Equal(t, spec.expError, err)
+			if spec.expError != nil {
+				return
+			}
+			assert.Equal(t, spec.expResult, r)
+		})
+	}
+}
+
 type addPolicyRecorder struct {
 	secondaryIndexKeys [][]byte
 	rowIDs             []uint64

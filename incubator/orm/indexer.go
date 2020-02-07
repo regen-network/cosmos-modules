@@ -153,14 +153,15 @@ func makeIndexPrefixScanKey(indexKey []byte, rowID uint64) []byte {
 func pruneEmptyKeys(f IndexerFunc) IndexerFunc {
 	return func(v interface{}) ([][]byte, error) {
 		keys, err := f(v)
-		if err != nil {
-			return nil, err
+		if err != nil || keys == nil {
+			return keys, err
 		}
-		for i := 0; i < len(keys); i++ {
-			if len(keys[i]) == 0 {
-				keys = append(keys[0:i], keys[i+1:]...)
+		r := make([][]byte, 0, len(keys))
+		for i := range keys {
+			if len(keys[i]) != 0 {
+				r = append(r, keys[i])
 			}
 		}
-		return keys, nil
+		return r, nil
 	}
 }
