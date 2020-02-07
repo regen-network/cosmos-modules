@@ -165,10 +165,9 @@ func TestKeeperEndToEndWithNaturalKeyTable(t *testing.T) {
 
 func TestGasCostsNaturalKeyTable(t *testing.T) {
 	storeKey := sdk.NewKVStoreKey("test")
-	cdc := codec.New()
 	ctx := NewMockContext()
 
-	k := NewGroupKeeper(storeKey, cdc)
+	k := NewGroupKeeper(storeKey)
 
 	g := GroupMetadata{
 		Description: "my test",
@@ -178,7 +177,7 @@ func TestGasCostsNaturalKeyTable(t *testing.T) {
 	m := GroupMember{
 		Group:  sdk.AccAddress(EncodeSequence(1)),
 		Member: sdk.AccAddress([]byte("member-address")),
-		Weight: sdk.NewInt(10),
+		Weight: 10,
 	}
 	groupRowID, err := k.groupTable.Create(ctx, &g)
 	require.NoError(t, err)
@@ -214,7 +213,7 @@ func TestGasCostsNaturalKeyTable(t *testing.T) {
 
 	// delete
 	gCtx.ResetGasMeter()
-	err = k.groupMemberTable.Delete(gCtx, m)
+	err = k.groupMemberTable.Delete(gCtx, &m)
 	require.NoError(t, err)
 	t.Logf("gas consumed on delete by natural key: %d", gCtx.GasConsumed())
 
@@ -224,7 +223,7 @@ func TestGasCostsNaturalKeyTable(t *testing.T) {
 		m := GroupMember{
 			Group:  sdk.AccAddress(EncodeSequence(1)),
 			Member: sdk.AccAddress([]byte(fmt.Sprintf("member-addres%d", i))),
-			Weight: sdk.NewInt(10),
+			Weight: 10,
 		}
 		err = k.groupMemberTable.Create(gCtx, &m)
 		require.NoError(t, err)
@@ -236,7 +235,7 @@ func TestGasCostsNaturalKeyTable(t *testing.T) {
 		m := GroupMember{
 			Group:  sdk.AccAddress(EncodeSequence(1)),
 			Member: sdk.AccAddress([]byte(fmt.Sprintf("member-addres%d", i))),
-			Weight: sdk.NewInt(10),
+			Weight: 10,
 		}
 		_, err = k.groupMemberTable.GetOne(gCtx, m.NaturalKey(), &loaded)
 		require.NoError(t, err)
