@@ -1,5 +1,5 @@
 # modules to build in CI
-SUBDIRS = incubator/orm
+SUBDIRS = incubator/orm  incubator/group
 
 test: test-unit
 
