@@ -39,7 +39,7 @@ func TestAutoUInt64PrefixScan(t *testing.T) {
 	specs := map[string]struct {
 		start, end uint64
 		expResult  []GroupMetadata
-		expRowIDs  [][]byte
+		expRowIDs  []RowID
 		expError   *errors.Error
 		method     func(ctx HasKVStore, start uint64, end uint64) (Iterator, error)
 	}{
@@ -48,35 +48,35 @@ func TestAutoUInt64PrefixScan(t *testing.T) {
 			end:       2,
 			method:    tb.PrefixScan,
 			expResult: []GroupMetadata{g1},
-			expRowIDs: [][]byte{EncodeSequence(1)},
+			expRowIDs: []RowID{EncodeSequence(1)},
 		},
 		"first 2 elements": {
 			start:     1,
 			end:       3,
 			method:    tb.PrefixScan,
 			expResult: []GroupMetadata{g1, g2},
-			expRowIDs: [][]byte{EncodeSequence(1), EncodeSequence(2)},
+			expRowIDs: []RowID{EncodeSequence(1), EncodeSequence(2)},
 		},
 		"first 3 elements": {
 			start:     1,
 			end:       4,
 			method:    tb.PrefixScan,
 			expResult: []GroupMetadata{g1, g2, g3},
-			expRowIDs: [][]byte{EncodeSequence(1), EncodeSequence(2), EncodeSequence(3)},
+			expRowIDs: []RowID{EncodeSequence(1), EncodeSequence(2), EncodeSequence(3)},
 		},
 		"search with max end": {
 			start:     1,
 			end:       math.MaxUint64,
 			method:    tb.PrefixScan,
 			expResult: []GroupMetadata{g1, g2, g3},
-			expRowIDs: [][]byte{EncodeSequence(1), EncodeSequence(2), EncodeSequence(3)},
+			expRowIDs: []RowID{EncodeSequence(1), EncodeSequence(2), EncodeSequence(3)},
 		},
 		"2 to end": {
 			start:     2,
 			end:       5,
 			method:    tb.PrefixScan,
 			expResult: []GroupMetadata{g2, g3},
-			expRowIDs: [][]byte{EncodeSequence(2), EncodeSequence(3)},
+			expRowIDs: []RowID{EncodeSequence(2), EncodeSequence(3)},
 		},
 		"start before end should fail": {
 			start:    2,
@@ -95,35 +95,35 @@ func TestAutoUInt64PrefixScan(t *testing.T) {
 			end:       2,
 			method:    tb.ReversePrefixScan,
 			expResult: []GroupMetadata{g1},
-			expRowIDs: [][]byte{EncodeSequence(1)},
+			expRowIDs: []RowID{EncodeSequence(1)},
 		},
 		"reverse first 2 elements": {
 			start:     1,
 			end:       3,
 			method:    tb.ReversePrefixScan,
 			expResult: []GroupMetadata{g2, g1},
-			expRowIDs: [][]byte{EncodeSequence(2), EncodeSequence(1)},
+			expRowIDs: []RowID{EncodeSequence(2), EncodeSequence(1)},
 		},
 		"reverse first 3 elements": {
 			start:     1,
 			end:       4,
 			method:    tb.ReversePrefixScan,
 			expResult: []GroupMetadata{g3, g2, g1},
-			expRowIDs: [][]byte{EncodeSequence(3), EncodeSequence(2), EncodeSequence(1)},
+			expRowIDs: []RowID{EncodeSequence(3), EncodeSequence(2), EncodeSequence(1)},
 		},
 		"reverse search with max end": {
 			start:     1,
 			end:       math.MaxUint64,
 			method:    tb.ReversePrefixScan,
 			expResult: []GroupMetadata{g3, g2, g1},
-			expRowIDs: [][]byte{EncodeSequence(3), EncodeSequence(2), EncodeSequence(1)},
+			expRowIDs: []RowID{EncodeSequence(3), EncodeSequence(2), EncodeSequence(1)},
 		},
 		"reverse 2 to end": {
 			start:     2,
 			end:       5,
 			method:    tb.ReversePrefixScan,
 			expResult: []GroupMetadata{g3, g2},
-			expRowIDs: [][]byte{EncodeSequence(3), EncodeSequence(2)},
+			expRowIDs: []RowID{EncodeSequence(3), EncodeSequence(2)},
 		},
 		"reverse start before end should fail": {
 			start:    2,

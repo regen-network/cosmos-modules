@@ -104,11 +104,10 @@ func TestKeeperEndToEndWithNaturalKeyTable(t *testing.T) {
 	require.True(t, exists)
 	// and load it by natural key
 	var loaded GroupMember
-	rowID, err := k.groupMemberTable.GetOne(ctx, naturalKey, &loaded)
+	err = k.groupMemberTable.GetOne(ctx, naturalKey, &loaded)
 	require.NoError(t, err)
 
 	// then values should match expectations
-	require.Equal(t, EncodeSequence(1), rowID)
 	require.Equal(t, m, loaded)
 
 	// and then the data should exists in MultiKeyIndex
@@ -120,15 +119,14 @@ func TestKeeperEndToEndWithNaturalKeyTable(t *testing.T) {
 	require.NoError(t, err)
 
 	// then values should match as before
-	rowID, err = First(it, &loaded)
+	_, err = First(it, &loaded)
 	require.NoError(t, err)
 
-	assert.Equal(t, EncodeSequence(groupRowID), rowID)
 	assert.Equal(t, m, loaded)
 	// and when we create another entry with the same natural key
 	err = k.groupMemberTable.Create(ctx, &m)
 	// then it should fail as the natural key must be unique
-	require.True(t, ErrUniqueConstraint.Is(err))
+	require.True(t, ErrUniqueConstraint.Is(err), err)
 
 	// and when entity updated with new natural key
 	updatedMember := &GroupMember{
@@ -190,15 +188,9 @@ func TestGasCostsNaturalKeyTable(t *testing.T) {
 	// get by natural key
 	gCtx.ResetGasMeter()
 	var loaded GroupMember
-	_, err = k.groupMemberTable.GetOne(gCtx, m.NaturalKey(), &loaded)
+	err = k.groupMemberTable.GetOne(gCtx, m.NaturalKey(), &loaded)
 	require.NoError(t, err)
 	t.Logf("gas consumed on get by natural key: %d", gCtx.GasConsumed())
-
-	// get by rowID
-	gCtx.ResetGasMeter()
-	_, err = k.groupMemberTable.autoTable.GetOne(gCtx, 1, &loaded)
-	require.NoError(t, err)
-	t.Logf("gas consumed on get by rowID: %d", gCtx.GasConsumed())
 
 	// get by secondary index
 	gCtx.ResetGasMeter()
@@ -237,7 +229,7 @@ func TestGasCostsNaturalKeyTable(t *testing.T) {
 			Member: sdk.AccAddress([]byte(fmt.Sprintf("member-addres%d", i))),
 			Weight: 10,
 		}
-		_, err = k.groupMemberTable.GetOne(gCtx, m.NaturalKey(), &loaded)
+		err = k.groupMemberTable.GetOne(gCtx, m.NaturalKey(), &loaded)
 		require.NoError(t, err)
 		t.Logf("%d: gas consumed on get by natural key: %d", i, gCtx.GasConsumed())
 	}

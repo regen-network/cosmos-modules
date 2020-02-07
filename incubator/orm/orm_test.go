@@ -47,13 +47,12 @@ func TestTypeSafeRowGetter(t *testing.T) {
 		t.Run(msg, func(t *testing.T) {
 			getter := NewTypeSafeRowGetter(storeKey, prefixKey, spec.srcModelType)
 			var loadedObj GroupMetadata
-			key, err := getter(ctx, spec.srcRowID, &loadedObj)
+			err := getter(ctx, EncodeSequence(spec.srcRowID), &loadedObj)
 			if spec.expErr != nil {
 				require.True(t, spec.expErr.Is(err), err)
 				return
 			}
 			require.NoError(t, err)
-			assert.Equal(t, EncodeSequence(spec.srcRowID), key)
 			assert.Equal(t, spec.expObj, loadedObj)
 		})
 	}

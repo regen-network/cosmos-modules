@@ -13,7 +13,7 @@ func TestReadAll(t *testing.T) {
 		srcIT     Iterator
 		destSlice func() ModelSlicePtr
 		expErr    *errors.Error
-		expIDs    [][]byte
+		expIDs    []RowID
 		expResult ModelSlicePtr
 	}{
 		"all good with object slice": {
@@ -22,7 +22,7 @@ func TestReadAll(t *testing.T) {
 				x := make([]GroupMetadata, 1)
 				return &x
 			},
-			expIDs:    [][]byte{EncodeSequence(1)},
+			expIDs:    []RowID{EncodeSequence(1)},
 			expResult: &[]GroupMetadata{{Description: "test"}},
 		},
 		"all good with pointer slice": {
@@ -31,7 +31,7 @@ func TestReadAll(t *testing.T) {
 				x := make([]*GroupMetadata, 1)
 				return &x
 			},
-			expIDs:    [][]byte{EncodeSequence(1)},
+			expIDs:    []RowID{EncodeSequence(1)},
 			expResult: &[]*GroupMetadata{{Description: "test"}},
 		},
 		"dest slice empty": {
@@ -40,7 +40,7 @@ func TestReadAll(t *testing.T) {
 				x := make([]GroupMetadata, 0)
 				return &x
 			},
-			expIDs:    [][]byte{EncodeSequence(1)},
+			expIDs:    []RowID{EncodeSequence(1)},
 			expResult: &[]GroupMetadata{{}},
 		},
 		"dest pointer with nil value": {
@@ -82,7 +82,7 @@ func TestReadAll(t *testing.T) {
 func TestLimitedIterator(t *testing.T) {
 	sliceIter := func(s ...string) Iterator {
 		var pos int
-		return IteratorFunc(func(dest Persistent) (key []byte, err error) {
+		return IteratorFunc(func(dest Persistent) (RowID, error) {
 			if pos == len(s) {
 				return nil, ErrIteratorDone
 			}
@@ -121,7 +121,7 @@ func TestLimitedIterator(t *testing.T) {
 }
 
 // mockIter amino encodes + decodes value object.
-func mockIter(rowID []byte, val Persistent) Iterator {
+func mockIter(rowID RowID, val Persistent) Iterator {
 	b, err := val.Marshal()
 	if err != nil {
 		panic(err)
@@ -130,7 +130,7 @@ func mockIter(rowID []byte, val Persistent) Iterator {
 }
 
 func noopIter() Iterator {
-	return IteratorFunc(func(dest Persistent) (key []byte, err error) {
+	return IteratorFunc(func(dest Persistent) (RowID, error) {
 		return nil, nil
 	})
 }

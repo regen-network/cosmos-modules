@@ -15,18 +15,22 @@ import (
 const ormCodespace = "orm"
 
 var (
-	ErrNotFound         = errors.Register(ormCodespace, 100, "not found")
-	ErrIteratorDone     = errors.Register(ormCodespace, 101, "iterator done")
-	ErrIteratorInvalid  = errors.Register(ormCodespace, 102, "iterator invalid")
-	ErrType             = errors.Register(ormCodespace, 110, "invalid type")
-	ErrUniqueConstraint = errors.Register(ormCodespace, 111, "unique constraint violation")
-	ErrArgument         = errors.Register(ormCodespace, 112, "invalid argument")
+	ErrNotFound          = errors.Register(ormCodespace, 100, "not found")
+	ErrIteratorDone      = errors.Register(ormCodespace, 101, "iterator done")
+	ErrIteratorInvalid   = errors.Register(ormCodespace, 102, "iterator invalid")
+	ErrType              = errors.Register(ormCodespace, 110, "invalid type")
+	ErrUniqueConstraint  = errors.Register(ormCodespace, 111, "unique constraint violation")
+	ErrArgument          = errors.Register(ormCodespace, 112, "invalid argument")
+	ErrIndexKeyMaxLength = errors.Register(ormCodespace, 113, "index key exceeds max length")
 )
 
 // HasKVStore is a subset of the cosmos-sdk context defined for loose coupling and simpler test setups.
 type HasKVStore interface {
 	KVStore(key sdk.StoreKey) sdk.KVStore
 }
+
+// Unique identifier of a persistent table.
+type RowID []byte
 
 // Persistent supports Marshal and Unmarshal
 //
@@ -56,7 +60,7 @@ type Iterator interface {
 	// LoadNext loads the next value in the sequence into the pointer passed as dest and returns the key. If there
 	// are no more items the ErrIteratorDone error is returned
 	// The key is the rowID and not any MultiKeyIndex key.
-	LoadNext(dest Persistent) (key []byte, err error)
+	LoadNext(dest Persistent) (RowID, error)
 	// Close releases the iterator and should be called at the end of iteration
 	io.Closer
 }
@@ -71,30 +75,26 @@ type Indexable interface {
 }
 
 // AfterSaveInterceptor defines a callback function to be called on Create + Update.
-type AfterSaveInterceptor func(ctx HasKVStore, rowID uint64, newValue, oldValue Persistent) error
+type AfterSaveInterceptor func(ctx HasKVStore, rowID RowID, newValue, oldValue Persistent) error
 
 // AfterDeleteInterceptor defines a callback function to be called on Delete operations.
-type AfterDeleteInterceptor func(ctx HasKVStore, rowID uint64, value Persistent) error
+type AfterDeleteInterceptor func(ctx HasKVStore, rowID RowID, value Persistent) error
 
 // RowGetter loads a persistent object by row ID into the destination object. The dest parameter must therefore be a pointer.
-// The key returned is the serialized row ID.
 // Any implementation must return `ErrNotFound` when no object for the rowID exists
-type RowGetter func(ctx HasKVStore, rowID uint64, dest Persistent) (key []byte, err error)
+type RowGetter func(ctx HasKVStore, rowID RowID, dest Persistent) error
 
 // NewTypeSafeRowGetter returns a `RowGetter` with type check on the dest parameter.
 func NewTypeSafeRowGetter(storeKey sdk.StoreKey, prefixKey byte, model reflect.Type) RowGetter {
-	return func(ctx HasKVStore, rowID uint64, dest Persistent) ([]byte, error) {
+	return func(ctx HasKVStore, rowID RowID, dest Persistent) error {
 		if err := assertCorrectType(model, dest); err != nil {
-			return nil, err
+			return err
 		}
 		store := prefix.NewStore(ctx.KVStore(storeKey), []byte{prefixKey})
-		key := EncodeSequence(rowID)
-		it := store.Iterator(key, EncodeSequence(rowID+1))
-		if !it.Valid() {
-			return nil, ErrNotFound
+		if !store.Has(rowID) { // using Has for readability. An Iterator is cheaper in terms of gas
+			return ErrNotFound
 		}
-		defer it.Close()
-		return key, dest.Unmarshal(it.Value())
+		return dest.Unmarshal(store.Get(rowID))
 	}
 }
 

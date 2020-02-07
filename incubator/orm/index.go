@@ -2,8 +2,6 @@ package orm
 
 import (
 	"bytes"
-	"encoding/binary"
-	"math"
 
 	"github.com/cosmos/cosmos-sdk/store/prefix"
 	"github.com/cosmos/cosmos-sdk/store/types"
@@ -13,9 +11,9 @@ import (
 
 // indexer creates and modifies the second MultiKeyIndex based on the operations and changes on the primary object.
 type indexer interface {
-	OnCreate(store sdk.KVStore, rowID uint64, value interface{}) error
-	OnDelete(store sdk.KVStore, rowID uint64, value interface{}) error
-	OnUpdate(store sdk.KVStore, rowID uint64, newValue, oldValue interface{}) error
+	OnCreate(store sdk.KVStore, rowID RowID, value interface{}) error
+	OnDelete(store sdk.KVStore, rowID RowID, value interface{}) error
+	OnUpdate(store sdk.KVStore, rowID RowID, newValue, oldValue interface{}) error
 }
 
 // MultiKeyIndex is an index where multiple entries can point to the same underlying object as opposite to a unique index
@@ -40,16 +38,15 @@ func NewIndex(builder Indexable, prefix byte, indexer IndexerFunc) *MultiKeyInde
 }
 
 func (i MultiKeyIndex) Has(ctx HasKVStore, key []byte) bool {
-	// can only be answered by a prefix scan. see makeIndexPrefixScanKey
 	store := prefix.NewStore(ctx.KVStore(i.storeKey), []byte{i.prefix})
-	it := store.Iterator(makeIndexPrefixScanKey(key, 0), makeIndexPrefixScanKey(key, math.MaxUint64))
+	it := store.Iterator(prefixRange(key))
 	defer it.Close()
 	return it.Valid()
 }
 
 func (i MultiKeyIndex) Get(ctx HasKVStore, key []byte) (Iterator, error) {
 	store := prefix.NewStore(ctx.KVStore(i.storeKey), []byte{i.prefix})
-	it := store.Iterator(makeIndexPrefixScanKey(key, 0), makeIndexPrefixScanKey(key, math.MaxUint64))
+	it := store.Iterator(prefixRange(key))
 	return indexIterator{ctx: ctx, it: it, rowGetter: i.rowGetter}, nil
 }
 
@@ -96,7 +93,7 @@ func (i MultiKeyIndex) ReversePrefixScan(ctx HasKVStore, start []byte, end []byt
 	return indexIterator{ctx: ctx, it: it, rowGetter: i.rowGetter}, nil
 }
 
-func (i MultiKeyIndex) onSave(ctx HasKVStore, rowID uint64, newValue, oldValue Persistent) error {
+func (i MultiKeyIndex) onSave(ctx HasKVStore, rowID RowID, newValue, oldValue Persistent) error {
 	store := prefix.NewStore(ctx.KVStore(i.storeKey), []byte{i.prefix})
 	if oldValue == nil {
 		return i.indexer.OnCreate(store, rowID, newValue)
@@ -104,7 +101,7 @@ func (i MultiKeyIndex) onSave(ctx HasKVStore, rowID uint64, newValue, oldValue P
 	return i.indexer.OnUpdate(store, rowID, newValue, oldValue)
 }
 
-func (i MultiKeyIndex) onDelete(ctx HasKVStore, rowID uint64, oldValue Persistent) error {
+func (i MultiKeyIndex) onDelete(ctx HasKVStore, rowID RowID, oldValue Persistent) error {
 	store := prefix.NewStore(ctx.KVStore(i.storeKey), []byte{i.prefix})
 	return i.indexer.OnDelete(store, rowID, oldValue)
 }
@@ -129,12 +126,12 @@ func NewUniqueIndex(builder Indexable, prefix byte, uniqueIndexerFunc UniqueInde
 }
 
 // RowID looks up the rowID for an MultiKeyIndex key. Returns `ErrNotFound` when not exists in MultiKeyIndex.
-func (i UniqueIndex) RowID(ctx HasKVStore, key []byte) (uint64, error) {
+func (i UniqueIndex) RowID(ctx HasKVStore, key []byte) (RowID, error) {
 	store := prefix.NewStore(ctx.KVStore(i.storeKey), []byte{i.prefix})
-	it := store.Iterator(makeIndexPrefixScanKey(key, 0), makeIndexPrefixScanKey(key, math.MaxUint64))
+	it := store.Iterator(prefixRange(key))
 	defer it.Close()
 	if !it.Valid() {
-		return 0, ErrNotFound
+		return nil, ErrNotFound
 	}
 	return stripRowIDFromIndexPrefixScanKey(it.Key()), nil
 }
@@ -149,14 +146,14 @@ type indexIterator struct {
 // LoadNext loads the next value in the sequence into the pointer passed as dest and returns the key. If there
 // are no more items the ErrIteratorDone error is returned
 // The key is the rowID and not any MultiKeyIndex key.
-func (i indexIterator) LoadNext(dest Persistent) ([]byte, error) {
+func (i indexIterator) LoadNext(dest Persistent) (RowID, error) {
 	if !i.it.Valid() {
 		return nil, ErrIteratorDone
 	}
 	indexPrefixKey := i.it.Key()
 	rowID := stripRowIDFromIndexPrefixScanKey(indexPrefixKey)
 	i.it.Next()
-	return i.rowGetter(i.ctx, rowID, dest)
+	return rowID, i.rowGetter(i.ctx, rowID, dest)
 }
 
 // Close releases the iterator and should be called at the end of iteration
@@ -165,7 +162,29 @@ func (i indexIterator) Close() error {
 	return nil
 }
 
-func stripRowIDFromIndexPrefixScanKey(indexPrefixKey []byte) uint64 {
-	n := len(indexPrefixKey)
-	return binary.BigEndian.Uint64(indexPrefixKey[n-8:])
+// prefixRange turns a prefix into (start, end) to create
+// and iterator
+func prefixRange(prefix []byte) ([]byte, []byte) {
+	// special case: no prefix is whole range
+	if len(prefix) == 0 {
+		return nil, nil
+	}
+
+	// copy the prefix and update last byte
+	end := make([]byte, len(prefix))
+	copy(end, prefix)
+	l := len(end) - 1
+	end[l]++
+
+	// wait, what if that overflowed?....
+	for end[l] == 0 && l > 0 {
+		l--
+		end[l]++
+	}
+
+	// okay, funny guy, you gave us FFF, no end to this range...
+	if l == 0 && end[0] == 0 {
+		end = nil
+	}
+	return prefix, end
 }

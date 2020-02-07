@@ -16,8 +16,8 @@ func TestIndexPrefixScan(t *testing.T) {
 		testTableSeqPrefix
 	)
 	tBuilder := NewAutoUInt64TableBuilder(testTablePrefix, testTableSeqPrefix, storeKey, &GroupMetadata{})
-	idx := NewIndex(tBuilder, GroupByAdminIndexPrefix, func(val interface{}) ([][]byte, error) {
-		return [][]byte{val.(*GroupMetadata).Admin}, nil
+	idx := NewIndex(tBuilder, GroupByAdminIndexPrefix, func(val interface{}) ([]RowID, error) {
+		return []RowID{[]byte(val.(*GroupMetadata).Admin)}, nil
 	})
 	tb := tBuilder.Build()
 	ctx := NewMockContext()
@@ -42,7 +42,7 @@ func TestIndexPrefixScan(t *testing.T) {
 	specs := map[string]struct {
 		start, end []byte
 		expResult  []GroupMetadata
-		expRowIDs  [][]byte
+		expRowIDs  []RowID
 		expError   *errors.Error
 		method     func(ctx HasKVStore, start, end []byte) (Iterator, error)
 	}{
@@ -51,49 +51,49 @@ func TestIndexPrefixScan(t *testing.T) {
 			end:       []byte("admin-address-b"),
 			method:    idx.PrefixScan,
 			expResult: []GroupMetadata{g1},
-			expRowIDs: [][]byte{EncodeSequence(1)},
+			expRowIDs: []RowID{EncodeSequence(1)},
 		},
 		"one result by prefix": {
 			start:     []byte("admin-address"),
 			end:       []byte("admin-address-b"),
 			method:    idx.PrefixScan,
 			expResult: []GroupMetadata{g1},
-			expRowIDs: [][]byte{EncodeSequence(1)},
+			expRowIDs: []RowID{EncodeSequence(1)},
 		},
 		"multi key elements by exact match": {
 			start:     []byte("admin-address-b"),
 			end:       []byte("admin-address-c"),
 			method:    idx.PrefixScan,
 			expResult: []GroupMetadata{g2, g3},
-			expRowIDs: [][]byte{EncodeSequence(2), EncodeSequence(3)},
+			expRowIDs: []RowID{EncodeSequence(2), EncodeSequence(3)},
 		},
 		"open end query": {
 			start:     []byte("admin-address-b"),
 			end:       nil,
 			method:    idx.PrefixScan,
 			expResult: []GroupMetadata{g2, g3},
-			expRowIDs: [][]byte{EncodeSequence(2), EncodeSequence(3)},
+			expRowIDs: []RowID{EncodeSequence(2), EncodeSequence(3)},
 		},
 		"open start query": {
 			start:     nil,
 			end:       []byte("admin-address-b"),
 			method:    idx.PrefixScan,
 			expResult: []GroupMetadata{g1},
-			expRowIDs: [][]byte{EncodeSequence(1)},
+			expRowIDs: []RowID{EncodeSequence(1)},
 		},
 		"open start and end query": {
 			start:     nil,
 			end:       nil,
 			method:    idx.PrefixScan,
 			expResult: []GroupMetadata{g1, g2, g3},
-			expRowIDs: [][]byte{EncodeSequence(1), EncodeSequence(2), EncodeSequence(3)},
+			expRowIDs: []RowID{EncodeSequence(1), EncodeSequence(2), EncodeSequence(3)},
 		},
 		"all matching prefix": {
 			start:     []byte("admin"),
 			end:       nil,
 			method:    idx.PrefixScan,
 			expResult: []GroupMetadata{g1, g2, g3},
-			expRowIDs: [][]byte{EncodeSequence(1), EncodeSequence(2), EncodeSequence(3)},
+			expRowIDs: []RowID{EncodeSequence(1), EncodeSequence(2), EncodeSequence(3)},
 		},
 		"non matching prefix": {
 			start:     []byte("nobody"),
@@ -118,49 +118,49 @@ func TestIndexPrefixScan(t *testing.T) {
 			end:       []byte("admin-address-b"),
 			method:    idx.ReversePrefixScan,
 			expResult: []GroupMetadata{g1},
-			expRowIDs: [][]byte{EncodeSequence(1)},
+			expRowIDs: []RowID{EncodeSequence(1)},
 		},
 		"reverse: one result by prefix": {
 			start:     []byte("admin-address"),
 			end:       []byte("admin-address-b"),
 			method:    idx.ReversePrefixScan,
 			expResult: []GroupMetadata{g1},
-			expRowIDs: [][]byte{EncodeSequence(1)},
+			expRowIDs: []RowID{EncodeSequence(1)},
 		},
 		"reverse: multi key elements by exact match": {
 			start:     []byte("admin-address-b"),
 			end:       []byte("admin-address-c"),
 			method:    idx.ReversePrefixScan,
 			expResult: []GroupMetadata{g3, g2},
-			expRowIDs: [][]byte{EncodeSequence(3), EncodeSequence(2)},
+			expRowIDs: []RowID{EncodeSequence(3), EncodeSequence(2)},
 		},
 		"reverse: open end query": {
 			start:     []byte("admin-address-b"),
 			end:       nil,
 			method:    idx.ReversePrefixScan,
 			expResult: []GroupMetadata{g3, g2},
-			expRowIDs: [][]byte{EncodeSequence(3), EncodeSequence(2)},
+			expRowIDs: []RowID{EncodeSequence(3), EncodeSequence(2)},
 		},
 		"reverse: open start query": {
 			start:     nil,
 			end:       []byte("admin-address-b"),
 			method:    idx.ReversePrefixScan,
 			expResult: []GroupMetadata{g1},
-			expRowIDs: [][]byte{EncodeSequence(1)},
+			expRowIDs: []RowID{EncodeSequence(1)},
 		},
 		"reverse: open start and end query": {
 			start:     nil,
 			end:       nil,
 			method:    idx.ReversePrefixScan,
 			expResult: []GroupMetadata{g3, g2, g1},
-			expRowIDs: [][]byte{EncodeSequence(3), EncodeSequence(2), EncodeSequence(1)},
+			expRowIDs: []RowID{EncodeSequence(3), EncodeSequence(2), EncodeSequence(1)},
 		},
 		"reverse: all matching prefix": {
 			start:     []byte("admin"),
 			end:       nil,
 			method:    idx.ReversePrefixScan,
 			expResult: []GroupMetadata{g3, g2, g1},
-			expRowIDs: [][]byte{EncodeSequence(3), EncodeSequence(2), EncodeSequence(1)},
+			expRowIDs: []RowID{EncodeSequence(3), EncodeSequence(2), EncodeSequence(1)},
 		},
 		"reverse: non matching prefix": {
 			start:     []byte("nobody"),
