@@ -26,7 +26,7 @@ func NewIndexer(indexerFunc IndexerFunc) *Indexer {
 		panic("indexer func must not be nil")
 	}
 	return &Indexer{
-		indexerFunc: indexerFunc,
+		indexerFunc: pruneEmptyKeys(indexerFunc),
 		addPolicy:   multiKeyAddPolicy,
 	}
 }
@@ -43,7 +43,7 @@ func NewUniqueIndexer(f UniqueIndexerFunc) *Indexer {
 		}
 	}
 	return &Indexer{
-		indexerFunc: adaptor(f),
+		indexerFunc: pruneEmptyKeys(adaptor(f)),
 		addPolicy:   uniqueKeysAddPolicy,
 	}
 }
@@ -147,4 +147,21 @@ func makeIndexPrefixScanKey(indexKey []byte, rowID uint64) []byte {
 	copy(res, indexKey)
 	binary.BigEndian.PutUint64(res[n:], rowID)
 	return res
+}
+
+// pruneEmptyKeys drops any empty key from IndexerFunc f returned
+func pruneEmptyKeys(f IndexerFunc) IndexerFunc {
+	return func(v interface{}) ([][]byte, error) {
+		keys, err := f(v)
+		if err != nil || keys == nil {
+			return keys, err
+		}
+		r := make([][]byte, 0, len(keys))
+		for i := range keys {
+			if len(keys[i]) != 0 {
+				r = append(r, keys[i])
+			}
+		}
+		return r, nil
+	}
 }
