@@ -49,9 +49,39 @@ type Persistent interface {
 // so that the row NaturalKey is allows a fixed with 8 byte integer. This allows the MultiKeyIndex key bytes to be
 // variable length and scanned iteratively. The
 type Index interface {
+	// Has checks if a key exists. Panics on nil key.
 	Has(ctx HasKVStore, key []byte) bool
-	Get(ctx HasKVStore, key []byte) (Iterator, error)
+
+	// Get returns a result iterator for the searchKey. Parameters must not be nil.
+	Get(ctx HasKVStore, searchKey []byte) (Iterator, error)
+
+	// PrefixScan returns an Iterator over a domain of keys in ascending order. End is exclusive.
+	// Start is an MultiKeyIndex key or prefix. It must be less than end, or the Iterator is invalid and error is returned.
+	// Iterator must be closed by caller.
+	// To iterate over entire domain, use PrefixScan(nil, nil)
+	//
+	// WARNING: The use of a PrefixScan can be very expensive in terms of Gas. Please make sure you do not expose
+	// this as an endpoint to the public without further limits.
+	// Example:
+	//			it, err := idx.PrefixScan(ctx, start, end)
+	//			if err !=nil {
+	//				return err
+	//			}
+	//			const defaultLimit = 20
+	//			it = LimitIterator(it, defaultLimit)
+	//
+	// CONTRACT: No writes may happen within a domain while an iterator exists over it.
 	PrefixScan(ctx HasKVStore, start []byte, end []byte) (Iterator, error)
+
+	// ReversePrefixScan returns an Iterator over a domain of keys in descending order. End is exclusive.
+	// Start is an MultiKeyIndex key or prefix. It must be less than end, or the Iterator is invalid  and error is returned.
+	// Iterator must be closed by caller.
+	// To iterate over entire domain, use PrefixScan(nil, nil)
+	//
+	// WARNING: The use of a ReversePrefixScan can be very expensive in terms of Gas. Please make sure you do not expose
+	// this as an endpoint to the public without further limits. See `LimitIterator`
+	//
+	// CONTRACT: No writes may happen within a domain while an iterator exists over it.
 	ReversePrefixScan(ctx HasKVStore, start []byte, end []byte) (Iterator, error)
 }
 
@@ -65,13 +95,23 @@ type Iterator interface {
 	io.Closer
 }
 
+// IndexKeyCodec defines the encoding/ decoding methods for building/ splitting index keys.
+type IndexKeyCodec interface {
+	// BuildIndexKey encodes a searchable key and the target RowID.
+	BuildIndexKey(searchableKey []byte, rowID RowID) []byte
+	// StripRowID returns the RowID from the combined persistentIndexKey. It is the reverse operation to BuildIndexKey
+	// but with the searchableKey dropped.
+	StripRowID(persistentIndexKey []byte) RowID
+}
+
 // Indexable types are used to setup new tables.
 // This interface provides a set of functions that can be called by indexes to register and interact with the tables.
 type Indexable interface {
 	StoreKey() sdk.StoreKey
+	RowGetter() RowGetter
+	IndexKeyCodec() IndexKeyCodec
 	AddAfterSaveInterceptor(interceptor AfterSaveInterceptor)
 	AddAfterDeleteInterceptor(interceptor AfterDeleteInterceptor)
-	RowGetter() RowGetter
 }
 
 // AfterSaveInterceptor defines a callback function to be called on Create + Update.
@@ -87,6 +127,9 @@ type RowGetter func(ctx HasKVStore, rowID RowID, dest Persistent) error
 // NewTypeSafeRowGetter returns a `RowGetter` with type check on the dest parameter.
 func NewTypeSafeRowGetter(storeKey sdk.StoreKey, prefixKey byte, model reflect.Type) RowGetter {
 	return func(ctx HasKVStore, rowID RowID, dest Persistent) error {
+		if rowID == nil {
+			return errors.Wrap(ErrArgument, "key must not be nil")
+		}
 		if err := assertCorrectType(model, dest); err != nil {
 			return err
 		}
