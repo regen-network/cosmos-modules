@@ -74,32 +74,32 @@ func TestUInt64Index(t *testing.T) {
 func TestUInt64MultiKeyAdapter(t *testing.T) {
 	specs := map[string]struct {
 		srcFunc UInt64IndexerFunc
-		exp     [][]byte
+		exp     []RowID
 		expErr  error
 	}{
 		"single key": {
 			srcFunc: func(value interface{}) ([]uint64, error) {
 				return []uint64{1}, nil
 			},
-			exp: [][]byte{{0, 0, 0, 0, 0, 0, 0, 1}},
+			exp: []RowID{{0, 0, 0, 0, 0, 0, 0, 1}},
 		},
 		"multi key": {
 			srcFunc: func(value interface{}) ([]uint64, error) {
 				return []uint64{1, 1 << 56}, nil
 			},
-			exp: [][]byte{{0, 0, 0, 0, 0, 0, 0, 1}, {1, 0, 0, 0, 0, 0, 0, 0}},
+			exp: []RowID{{0, 0, 0, 0, 0, 0, 0, 1}, {1, 0, 0, 0, 0, 0, 0, 0}},
 		},
 		"empty key": {
 			srcFunc: func(value interface{}) ([]uint64, error) {
 				return []uint64{}, nil
 			},
-			exp: [][]byte{},
+			exp: []RowID{},
 		},
 		"nil key": {
 			srcFunc: func(value interface{}) ([]uint64, error) {
 				return nil, nil
 			},
-			exp: [][]byte{},
+			exp: []RowID{},
 		},
 		"error case": {
 			srcFunc: func(value interface{}) ([]uint64, error) {

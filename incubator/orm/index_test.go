@@ -196,3 +196,80 @@ func TestIndexPrefixScan(t *testing.T) {
 		})
 	}
 }
+
+func TestUniqueIndex(t *testing.T) {
+	storeKey := sdk.NewKVStoreKey("test")
+
+	groupMemberTableBuilder := NewNaturalKeyTableBuilder(GroupMemberTablePrefix, storeKey, &GroupMember{})
+	idx := NewUniqueIndex(groupMemberTableBuilder, GroupMemberByMemberIndexPrefix, func(val interface{}) (RowID, error) {
+		return []byte{val.(*GroupMember).Member[0]}, nil
+	})
+	groupMemberTable := groupMemberTableBuilder.Build()
+
+	ctx := NewMockContext()
+
+	m := GroupMember{
+		Group:  sdk.AccAddress(EncodeSequence(1)),
+		Member: sdk.AccAddress([]byte("member-address")),
+		Weight: 10,
+	}
+	err := groupMemberTable.Create(ctx, &m)
+	require.NoError(t, err)
+
+	indexedKey := []byte{byte('m')}
+
+	// Has
+	assert.True(t, idx.Has(ctx, indexedKey))
+
+	// Get
+	it, err := idx.Get(ctx, indexedKey)
+	require.NoError(t, err)
+	var loaded GroupMember
+	rowID, err := it.LoadNext(&loaded)
+	require.NoError(t, err)
+	require.Equal(t, m.NaturalKey(), rowID)
+	require.Equal(t, m, loaded)
+
+	// PrefixScan match
+	it, err = idx.PrefixScan(ctx, []byte{byte('m')}, []byte{byte('n')})
+	require.NoError(t, err)
+	rowID, err = it.LoadNext(&loaded)
+	require.NoError(t, err)
+	require.Equal(t, m.NaturalKey(), rowID)
+	require.Equal(t, m, loaded)
+
+	// PrefixScan no match
+	it, err = idx.PrefixScan(ctx, []byte{byte('n')}, nil)
+	require.NoError(t, err)
+	rowID, err = it.LoadNext(&loaded)
+	require.Error(t, ErrIteratorDone, err)
+
+	// ReversePrefixScan match
+	it, err = idx.ReversePrefixScan(ctx, []byte{byte('a')}, []byte{byte('z')})
+	require.NoError(t, err)
+	rowID, err = it.LoadNext(&loaded)
+	require.NoError(t, err)
+	require.Equal(t, m.NaturalKey(), rowID)
+	require.Equal(t, m, loaded)
+
+	// ReversePrefixScan no match
+	it, err = idx.ReversePrefixScan(ctx, []byte{byte('l')}, nil)
+	require.NoError(t, err)
+	rowID, err = it.LoadNext(&loaded)
+	require.Error(t, ErrIteratorDone, err)
+	// create with same index key should fail
+	new := GroupMember{
+		Group:  sdk.AccAddress(EncodeSequence(1)),
+		Member: sdk.AccAddress([]byte("my-other")),
+		Weight: 10,
+	}
+	err = groupMemberTable.Create(ctx, &new)
+	require.Error(t, ErrUniqueConstraint, err)
+
+	// and when delete
+	err = groupMemberTable.Delete(ctx, &m)
+	require.NoError(t, err)
+
+	// then no persistent element
+	assert.False(t, idx.Has(ctx, indexedKey))
+}

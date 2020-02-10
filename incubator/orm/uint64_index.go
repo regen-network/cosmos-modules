@@ -59,6 +59,7 @@ func (i UInt64Index) Get(ctx HasKVStore, searchKey uint64) (Iterator, error) {
 func (i UInt64Index) PrefixScan(ctx HasKVStore, start, end uint64) (Iterator, error) {
 	return i.multiKeyIndex.PrefixScan(ctx, EncodeSequence(start), EncodeSequence(end))
 }
+
 // ReversePrefixScan returns an Iterator over a domain of keys in descending order. End is exclusive.
 // Start is an MultiKeyIndex key or prefix. It must be less than end, or the Iterator is invalid  and error is returned.
 // Iterator must be closed by caller.

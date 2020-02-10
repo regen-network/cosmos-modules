@@ -25,6 +25,7 @@ type MultiKeyIndex struct {
 	indexer       indexer
 	indexKeyCodec IndexKeyCodec
 }
+
 // NewIndex builds a MultiKeyIndex
 func NewIndex(builder Indexable, prefix byte, indexer IndexerFunc) *MultiKeyIndex {
 	return newIndex(builder, prefix, NewIndexer(indexer, builder.IndexKeyCodec()))
@@ -134,13 +135,13 @@ type UniqueIndex struct {
 // NewUniqueIndex create a new Index object where duplicate keys are prohibited.
 func NewUniqueIndex(builder Indexable, prefix byte, uniqueIndexerFunc UniqueIndexerFunc) *UniqueIndex {
 	return &UniqueIndex{
-		MultiKeyIndex: *newIndex(builder, prefix, NewUniqueIndexer(uniqueIndexerFunc)),
+		MultiKeyIndex: *newIndex(builder, prefix, NewUniqueIndexer(uniqueIndexerFunc, builder.IndexKeyCodec())),
 	}
 }
 
 // RowID looks up the rowID for an UniqueIndex key. Returns `ErrNotFound` when not exists.
 func (i UniqueIndex) RowID(ctx HasKVStore, key []byte) (RowID, error) {
-	if key == nil{
+	if key == nil {
 		return nil, errors.Wrap(ErrArgument, "key must not be nil")
 	}
 	store := prefix.NewStore(ctx.KVStore(i.storeKey), []byte{i.prefix})
@@ -182,7 +183,7 @@ func (i indexIterator) Close() error {
 // prefixRange turns a prefix into (start, end) to create
 // and iterator
 func prefixRange(prefix []byte) ([]byte, []byte) {
-	if prefix == nil{
+	if prefix == nil {
 		panic("nil key not allowed")
 	}
 	// special case: no prefix is whole range

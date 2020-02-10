@@ -34,7 +34,7 @@ func NewIndexer(indexerFunc IndexerFunc, codec IndexKeyCodec) *Indexer {
 }
 
 // NewUniqueIndexer returns an indexer that requires exactly one reference keys for an entity.
-func NewUniqueIndexer(f UniqueIndexerFunc) *Indexer {
+func NewUniqueIndexer(f UniqueIndexerFunc, codec IndexKeyCodec) *Indexer {
 	if f == nil {
 		panic("indexer func must not be nil")
 	}
@@ -44,10 +44,9 @@ func NewUniqueIndexer(f UniqueIndexerFunc) *Indexer {
 			return []RowID{k}, err
 		}
 	}
-	return &Indexer{
-		indexerFunc: pruneEmptyKeys(adaptor(f)),
-		addPolicy:   uniqueKeysAddPolicy,
-	}
+	idx := NewIndexer(adaptor(f), codec)
+	idx.addPolicy = uniqueKeysAddPolicy
+	return idx
 }
 
 // OnCreate persists the secondary index entries for the new object.
@@ -71,12 +70,14 @@ func (i Indexer) OnDelete(store sdk.KVStore, rowID RowID, value interface{}) err
 	if err != nil {
 		return err
 	}
+
 	for _, secondaryIndexKey := range secondaryIndexKeys {
 		indexKey := i.indexKeyCodec.BuildIndexKey(secondaryIndexKey, rowID)
 		store.Delete(indexKey)
 	}
 	return nil
 }
+
 // OnUpdate rebuilds the secondary index entries for the updated object.
 func (i Indexer) OnUpdate(store sdk.KVStore, rowID RowID, newValue, oldValue interface{}) error {
 	oldSecIdxKeys, err := i.indexerFunc(oldValue)
@@ -103,7 +104,6 @@ func uniqueKeysAddPolicy(store sdk.KVStore, codec IndexKeyCodec, secondaryIndexK
 	if len(secondaryIndexKey) == 0 {
 		return errors.Wrap(ErrArgument, "empty index key")
 	}
-
 	it := store.Iterator(prefixRange(secondaryIndexKey))
 	defer it.Close()
 	if it.Valid() {
@@ -142,12 +142,12 @@ func difference(a []RowID, b []RowID) []RowID {
 
 // pruneEmptyKeys drops any empty key from IndexerFunc f returned
 func pruneEmptyKeys(f IndexerFunc) IndexerFunc {
-	return func(v interface{}) ([][]byte, error) {
+	return func(v interface{}) ([]RowID, error) {
 		keys, err := f(v)
 		if err != nil || keys == nil {
 			return keys, err
 		}
-		r := make([][]byte, 0, len(keys))
+		r := make([]RowID, 0, len(keys))
 		for i := range keys {
 			if len(keys[i]) != 0 {
 				r = append(r, keys[i])
