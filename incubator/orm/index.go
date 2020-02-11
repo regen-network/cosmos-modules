@@ -139,20 +139,6 @@ func NewUniqueIndex(builder Indexable, prefix byte, uniqueIndexerFunc UniqueInde
 	}
 }
 
-// RowID looks up the rowID for an UniqueIndex key. Returns `ErrNotFound` when not exists.
-func (i UniqueIndex) RowID(ctx HasKVStore, key []byte) (RowID, error) {
-	if key == nil {
-		return nil, errors.Wrap(ErrArgument, "key must not be nil")
-	}
-	store := prefix.NewStore(ctx.KVStore(i.storeKey), []byte{i.prefix})
-	it := store.Iterator(prefixRange(key))
-	defer it.Close()
-	if !it.Valid() {
-		return nil, ErrNotFound
-	}
-	return i.indexKeyCodec.StripRowID(it.Key()), nil
-}
-
 // indexIterator uses rowGetter to lazy load new model values on request.
 type indexIterator struct {
 	ctx       HasKVStore
@@ -180,8 +166,14 @@ func (i indexIterator) Close() error {
 	return nil
 }
 
-// prefixRange turns a prefix into (start, end) to create
-// and iterator
+// prefixRange turns a prefix into a (start, end) range. The start is the given prefix value and
+// the end is calculated by adding 1 bit to the start value. Nil is not allowed as prefix.
+// 		Example: []byte{1, 3, 4} becomes []byte{1, 3, 5}
+// 				 []byte{15, 42, 255, 255} becomes []byte{15, 43, 0, 0}
+//
+// In case of an overflow the end is set to nil.
+//		Example: []byte{255, 255, 255, 255} becomes nil
+//
 func prefixRange(prefix []byte) ([]byte, []byte) {
 	if prefix == nil {
 		panic("nil key not allowed")

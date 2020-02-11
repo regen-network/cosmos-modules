@@ -1,7 +1,8 @@
 package orm
 
 // Max255DynamicLengthIndexKeyCodec works with up to 255 byte dynamic size RowIDs.
-// To be used with NaturalKey or external Key tables.
+// They are encoded as `concat(searchableKey, rowID, len(rowID)[0])` and can be used
+// with NaturalKey or external Key tables for example.
 type Max255DynamicLengthIndexKeyCodec struct{}
 
 // BuildIndexKey builds the index key by appending searchableKey with rowID and length int.
@@ -32,7 +33,8 @@ func (Max255DynamicLengthIndexKeyCodec) StripRowID(persistentIndexKey []byte) Ro
 }
 
 // FixLengthIndexKeyCodec expects the RowID to always have the same length with all entries.
-// To be used with AutoUint64Tables and length EncodedSeqLength.
+// They are encoded as `concat(searchableKey, rowID)` and can be used
+// with AutoUint64Tables and length EncodedSeqLength for example.
 type FixLengthIndexKeyCodec struct {
 	rowIDLength int
 }

@@ -200,11 +200,11 @@ func TestIndexPrefixScan(t *testing.T) {
 func TestUniqueIndex(t *testing.T) {
 	storeKey := sdk.NewKVStoreKey("test")
 
-	groupMemberTableBuilder := NewNaturalKeyTableBuilder(GroupMemberTablePrefix, storeKey, &GroupMember{})
-	idx := NewUniqueIndex(groupMemberTableBuilder, GroupMemberByMemberIndexPrefix, func(val interface{}) (RowID, error) {
+	tableBuilder := NewNaturalKeyTableBuilder(GroupMemberTablePrefix, storeKey, &GroupMember{})
+	uniqueIdx := NewUniqueIndex(tableBuilder, GroupMemberByMemberIndexPrefix, func(val interface{}) (RowID, error) {
 		return []byte{val.(*GroupMember).Member[0]}, nil
 	})
-	groupMemberTable := groupMemberTableBuilder.Build()
+	myTable := tableBuilder.Build()
 
 	ctx := NewMockContext()
 
@@ -213,16 +213,16 @@ func TestUniqueIndex(t *testing.T) {
 		Member: sdk.AccAddress([]byte("member-address")),
 		Weight: 10,
 	}
-	err := groupMemberTable.Create(ctx, &m)
+	err := myTable.Create(ctx, &m)
 	require.NoError(t, err)
 
 	indexedKey := []byte{byte('m')}
 
 	// Has
-	assert.True(t, idx.Has(ctx, indexedKey))
+	assert.True(t, uniqueIdx.Has(ctx, indexedKey))
 
 	// Get
-	it, err := idx.Get(ctx, indexedKey)
+	it, err := uniqueIdx.Get(ctx, indexedKey)
 	require.NoError(t, err)
 	var loaded GroupMember
 	rowID, err := it.LoadNext(&loaded)
@@ -231,7 +231,7 @@ func TestUniqueIndex(t *testing.T) {
 	require.Equal(t, m, loaded)
 
 	// PrefixScan match
-	it, err = idx.PrefixScan(ctx, []byte{byte('m')}, []byte{byte('n')})
+	it, err = uniqueIdx.PrefixScan(ctx, []byte{byte('m')}, []byte{byte('n')})
 	require.NoError(t, err)
 	rowID, err = it.LoadNext(&loaded)
 	require.NoError(t, err)
@@ -239,13 +239,13 @@ func TestUniqueIndex(t *testing.T) {
 	require.Equal(t, m, loaded)
 
 	// PrefixScan no match
-	it, err = idx.PrefixScan(ctx, []byte{byte('n')}, nil)
+	it, err = uniqueIdx.PrefixScan(ctx, []byte{byte('n')}, nil)
 	require.NoError(t, err)
 	rowID, err = it.LoadNext(&loaded)
 	require.Error(t, ErrIteratorDone, err)
 
 	// ReversePrefixScan match
-	it, err = idx.ReversePrefixScan(ctx, []byte{byte('a')}, []byte{byte('z')})
+	it, err = uniqueIdx.ReversePrefixScan(ctx, []byte{byte('a')}, []byte{byte('z')})
 	require.NoError(t, err)
 	rowID, err = it.LoadNext(&loaded)
 	require.NoError(t, err)
@@ -253,7 +253,7 @@ func TestUniqueIndex(t *testing.T) {
 	require.Equal(t, m, loaded)
 
 	// ReversePrefixScan no match
-	it, err = idx.ReversePrefixScan(ctx, []byte{byte('l')}, nil)
+	it, err = uniqueIdx.ReversePrefixScan(ctx, []byte{byte('l')}, nil)
 	require.NoError(t, err)
 	rowID, err = it.LoadNext(&loaded)
 	require.Error(t, ErrIteratorDone, err)
@@ -263,13 +263,44 @@ func TestUniqueIndex(t *testing.T) {
 		Member: sdk.AccAddress([]byte("my-other")),
 		Weight: 10,
 	}
-	err = groupMemberTable.Create(ctx, &new)
+	err = myTable.Create(ctx, &new)
 	require.Error(t, ErrUniqueConstraint, err)
 
 	// and when delete
-	err = groupMemberTable.Delete(ctx, &m)
+	err = myTable.Delete(ctx, &m)
 	require.NoError(t, err)
 
 	// then no persistent element
-	assert.False(t, idx.Has(ctx, indexedKey))
+	assert.False(t, uniqueIdx.Has(ctx, indexedKey))
+}
+
+func TestPrefixRange(t *testing.T) {
+	cases := map[string]struct {
+		src      []byte
+		expStart []byte
+		expEnd   []byte
+		expPanic bool
+	}{
+		"normal":                 {src: []byte{1, 3, 4}, expStart: []byte{1, 3, 4}, expEnd: []byte{1, 3, 5}},
+		"normal short":           {src: []byte{79}, expStart: []byte{79}, expEnd: []byte{80}},
+		"empty case":             {src: []byte{}},
+		"roll-over example 1":    {src: []byte{17, 28, 255}, expStart: []byte{17, 28, 255}, expEnd: []byte{17, 29, 0}},
+		"roll-over example 2":    {src: []byte{15, 42, 255, 255}, expStart: []byte{15, 42, 255, 255}, expEnd: []byte{15, 43, 0, 0}},
+		"pathological roll-over": {src: []byte{255, 255, 255, 255}, expStart: []byte{255, 255, 255, 255}},
+		"nil prohibited":         {expPanic: true},
+	}
+
+	for testName, tc := range cases {
+		t.Run(testName, func(t *testing.T) {
+			if tc.expPanic {
+				require.Panics(t, func() {
+					prefixRange(tc.src)
+				})
+				return
+			}
+			start, end := prefixRange(tc.src)
+			assert.Equal(t, tc.expStart, start)
+			assert.Equal(t, tc.expEnd, end)
+		})
+	}
 }

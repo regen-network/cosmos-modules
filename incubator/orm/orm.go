@@ -127,7 +127,7 @@ type RowGetter func(ctx HasKVStore, rowID RowID, dest Persistent) error
 // NewTypeSafeRowGetter returns a `RowGetter` with type check on the dest parameter.
 func NewTypeSafeRowGetter(storeKey sdk.StoreKey, prefixKey byte, model reflect.Type) RowGetter {
 	return func(ctx HasKVStore, rowID RowID, dest Persistent) error {
-		if rowID == nil {
+		if len(rowID) == 0 {
 			return errors.Wrap(ErrArgument, "key must not be nil")
 		}
 		if err := assertCorrectType(model, dest); err != nil {

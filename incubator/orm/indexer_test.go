@@ -14,65 +14,65 @@ func TestIndexerOnCreate(t *testing.T) {
 	var myRowID RowID = EncodeSequence(1)
 
 	specs := map[string]struct {
-		srcFunc            IndexerFunc
-		expIndexKeys       []RowID
-		expRowIDs          []RowID
-		expAddPolicyCalled bool
-		expErr             error
+		srcFunc          IndexerFunc
+		expIndexKeys     []RowID
+		expRowIDs        []RowID
+		expAddFuncCalled bool
+		expErr           error
 	}{
 		"single key": {
 			srcFunc: func(value interface{}) ([]RowID, error) {
 				return []RowID{{0, 0, 0, 0, 0, 0, 0, 1}}, nil
 			},
-			expAddPolicyCalled: true,
-			expIndexKeys:       []RowID{{0, 0, 0, 0, 0, 0, 0, 1}},
-			expRowIDs:          []RowID{myRowID},
+			expAddFuncCalled: true,
+			expIndexKeys:     []RowID{{0, 0, 0, 0, 0, 0, 0, 1}},
+			expRowIDs:        []RowID{myRowID},
 		},
 		"multi key": {
 			srcFunc: func(value interface{}) ([]RowID, error) {
 				return []RowID{{0, 0, 0, 0, 0, 0, 0, 1}, {1, 0, 0, 0, 0, 0, 0, 0}}, nil
 			},
-			expAddPolicyCalled: true,
-			expIndexKeys:       []RowID{{0, 0, 0, 0, 0, 0, 0, 1}, {1, 0, 0, 0, 0, 0, 0, 0}},
-			expRowIDs:          []RowID{myRowID, myRowID},
+			expAddFuncCalled: true,
+			expIndexKeys:     []RowID{{0, 0, 0, 0, 0, 0, 0, 1}, {1, 0, 0, 0, 0, 0, 0, 0}},
+			expRowIDs:        []RowID{myRowID, myRowID},
 		},
 		"empty key in slice": {
 			srcFunc: func(value interface{}) ([]RowID, error) {
 				return []RowID{{}}, nil
 			},
-			expAddPolicyCalled: false,
+			expAddFuncCalled: false,
 		},
 		"nil key in slice": {
 			srcFunc: func(value interface{}) ([]RowID, error) {
 				return []RowID{nil}, nil
 			},
-			expAddPolicyCalled: false,
+			expAddFuncCalled: false,
 		},
 		"empty key": {
 			srcFunc: func(value interface{}) ([]RowID, error) {
 				return []RowID{}, nil
 			},
-			expAddPolicyCalled: false,
+			expAddFuncCalled: false,
 		},
 		"nil key": {
 			srcFunc: func(value interface{}) ([]RowID, error) {
 				return nil, nil
 			},
-			expAddPolicyCalled: false,
+			expAddFuncCalled: false,
 		},
 		"error case": {
 			srcFunc: func(value interface{}) ([]RowID, error) {
 				return nil, stdErrors.New("test")
 			},
-			expErr:             stdErrors.New("test"),
-			expAddPolicyCalled: false,
+			expErr:           stdErrors.New("test"),
+			expAddFuncCalled: false,
 		},
 	}
 	for msg, spec := range specs {
 		t.Run(msg, func(t *testing.T) {
-			mockPolicy := &addPolicyRecorder{}
+			mockPolicy := &addFuncRecorder{}
 			idx := NewIndexer(spec.srcFunc, Max255DynamicLengthIndexKeyCodec{})
-			idx.addPolicy = mockPolicy.add
+			idx.addFunc = mockPolicy.add
 
 			err := idx.OnCreate(nil, myRowID, nil)
 			if spec.expErr != nil {
@@ -82,7 +82,7 @@ func TestIndexerOnCreate(t *testing.T) {
 			require.NoError(t, err)
 			assert.Equal(t, spec.expIndexKeys, mockPolicy.secondaryIndexKeys)
 			assert.Equal(t, spec.expRowIDs, mockPolicy.rowIDs)
-			assert.Equal(t, spec.expAddPolicyCalled, mockPolicy.called)
+			assert.Equal(t, spec.expAddFuncCalled, mockPolicy.called)
 		})
 	}
 }
@@ -159,9 +159,11 @@ func TestIndexerOnUpdate(t *testing.T) {
 
 	specs := map[string]struct {
 		srcFunc        IndexerFunc
+		mockStore      *updateKVStoreRecorder
 		expAddedKeys   []RowID
 		expDeletedKeys []RowID
 		expErr         error
+		addFunc        func(sdk.KVStore, IndexKeyCodec, []byte, RowID) error
 	}{
 		"single key - same key, no update": {
 			srcFunc: func(value interface{}) ([]RowID, error) {
@@ -219,9 +221,29 @@ func TestIndexerOnUpdate(t *testing.T) {
 				return []RowID{nil}, nil
 			},
 		},
-		"error case": {
+		"error case with new value": {
 			srcFunc: func(value interface{}) ([]RowID, error) {
 				return nil, stdErrors.New("test")
+			},
+			expErr: stdErrors.New("test"),
+		},
+		"error case with old value": {
+			srcFunc: func(value interface{}) ([]RowID, error) {
+				var err error
+				if value.(int)%2 == 1 {
+					err = stdErrors.New("test")
+				}
+				return []RowID{myRowID}, err
+			},
+			expErr: stdErrors.New("test"),
+		},
+		"error case on persisting new keys": {
+			srcFunc: func(value interface{}) ([]RowID, error) {
+				keys := []RowID{EncodeSequence(1), EncodeSequence(2)}
+				return []RowID{keys[value.(int)]}, nil
+			},
+			addFunc: func(_ sdk.KVStore, _ IndexKeyCodec, _ []byte, _ RowID) error {
+				return stdErrors.New("test")
 			},
 			expErr: stdErrors.New("test"),
 		},
@@ -230,6 +252,9 @@ func TestIndexerOnUpdate(t *testing.T) {
 		t.Run(msg, func(t *testing.T) {
 			mockStore := &updateKVStoreRecorder{}
 			idx := NewIndexer(spec.srcFunc, codec)
+			if spec.addFunc != nil {
+				idx.addFunc = spec.addFunc
+			}
 			err := idx.OnUpdate(mockStore, myRowID, 1, 0)
 			if spec.expErr != nil {
 				require.Equal(t, spec.expErr, err)
@@ -242,7 +267,7 @@ func TestIndexerOnUpdate(t *testing.T) {
 	}
 }
 
-func TestUniqueKeyAddPolicy(t *testing.T) {
+func TestUniqueKeyAddFunc(t *testing.T) {
 	myRowID := EncodeSequence(1)
 	myPresetKey := append([]byte("my-preset-key"), myRowID...)
 
@@ -276,7 +301,7 @@ func TestUniqueKeyAddPolicy(t *testing.T) {
 			store.Set(myPresetKey, []byte{})
 
 			codec := FixLengthIndexKeys(EncodedSeqLength)
-			err := uniqueKeysAddPolicy(store, codec, spec.srcKey, myRowID)
+			err := uniqueKeysAddFunc(store, codec, spec.srcKey, myRowID)
 			require.True(t, spec.expErr.Is(err))
 			if spec.expErr != nil {
 				return
@@ -286,7 +311,7 @@ func TestUniqueKeyAddPolicy(t *testing.T) {
 	}
 }
 
-func TestMultiKeyAddPolicy(t *testing.T) {
+func TestMultiKeyAddFunc(t *testing.T) {
 	myRowID := EncodeSequence(1)
 	myPresetKey := append([]byte("my-preset-key"), myRowID...)
 
@@ -320,7 +345,7 @@ func TestMultiKeyAddPolicy(t *testing.T) {
 			store.Set(myPresetKey, []byte{})
 
 			codec := FixLengthIndexKeys(EncodedSeqLength)
-			err := multiKeyAddPolicy(store, codec, spec.srcKey, myRowID)
+			err := multiKeyAddFunc(store, codec, spec.srcKey, myRowID)
 			require.True(t, spec.expErr.Is(err))
 			if spec.expErr != nil {
 				return
@@ -441,13 +466,13 @@ func TestPruneEmptyKeys(t *testing.T) {
 	}
 }
 
-type addPolicyRecorder struct {
+type addFuncRecorder struct {
 	secondaryIndexKeys []RowID
 	rowIDs             []RowID
 	called             bool
 }
 
-func (c *addPolicyRecorder) add(_ sdk.KVStore, _ IndexKeyCodec, key []byte, rowID RowID) error {
+func (c *addFuncRecorder) add(_ sdk.KVStore, _ IndexKeyCodec, key []byte, rowID RowID) error {
 	c.secondaryIndexKeys = append(c.secondaryIndexKeys, key)
 	c.rowIDs = append(c.rowIDs, rowID)
 	c.called = true

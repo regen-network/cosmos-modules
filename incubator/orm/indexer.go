@@ -14,7 +14,7 @@ type UniqueIndexerFunc func(value interface{}) (RowID, error)
 // Indexer manages the persistence for an Index based on searchable keys and operations.
 type Indexer struct {
 	indexerFunc   IndexerFunc
-	addPolicy     func(store sdk.KVStore, codec IndexKeyCodec, secondaryIndexKey []byte, rowID RowID) error
+	addFunc       func(store sdk.KVStore, codec IndexKeyCodec, secondaryIndexKey []byte, rowID RowID) error
 	indexKeyCodec IndexKeyCodec
 }
 
@@ -28,7 +28,7 @@ func NewIndexer(indexerFunc IndexerFunc, codec IndexKeyCodec) *Indexer {
 	}
 	return &Indexer{
 		indexerFunc:   pruneEmptyKeys(indexerFunc),
-		addPolicy:     multiKeyAddPolicy,
+		addFunc:       multiKeyAddFunc,
 		indexKeyCodec: codec,
 	}
 }
@@ -45,7 +45,7 @@ func NewUniqueIndexer(f UniqueIndexerFunc, codec IndexKeyCodec) *Indexer {
 		}
 	}
 	idx := NewIndexer(adaptor(f), codec)
-	idx.addPolicy = uniqueKeysAddPolicy
+	idx.addFunc = uniqueKeysAddFunc
 	return idx
 }
 
@@ -57,7 +57,7 @@ func (i Indexer) OnCreate(store sdk.KVStore, rowID RowID, value interface{}) err
 	}
 
 	for _, secondaryIndexKey := range secondaryIndexKeys {
-		if err := i.addPolicy(store, i.indexKeyCodec, secondaryIndexKey, rowID); err != nil {
+		if err := i.addFunc(store, i.indexKeyCodec, secondaryIndexKey, rowID); err != nil {
 			return err
 		}
 	}
@@ -92,15 +92,15 @@ func (i Indexer) OnUpdate(store sdk.KVStore, rowID RowID, newValue, oldValue int
 		store.Delete(i.indexKeyCodec.BuildIndexKey(oldIdxKey, rowID))
 	}
 	for _, newIdxKey := range difference(newSecIdxKeys, oldSecIdxKeys) {
-		if err := i.addPolicy(store, i.indexKeyCodec, newIdxKey, rowID); err != nil {
+		if err := i.addFunc(store, i.indexKeyCodec, newIdxKey, rowID); err != nil {
 			return err
 		}
 	}
 	return nil
 }
 
-// uniqueKeysAddPolicy enforces keys to be unique
-func uniqueKeysAddPolicy(store sdk.KVStore, codec IndexKeyCodec, secondaryIndexKey []byte, rowID RowID) error {
+// uniqueKeysAddFunc enforces keys to be unique
+func uniqueKeysAddFunc(store sdk.KVStore, codec IndexKeyCodec, secondaryIndexKey []byte, rowID RowID) error {
 	if len(secondaryIndexKey) == 0 {
 		return errors.Wrap(ErrArgument, "empty index key")
 	}
@@ -114,8 +114,8 @@ func uniqueKeysAddPolicy(store sdk.KVStore, codec IndexKeyCodec, secondaryIndexK
 	return nil
 }
 
-// multiKeyAddPolicy allows multiple entries for a key
-func multiKeyAddPolicy(store sdk.KVStore, codec IndexKeyCodec, secondaryIndexKey []byte, rowID RowID) error {
+// multiKeyAddFunc allows multiple entries for a key
+func multiKeyAddFunc(store sdk.KVStore, codec IndexKeyCodec, secondaryIndexKey []byte, rowID RowID) error {
 	if len(secondaryIndexKey) == 0 {
 		return errors.Wrap(ErrArgument, "empty index key")
 	}

@@ -65,6 +65,14 @@ func TestReadAll(t *testing.T) {
 			destSlice: func() ModelSlicePtr { return make([]GroupMetadata, 1) },
 			expErr:    ErrArgument,
 		},
+		"error on loadNext is returned": {
+			srcIT: NewInvalidIterator(),
+			destSlice: func() ModelSlicePtr {
+				x := make([]GroupMetadata, 1)
+				return &x
+			},
+			expErr: ErrIteratorInvalid,
+		},
 	}
 	for msg, spec := range specs {
 		t.Run(msg, func(t *testing.T) {
