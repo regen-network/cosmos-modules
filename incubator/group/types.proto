@@ -104,9 +104,12 @@ message ThresholdDecisionPolicy {
 
 message MsgPropose {
     bytes group_account = 1; // sdk.AccAddress
-    repeated bytes signers = 2; // []sdk.AccAddress
+    // Proposers signatures will be counted as yes votes
+    repeated bytes proposers = 2; // []sdk.AccAddress
     repeated bytes msg = 3; // []sdk.Msg
     string comment = 4;
+    // ExecNow will attempt to execute the proposal immediately based on
+    // the proposers signing the transaction
     bool exec_now = 5;
 }
 
@@ -162,13 +165,13 @@ message Proposal {
     bytes group_account = 1; // sdk.AccAddress
     repeated bytes msg = 2; // []sdk.Msg
     string comment = 3;
-    bytes proposer = 5; // sdk.AccAddress
+    repeated bytes proposers = 5; // sdk.AccAddress
     google.protobuf.Timestamp submitted_at = 6;
 }
 
 message Vote {
     uint64 proposal = 1; // ProposalID
-    bytes voter = 2; // sdk.AccAddress
+    repeated bytes voters = 2; // sdk.AccAddress
     Choice choice = 3;
     string comment = 4;
     google.protobuf.Timestamp submitted_at = 5;
