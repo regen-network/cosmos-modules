@@ -133,18 +133,53 @@ func NewGroupKeeper(storeKey sdk.StoreKey) keeper {
 	// Proposal Table
 	//
 	proposalTableBuilder := orm.NewAutoUInt64TableBuilder(ProposalTablePrefix, ProposalTableSeqPrefix, storeKey, &Proposal{})
+	k.proposalByGroupAccountIndex = orm.NewIndex(proposalTableBuilder, ProposalByGroupAccountIndexPrefix, func(value interface{}) ([][]byte, error) {
+		return [][]byte{value.(*Proposal).GroupAccount}, nil
+
+	})
+	k.proposalByProposerIndex = orm.NewIndex(proposalTableBuilder, ProposalByProposerIndexPrefix, func(value interface{}) ([][]byte, error) {
+		return value.(*Proposal).Proposers, nil
+	})
 	k.proposalTable = proposalTableBuilder.Build()
 
 	//
 	// Vote Table
 	//
 	voteTableBuilder := orm.NewNaturalKeyTableBuilder(VoteTablePrefix, VoteTableSeqPrefix, VoteTableIndexPrefix, storeKey, &Vote{})
+	k.voteByProposalIndex = orm.NewUInt64Index(voteTableBuilder, VoteByProposalIndexPrefix, func(value interface{}) ([]uint64, error) {
+		return []uint64{value.(*Vote).Proposal}, nil
+	})
+	k.voteByVoterIndex = orm.NewIndex(voteTableBuilder, VoteByVoterIndexPrefix, func(value interface{}) ([][]byte, error) {
+		return value.(*Vote).Voters, nil
+	})
 	k.voteTable = voteTableBuilder.Build()
 
 	return k
 }
 
 type Keeper interface {
-	CreateGroup(ctx sdk.Context, members []Member, admin sdk.AccAddress, comment string) (GroupID, error)
-	CreateGroupAccount(ctx sdk.Context, group GroupID, policy DecisionPolicy, admin sdk.AccAddress, comment string) (sdk.AccAddress, error)
+	// Groups
+	CreateGroup(ctx sdk.Context, admin sdk.AccAddress, members []Member, comment string) (GroupID, error)
+	UpdateGroupMembers(ctx sdk.Context, group GroupID, membersUpdates []Member) error
+	UpdateGroupAdmin(ctx sdk.Context, group GroupID, newAdmin sdk.AccAddress) error
+	UpdateGroupComment(ctx sdk.Context, group GroupID, newComment string) error
+
+	// Group Accounts
+	CreateGroupAccount(ctx sdk.Context, admin sdk.AccAddress, group GroupID, policy DecisionPolicy, comment string) (sdk.AccAddress, error)
+	UpdateGroupAccountAdmin(ctx sdk.Context, groupAcc sdk.AccAddress, newAdmin sdk.AccAddress) error
+	UpdateGroupAccountDecisionPolicy(ctx sdk.Context, groupAcc sdk.AccAddress, newPolicy DecisionPolicy) error
+	UpdateGroupAccountComment(ctx sdk.Context, groupAcc sdk.AccAddress, newComment string) error
+
+	// Proposals
+
+	// Propose returns a new proposal ID and a populated sdk.Result which could return an error
+	// or the result of execution if execNow was set to true
+	Propose(ctx sdk.Context, groupAcc sdk.AccAddress, approvers []sdk.AccAddress, msgs []sdk.Msg, comment string, execNow bool) (id ProposalID, execResult sdk.Result)
+
+	Vote(ctx sdk.Context, id ProposalID, voters []sdk.AccAddress, choice Choice) error
+
+	// Exec attempts to execute the specified proposal. If the proposal is in a valid
+	// state and has enough approvals, then it will be executed and its result will be
+	// returned, otherwise the result will contain an error
+	Exec(ctx sdk.Context, id ProposalID) sdk.Result
 }
