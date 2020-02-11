@@ -11,6 +11,15 @@ group account could be an administrator of a group.
 ## Group Account
 
 A group account is an account associated with a group and a decision policy.
+Group accounts are abstracted from groups because a single group may have
+multiple decision policies for different types of actions. Managing group
+membership separately from decision policies results in the least overhead
+and keeps membership consistent across different policies. The pattern that
+is recommended is to have a single master group account for a given group,
+and then to create separate group accounts with different decision policies
+and delegate the desired permissions to from the master account to
+those "sub-accounts" using the `msg_authorization` module.
+
 
 ## Decision Policy
 
