@@ -1,6 +1,6 @@
 syntax = "proto3";
 
-package orm;
+package testdata;
 
 import "gogoproto/gogo.proto";
 

@@ -6,6 +6,7 @@ import (
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/types/errors"
+	"github.com/cosmos/modules/incubator/orm/testdata"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -16,29 +17,29 @@ func TestAutoUInt64PrefixScan(t *testing.T) {
 		testTablePrefix = iota
 		testTableSeqPrefix
 	)
-	tb := NewAutoUInt64TableBuilder(testTablePrefix, testTableSeqPrefix, storeKey, &GroupMetadata{}).Build()
+	tb := NewAutoUInt64TableBuilder(testTablePrefix, testTableSeqPrefix, storeKey, &testdata.GroupMetadata{}).Build()
 	ctx := NewMockContext()
 
-	g1 := GroupMetadata{
+	g1 := testdata.GroupMetadata{
 		Description: "my test 1",
 		Admin:       sdk.AccAddress([]byte("admin-address")),
 	}
-	g2 := GroupMetadata{
+	g2 := testdata.GroupMetadata{
 		Description: "my test 2",
 		Admin:       sdk.AccAddress([]byte("admin-address")),
 	}
-	g3 := GroupMetadata{
+	g3 := testdata.GroupMetadata{
 		Description: "my test 3",
 		Admin:       sdk.AccAddress([]byte("admin-address")),
 	}
-	for _, g := range []GroupMetadata{g1, g2, g3} {
+	for _, g := range []testdata.GroupMetadata{g1, g2, g3} {
 		_, err := tb.Create(ctx, &g)
 		require.NoError(t, err)
 	}
 
 	specs := map[string]struct {
 		start, end uint64
-		expResult  []GroupMetadata
+		expResult  []testdata.GroupMetadata
 		expRowIDs  []RowID
 		expError   *errors.Error
 		method     func(ctx HasKVStore, start uint64, end uint64) (Iterator, error)
@@ -47,35 +48,35 @@ func TestAutoUInt64PrefixScan(t *testing.T) {
 			start:     1,
 			end:       2,
 			method:    tb.PrefixScan,
-			expResult: []GroupMetadata{g1},
+			expResult: []testdata.GroupMetadata{g1},
 			expRowIDs: []RowID{EncodeSequence(1)},
 		},
 		"first 2 elements": {
 			start:     1,
 			end:       3,
 			method:    tb.PrefixScan,
-			expResult: []GroupMetadata{g1, g2},
+			expResult: []testdata.GroupMetadata{g1, g2},
 			expRowIDs: []RowID{EncodeSequence(1), EncodeSequence(2)},
 		},
 		"first 3 elements": {
 			start:     1,
 			end:       4,
 			method:    tb.PrefixScan,
-			expResult: []GroupMetadata{g1, g2, g3},
+			expResult: []testdata.GroupMetadata{g1, g2, g3},
 			expRowIDs: []RowID{EncodeSequence(1), EncodeSequence(2), EncodeSequence(3)},
 		},
 		"search with max end": {
 			start:     1,
 			end:       math.MaxUint64,
 			method:    tb.PrefixScan,
-			expResult: []GroupMetadata{g1, g2, g3},
+			expResult: []testdata.GroupMetadata{g1, g2, g3},
 			expRowIDs: []RowID{EncodeSequence(1), EncodeSequence(2), EncodeSequence(3)},
 		},
 		"2 to end": {
 			start:     2,
 			end:       5,
 			method:    tb.PrefixScan,
-			expResult: []GroupMetadata{g2, g3},
+			expResult: []testdata.GroupMetadata{g2, g3},
 			expRowIDs: []RowID{EncodeSequence(2), EncodeSequence(3)},
 		},
 		"start before end should fail": {
@@ -94,35 +95,35 @@ func TestAutoUInt64PrefixScan(t *testing.T) {
 			start:     1,
 			end:       2,
 			method:    tb.ReversePrefixScan,
-			expResult: []GroupMetadata{g1},
+			expResult: []testdata.GroupMetadata{g1},
 			expRowIDs: []RowID{EncodeSequence(1)},
 		},
 		"reverse first 2 elements": {
 			start:     1,
 			end:       3,
 			method:    tb.ReversePrefixScan,
-			expResult: []GroupMetadata{g2, g1},
+			expResult: []testdata.GroupMetadata{g2, g1},
 			expRowIDs: []RowID{EncodeSequence(2), EncodeSequence(1)},
 		},
 		"reverse first 3 elements": {
 			start:     1,
 			end:       4,
 			method:    tb.ReversePrefixScan,
-			expResult: []GroupMetadata{g3, g2, g1},
+			expResult: []testdata.GroupMetadata{g3, g2, g1},
 			expRowIDs: []RowID{EncodeSequence(3), EncodeSequence(2), EncodeSequence(1)},
 		},
 		"reverse search with max end": {
 			start:     1,
 			end:       math.MaxUint64,
 			method:    tb.ReversePrefixScan,
-			expResult: []GroupMetadata{g3, g2, g1},
+			expResult: []testdata.GroupMetadata{g3, g2, g1},
 			expRowIDs: []RowID{EncodeSequence(3), EncodeSequence(2), EncodeSequence(1)},
 		},
 		"reverse 2 to end": {
 			start:     2,
 			end:       5,
 			method:    tb.ReversePrefixScan,
-			expResult: []GroupMetadata{g3, g2},
+			expResult: []testdata.GroupMetadata{g3, g2},
 			expRowIDs: []RowID{EncodeSequence(3), EncodeSequence(2)},
 		},
 		"reverse start before end should fail": {
@@ -145,7 +146,7 @@ func TestAutoUInt64PrefixScan(t *testing.T) {
 			if spec.expError != nil {
 				return
 			}
-			var loaded []GroupMetadata
+			var loaded []testdata.GroupMetadata
 			rowIDs, err := ReadAll(it, &loaded)
 			require.NoError(t, err)
 			assert.Equal(t, spec.expResult, loaded)

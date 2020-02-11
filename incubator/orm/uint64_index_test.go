@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	"github.com/cosmos/modules/incubator/orm/testdata"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -12,15 +13,15 @@ import (
 func TestUInt64Index(t *testing.T) {
 	storeKey := sdk.NewKVStoreKey("test")
 
-	groupMemberTableBuilder := NewNaturalKeyTableBuilder(GroupMemberTablePrefix, storeKey, &GroupMember{}, Max255DynamicLengthIndexKeyCodec{})
+	groupMemberTableBuilder := NewNaturalKeyTableBuilder(GroupMemberTablePrefix, storeKey, &testdata.GroupMember{}, Max255DynamicLengthIndexKeyCodec{})
 	idx := NewUInt64Index(groupMemberTableBuilder, GroupMemberByMemberIndexPrefix, func(val interface{}) ([]uint64, error) {
-		return []uint64{uint64(val.(*GroupMember).Member[0])}, nil
+		return []uint64{uint64(val.(*testdata.GroupMember).Member[0])}, nil
 	})
 	groupMemberTable := groupMemberTableBuilder.Build()
 
 	ctx := NewMockContext()
 
-	m := GroupMember{
+	m := testdata.GroupMember{
 		Group:  sdk.AccAddress(EncodeSequence(1)),
 		Member: sdk.AccAddress([]byte("member-address")),
 		Weight: 10,
@@ -36,7 +37,7 @@ func TestUInt64Index(t *testing.T) {
 	// Get
 	it, err := idx.Get(ctx, indexedKey)
 	require.NoError(t, err)
-	var loaded GroupMember
+	var loaded testdata.GroupMember
 	rowID, err := it.LoadNext(&loaded)
 	require.NoError(t, err)
 	require.Equal(t, uint64(1), DecodeSequence(rowID))

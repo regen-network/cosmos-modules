@@ -2,6 +2,7 @@ package orm
 
 import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	"github.com/cosmos/modules/incubator/orm/testdata"
 )
 
 type GroupKeeper struct {
@@ -11,13 +12,6 @@ type GroupKeeper struct {
 	groupMemberTable         NaturalKeyTable
 	groupMemberByGroupIndex  Index
 	groupMemberByMemberIndex Index
-}
-
-func (g GroupMember) NaturalKey() RowID {
-	result := make([]byte, 0, len(g.Group)+len(g.Member))
-	result = append(result, g.Group...)
-	result = append(result, g.Member...)
-	return result
 }
 
 var (
@@ -34,21 +28,21 @@ var (
 func NewGroupKeeper(storeKey sdk.StoreKey) GroupKeeper {
 	k := GroupKeeper{key: storeKey}
 
-	groupTableBuilder := NewAutoUInt64TableBuilder(GroupTablePrefix, GroupTableSeqPrefix, storeKey, &GroupMetadata{})
+	groupTableBuilder := NewAutoUInt64TableBuilder(GroupTablePrefix, GroupTableSeqPrefix, storeKey, &testdata.GroupMetadata{})
 	// note: quite easy to mess with Index prefixes when managed outside. no fail fast on duplicates
 	k.groupByAdminIndex = NewIndex(groupTableBuilder, GroupByAdminIndexPrefix, func(val interface{}) ([]RowID, error) {
-		return []RowID{[]byte(val.(*GroupMetadata).Admin)}, nil
+		return []RowID{[]byte(val.(*testdata.GroupMetadata).Admin)}, nil
 	})
 	k.groupTable = groupTableBuilder.Build()
 
-	groupMemberTableBuilder := NewNaturalKeyTableBuilder(GroupMemberTablePrefix, storeKey, &GroupMember{}, Max255DynamicLengthIndexKeyCodec{})
+	groupMemberTableBuilder := NewNaturalKeyTableBuilder(GroupMemberTablePrefix, storeKey, &testdata.GroupMember{}, Max255DynamicLengthIndexKeyCodec{})
 
 	k.groupMemberByGroupIndex = NewIndex(groupMemberTableBuilder, GroupMemberByGroupIndexPrefix, func(val interface{}) ([]RowID, error) {
-		group := val.(*GroupMember).Group
+		group := val.(*testdata.GroupMember).Group
 		return []RowID{[]byte(group)}, nil
 	})
 	k.groupMemberByMemberIndex = NewIndex(groupMemberTableBuilder, GroupMemberByMemberIndexPrefix, func(val interface{}) ([]RowID, error) {
-		return []RowID{[]byte(val.(*GroupMember).Member)}, nil
+		return []RowID{[]byte(val.(*testdata.GroupMember).Member)}, nil
 	})
 	k.groupMemberTable = groupMemberTableBuilder.Build()
 
