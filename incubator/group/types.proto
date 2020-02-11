@@ -1,6 +1,11 @@
 syntax = "proto3";
 
+package cosmos_modules.incubator.group.v1_alpha;
+
+option go_package = "github.com/cosmos/modules/incubator/group";
+
 import "google/protobuf/duration.proto";
+import "google/protobuf/timestamp.proto";
 
 message Msg {
     oneof sum {
@@ -17,6 +22,10 @@ message Msg {
         MsgExec exec = 11;
     }
 }
+
+//
+// Groups
+//
 
 message MsgCreateGroup {
     bytes admin = 1; // sdk.AccAddress
@@ -47,6 +56,10 @@ message Member {
     string power = 2; // sdk.Dec
     string comment = 3;
 }
+
+//
+// Group Accounts
+//
 
 message MsgCreateGroupAccount {
     bytes admin = 1; // sdk.AccAddress
@@ -85,6 +98,10 @@ message ThresholdDecisionPolicy {
     google.protobuf.Duration max_voting_window = 3;
 }
 
+//
+// Proposals and Voting
+//
+
 message MsgPropose {
     bytes group_account = 1; // sdk.AccAddress
     repeated bytes signers = 2; // []sdk.AccAddress
@@ -112,6 +129,10 @@ message MsgExec {
     bytes signer = 2; // sdk.AccAddress
 }
 
+//
+// State
+//
+
 message GroupMetadata {
     uint64 group = 1; // GroupID
     bytes admin = 2; // sdk.AccAddress
@@ -123,6 +144,12 @@ message GroupMetadata {
     uint64 version = 4;
 }
 
+message GroupMember {
+    uint64 group = 1; // GroupID
+    bytes member = 2; // sdk.AccAddress
+    string weight = 3; // sdk.Dec
+}
+
 message GroupAccountMetadata {
     bytes group_account = 1; // sdk.AccAddress
     uint64 group = 2; // GroupID
@@ -131,8 +158,49 @@ message GroupAccountMetadata {
     DecisionPolicy decision_policy = 5;
 }
 
-message GroupsByMemberRequest {
+message Proposal {
+    bytes group_account = 1; // sdk.AccAddress
+    repeated bytes msg = 2; // []sdk.Msg
+    string comment = 3;
+    bytes proposer = 5; // sdk.AccAddress
+    google.protobuf.Timestamp submitted_at = 6;
+}
+
+message Vote {
+    uint64 proposal = 1; // ProposalID
+    bytes voter = 2; // sdk.AccAddress
+    Choice choice = 3;
+    string comment = 4;
+    google.protobuf.Timestamp submitted_at = 5;
+}
+
+//
+// Queries
+//
+service Query {
+    rpc GetGroupMetadata(GroupMetadataRequest) returns (GroupMetadata);
+    rpc GetGroupAccountMetadata(GroupAccountMetadataRequest) returns (GroupAccountMetadata);
+    rpc GetGroupsByMember(ByAddressRequest) returns (GroupsList);
+    rpc GetGroupAccountsByGroup(ByGroupRequest) returns (GroupsList);
+//    rpc GetProposal(ByProposalRequest) returns (Proposal)
+}
+
+message GroupMetadataRequest {
+    uint64 group = 1; // GroupID
+}
+
+message GroupAccountMetadataRequest {
+    bytes group_account = 1;
+}
+
+message ByAddressRequest {
     bytes member = 1; // sdk.AccAddress
+    uint64 offset = 2;
+    uint64 limit = 3;
+}
+
+message ByGroupRequest {
+    uint64 group = 1; // GroupID
     uint64 offset = 2;
     uint64 limit = 3;
 }
@@ -145,9 +213,3 @@ message GroupsList {
 //    repeated byte group_accounts = 1;
 //}
 //
-service Query {
-    rpc GroupMetadata(uint64) returns (GroupMetadata);
-    rpc GroupAccountMetadata(bytes) returns (GroupAccountMetadata);
-    rpc GroupsByMember(GroupsByMemberRequest) returns (GroupsList)
-//    rpc GroupsAccountsByGroup(GroupsByMemberRequest) returns (GroupsList)
-}
