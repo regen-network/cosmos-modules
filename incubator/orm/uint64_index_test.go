@@ -12,7 +12,7 @@ import (
 func TestUInt64Index(t *testing.T) {
 	storeKey := sdk.NewKVStoreKey("test")
 
-	groupMemberTableBuilder := NewNaturalKeyTableBuilder(GroupMemberTablePrefix, storeKey, &GroupMember{})
+	groupMemberTableBuilder := NewNaturalKeyTableBuilder(GroupMemberTablePrefix, storeKey, &GroupMember{}, Max255DynamicLengthIndexKeyCodec{})
 	idx := NewUInt64Index(groupMemberTableBuilder, GroupMemberByMemberIndexPrefix, func(val interface{}) ([]uint64, error) {
 		return []uint64{uint64(val.(*GroupMember).Member[0])}, nil
 	})

@@ -41,7 +41,7 @@ func NewGroupKeeper(storeKey sdk.StoreKey) GroupKeeper {
 	})
 	k.groupTable = groupTableBuilder.Build()
 
-	groupMemberTableBuilder := NewNaturalKeyTableBuilder(GroupMemberTablePrefix, storeKey, &GroupMember{})
+	groupMemberTableBuilder := NewNaturalKeyTableBuilder(GroupMemberTablePrefix, storeKey, &GroupMember{}, Max255DynamicLengthIndexKeyCodec{})
 
 	k.groupMemberByGroupIndex = NewIndex(groupMemberTableBuilder, GroupMemberByGroupIndexPrefix, func(val interface{}) ([]RowID, error) {
 		group := val.(*GroupMember).Group

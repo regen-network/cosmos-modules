@@ -7,9 +7,9 @@ import (
 var _ Indexable = &NaturalKeyTableBuilder{}
 
 // NewNaturalKeyTableBuilder creates a builder to setup a NaturalKeyTable object.
-func NewNaturalKeyTableBuilder(prefixData byte, storeKey sdk.StoreKey, model NaturalKeyed) *NaturalKeyTableBuilder {
+func NewNaturalKeyTableBuilder(prefixData byte, storeKey sdk.StoreKey, model NaturalKeyed, codec IndexKeyCodec) *NaturalKeyTableBuilder {
 	return &NaturalKeyTableBuilder{
-		TableBuilder: NewTableBuilder(prefixData, storeKey, model, Max255DynamicLengthIndexKeyCodec{}),
+		TableBuilder: NewTableBuilder(prefixData, storeKey, model, codec),
 	}
 }
 
@@ -26,6 +26,9 @@ func (a NaturalKeyTableBuilder) Build() NaturalKeyTable {
 type NaturalKeyed interface {
 	// NaturalKey returns the immutable and serialized natural key of this object. The natural key has to be unique within
 	// it's domain so that not two with same value can exist in the same table.
+	//
+	// The `IndexKeyCodec` used with the `NaturalKeyTable` may add certain constraints to the byte representation as
+	// max length = 255 in `Max255DynamicLengthIndexKeyCodec` or a fix length in `FixLengthIndexKeyCodec` for example.
 	NaturalKey() RowID
 	Persistent
 }

@@ -200,7 +200,7 @@ func TestIndexPrefixScan(t *testing.T) {
 func TestUniqueIndex(t *testing.T) {
 	storeKey := sdk.NewKVStoreKey("test")
 
-	tableBuilder := NewNaturalKeyTableBuilder(GroupMemberTablePrefix, storeKey, &GroupMember{})
+	tableBuilder := NewNaturalKeyTableBuilder(GroupMemberTablePrefix, storeKey, &GroupMember{}, Max255DynamicLengthIndexKeyCodec{})
 	uniqueIdx := NewUniqueIndex(tableBuilder, GroupMemberByMemberIndexPrefix, func(val interface{}) (RowID, error) {
 		return []byte{val.(*GroupMember).Member[0]}, nil
 	})
