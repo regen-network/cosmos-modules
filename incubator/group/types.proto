@@ -6,6 +6,8 @@ option go_package = "github.com/cosmos/modules/incubator/group";
 
 import "google/protobuf/duration.proto";
 import "google/protobuf/timestamp.proto";
+import "google/protobuf/any.proto";
+import "vendor/github.com/gogo/protobuf/gogoproto/gogo.proto";
 
 message Msg {
     oneof sum {
@@ -28,7 +30,7 @@ message Msg {
 //
 
 message MsgCreateGroup {
-    bytes admin = 1; // sdk.AccAddress
+    bytes admin = 1 [(gogoproto.casttype) = "github.com/cosmos/cosmos-sdk/types.AccAddress"]; // sdk.AccAddress
     repeated Member members = 2;
     string comment = 3;
 }
@@ -64,7 +66,7 @@ message Member {
 message MsgCreateGroupAccount {
     bytes admin = 1; // sdk.AccAddress
     uint64 group = 2; // GroupID
-    DecisionPolicy decision_policy = 3;
+    google.protobuf.Any decision_policy = 3;
     string comment = 4;
 }
 
@@ -77,19 +79,13 @@ message MsgUpdateGroupAccountAdmin {
 message MsgUpdateGroupAccountDecisionPolicy {
     bytes admin = 1; // sdk.AccAddress
     bytes group_acount = 2; // sdk.AccAddress
-    DecisionPolicy decision_policy = 3;
+    google.protobuf.Any decision_policy = 3;
 }
 
 message MsgUpdateGroupAccountComment {
     bytes admin = 1; // sdk.AccAddress
     bytes group_acount = 2; // sdk.AccAddress
     string comment = 3;
-}
-
-message DecisionPolicy {
-    oneof sum {
-        ThresholdDecisionPolicy threshold = 1;
-    }
 }
 
 message ThresholdDecisionPolicy {
@@ -106,7 +102,7 @@ message MsgPropose {
     bytes group_account = 1; // sdk.AccAddress
     // Proposers signatures will be counted as yes votes
     repeated bytes proposers = 2; // []sdk.AccAddress
-    repeated bytes msg = 3; // []sdk.Msg
+    repeated google.protobuf.Any msgs= 3; // []sdk.Msg
     string comment = 4;
     // ExecNow will attempt to execute the proposal immediately based on
     // the proposers signing the transaction
@@ -158,15 +154,22 @@ message GroupAccountMetadata {
     uint64 group = 2; // GroupID
     bytes admin = 3; // sdk.AccAddress
     string comment = 4;
-    DecisionPolicy decision_policy = 5;
+    google.protobuf.Any decision_policy = 5;
 }
 
 message Proposal {
     bytes group_account = 1; // sdk.AccAddress
-    repeated bytes msg = 2; // []sdk.Msg
+    repeated google.protobuf.Any msg = 2; // []sdk.Msg
     string comment = 3;
     repeated bytes proposers = 5; // sdk.AccAddress
     google.protobuf.Timestamp submitted_at = 6;
+}
+
+message Tally {
+    string yes_count = 1;
+    string no_count = 2;
+    string abstain_count = 3;
+    string veto_count = 4;
 }
 
 message Vote {
