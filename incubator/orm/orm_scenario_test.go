@@ -2,6 +2,7 @@ package orm
 
 import (
 	"encoding/binary"
+	"fmt"
 	"testing"
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
@@ -103,11 +104,10 @@ func TestKeeperEndToEndWithNaturalKeyTable(t *testing.T) {
 	require.True(t, exists)
 	// and load it by natural key
 	var loaded GroupMember
-	rowID, err := k.groupMemberTable.GetOne(ctx, naturalKey, &loaded)
+	err = k.groupMemberTable.GetOne(ctx, naturalKey, &loaded)
 	require.NoError(t, err)
 
 	// then values should match expectations
-	require.Equal(t, EncodeSequence(1), rowID)
 	require.Equal(t, m, loaded)
 
 	// and then the data should exists in MultiKeyIndex
@@ -119,15 +119,14 @@ func TestKeeperEndToEndWithNaturalKeyTable(t *testing.T) {
 	require.NoError(t, err)
 
 	// then values should match as before
-	rowID, err = First(it, &loaded)
+	_, err = First(it, &loaded)
 	require.NoError(t, err)
 
-	assert.Equal(t, EncodeSequence(groupRowID), rowID)
 	assert.Equal(t, m, loaded)
 	// and when we create another entry with the same natural key
 	err = k.groupMemberTable.Create(ctx, &m)
 	// then it should fail as the natural key must be unique
-	require.True(t, ErrUniqueConstraint.Is(err))
+	require.True(t, ErrUniqueConstraint.Is(err), err)
 
 	// and when entity updated with new natural key
 	updatedMember := &GroupMember{
@@ -160,6 +159,99 @@ func TestKeeperEndToEndWithNaturalKeyTable(t *testing.T) {
 	// and removed from secondary MultiKeyIndex
 	exists = k.groupMemberByGroupIndex.Has(ctx, EncodeSequence(groupRowID))
 	require.False(t, exists)
+}
+
+func TestGasCostsNaturalKeyTable(t *testing.T) {
+	storeKey := sdk.NewKVStoreKey("test")
+	ctx := NewMockContext()
+
+	k := NewGroupKeeper(storeKey)
+
+	g := GroupMetadata{
+		Description: "my test",
+		Admin:       sdk.AccAddress([]byte("admin-address")),
+	}
+
+	m := GroupMember{
+		Group:  sdk.AccAddress(EncodeSequence(1)),
+		Member: sdk.AccAddress([]byte("member-address")),
+		Weight: 10,
+	}
+	groupRowID, err := k.groupTable.Create(ctx, &g)
+	require.NoError(t, err)
+	require.Equal(t, uint64(1), groupRowID)
+	gCtx := NewGasCountingMockContext(ctx)
+	err = k.groupMemberTable.Create(gCtx, &m)
+	require.NoError(t, err)
+	t.Logf("gas consumed on create: %d", gCtx.GasConsumed())
+
+	// get by natural key
+	gCtx.ResetGasMeter()
+	var loaded GroupMember
+	err = k.groupMemberTable.GetOne(gCtx, m.NaturalKey(), &loaded)
+	require.NoError(t, err)
+	t.Logf("gas consumed on get by natural key: %d", gCtx.GasConsumed())
+
+	// get by secondary index
+	gCtx.ResetGasMeter()
+	// and when loaded from MultiKeyIndex
+	it, err := k.groupMemberByGroupIndex.Get(gCtx, EncodeSequence(groupRowID))
+	require.NoError(t, err)
+	var loadedSlice []GroupMember
+	_, err = ReadAll(it, &loadedSlice)
+	require.NoError(t, err)
+
+	t.Logf("gas consumed on get by multi index key: %d", gCtx.GasConsumed())
+
+	// delete
+	gCtx.ResetGasMeter()
+	err = k.groupMemberTable.Delete(gCtx, &m)
+	require.NoError(t, err)
+	t.Logf("gas consumed on delete by natural key: %d", gCtx.GasConsumed())
+
+	// with 3 elements
+	for i := 1; i < 4; i++ {
+		gCtx.ResetGasMeter()
+		m := GroupMember{
+			Group:  sdk.AccAddress(EncodeSequence(1)),
+			Member: sdk.AccAddress([]byte(fmt.Sprintf("member-addres%d", i))),
+			Weight: 10,
+		}
+		err = k.groupMemberTable.Create(gCtx, &m)
+		require.NoError(t, err)
+		t.Logf("%d: gas consumed on create: %d", i, gCtx.GasConsumed())
+	}
+
+	for i := 1; i < 4; i++ {
+		gCtx.ResetGasMeter()
+		m := GroupMember{
+			Group:  sdk.AccAddress(EncodeSequence(1)),
+			Member: sdk.AccAddress([]byte(fmt.Sprintf("member-addres%d", i))),
+			Weight: 10,
+		}
+		err = k.groupMemberTable.GetOne(gCtx, m.NaturalKey(), &loaded)
+		require.NoError(t, err)
+		t.Logf("%d: gas consumed on get by natural key: %d", i, gCtx.GasConsumed())
+	}
+
+	// get by secondary index
+	gCtx.ResetGasMeter()
+	// and when loaded from MultiKeyIndex
+	it, err = k.groupMemberByGroupIndex.Get(gCtx, EncodeSequence(groupRowID))
+	require.NoError(t, err)
+	_, err = ReadAll(it, &loadedSlice)
+	require.NoError(t, err)
+	require.Len(t, loadedSlice, 3)
+	t.Logf("gas consumed on get by multi index key: %d", gCtx.GasConsumed())
+
+	// delete
+	for i, m := range loadedSlice {
+		gCtx.ResetGasMeter()
+
+		err = k.groupMemberTable.Delete(gCtx, &m)
+		require.NoError(t, err)
+		t.Logf("%d: gas consumed on delete: %d", i, gCtx.GasConsumed())
+	}
 }
 
 func first(t *testing.T, it Iterator) ([]byte, GroupMetadata) {

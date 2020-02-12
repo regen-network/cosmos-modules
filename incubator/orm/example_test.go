@@ -13,7 +13,7 @@ type GroupKeeper struct {
 	groupMemberByMemberIndex Index
 }
 
-func (g GroupMember) NaturalKey() []byte {
+func (g GroupMember) NaturalKey() RowID {
 	result := make([]byte, 0, len(g.Group)+len(g.Member))
 	result = append(result, g.Group...)
 	result = append(result, g.Member...)
@@ -36,19 +36,19 @@ func NewGroupKeeper(storeKey sdk.StoreKey) GroupKeeper {
 
 	groupTableBuilder := NewAutoUInt64TableBuilder(GroupTablePrefix, GroupTableSeqPrefix, storeKey, &GroupMetadata{})
 	// note: quite easy to mess with Index prefixes when managed outside. no fail fast on duplicates
-	k.groupByAdminIndex = NewIndex(groupTableBuilder, GroupByAdminIndexPrefix, func(val interface{}) ([][]byte, error) {
-		return [][]byte{val.(*GroupMetadata).Admin}, nil
+	k.groupByAdminIndex = NewIndex(groupTableBuilder, GroupByAdminIndexPrefix, func(val interface{}) ([]RowID, error) {
+		return []RowID{[]byte(val.(*GroupMetadata).Admin)}, nil
 	})
 	k.groupTable = groupTableBuilder.Build()
 
-	groupMemberTableBuilder := NewNaturalKeyTableBuilder(GroupMemberTablePrefix, GroupMemberTableSeqPrefix, GroupMemberTableIndexPrefix, storeKey, &GroupMember{})
+	groupMemberTableBuilder := NewNaturalKeyTableBuilder(GroupMemberTablePrefix, storeKey, &GroupMember{}, Max255DynamicLengthIndexKeyCodec{})
 
-	k.groupMemberByGroupIndex = NewIndex(groupMemberTableBuilder, GroupMemberByGroupIndexPrefix, func(val interface{}) ([][]byte, error) {
+	k.groupMemberByGroupIndex = NewIndex(groupMemberTableBuilder, GroupMemberByGroupIndexPrefix, func(val interface{}) ([]RowID, error) {
 		group := val.(*GroupMember).Group
-		return [][]byte{group}, nil
+		return []RowID{[]byte(group)}, nil
 	})
-	k.groupMemberByMemberIndex = NewIndex(groupMemberTableBuilder, GroupMemberByMemberIndexPrefix, func(val interface{}) ([][]byte, error) {
-		return [][]byte{val.(*GroupMember).Member}, nil
+	k.groupMemberByMemberIndex = NewIndex(groupMemberTableBuilder, GroupMemberByMemberIndexPrefix, func(val interface{}) ([]RowID, error) {
+		return []RowID{[]byte(val.(*GroupMember).Member)}, nil
 	})
 	k.groupMemberTable = groupMemberTableBuilder.Build()
 

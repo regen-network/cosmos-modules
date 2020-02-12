@@ -2,8 +2,6 @@ package orm
 
 import (
 	"bytes"
-	"encoding/binary"
-	"math"
 
 	"github.com/cosmos/cosmos-sdk/store/prefix"
 	"github.com/cosmos/cosmos-sdk/store/types"
@@ -13,48 +11,69 @@ import (
 
 // indexer creates and modifies the second MultiKeyIndex based on the operations and changes on the primary object.
 type indexer interface {
-	OnCreate(store sdk.KVStore, rowID uint64, value interface{}) error
-	OnDelete(store sdk.KVStore, rowID uint64, value interface{}) error
-	OnUpdate(store sdk.KVStore, rowID uint64, newValue, oldValue interface{}) error
+	OnCreate(store sdk.KVStore, rowID RowID, value interface{}) error
+	OnDelete(store sdk.KVStore, rowID RowID, value interface{}) error
+	OnUpdate(store sdk.KVStore, rowID RowID, newValue, oldValue interface{}) error
 }
 
 // MultiKeyIndex is an index where multiple entries can point to the same underlying object as opposite to a unique index
 // where only one entry is allowed.
 type MultiKeyIndex struct {
-	storeKey  sdk.StoreKey
-	prefix    byte
-	rowGetter RowGetter
-	indexer   indexer
+	storeKey      sdk.StoreKey
+	prefix        byte
+	rowGetter     RowGetter
+	indexer       indexer
+	indexKeyCodec IndexKeyCodec
 }
 
+// NewIndex builds a MultiKeyIndex
 func NewIndex(builder Indexable, prefix byte, indexer IndexerFunc) *MultiKeyIndex {
+	return newIndex(builder, prefix, NewIndexer(indexer, builder.IndexKeyCodec()))
+}
+
+func newIndex(builder Indexable, prefix byte, indexer *Indexer) *MultiKeyIndex {
+	codec := builder.IndexKeyCodec()
+	if codec == nil {
+		panic("IndexKeyCodec must not be nil")
+	}
+	storeKey := builder.StoreKey()
+	if storeKey == nil {
+		panic("StoreKey must not be nil")
+	}
+	rowGetter := builder.RowGetter()
+	if rowGetter == nil {
+		panic("RowGetter must not be nil")
+	}
+
 	idx := MultiKeyIndex{
-		storeKey:  builder.StoreKey(),
-		prefix:    prefix,
-		rowGetter: builder.RowGetter(),
-		indexer:   NewIndexer(indexer),
+		storeKey:      storeKey,
+		prefix:        prefix,
+		rowGetter:     rowGetter,
+		indexer:       indexer,
+		indexKeyCodec: codec,
 	}
 	builder.AddAfterSaveInterceptor(idx.onSave)
 	builder.AddAfterDeleteInterceptor(idx.onDelete)
 	return &idx
 }
 
+// Has checks if a key exists. Panics on nil key.
 func (i MultiKeyIndex) Has(ctx HasKVStore, key []byte) bool {
-	// can only be answered by a prefix scan. see makeIndexPrefixScanKey
 	store := prefix.NewStore(ctx.KVStore(i.storeKey), []byte{i.prefix})
-	it := store.Iterator(makeIndexPrefixScanKey(key, 0), makeIndexPrefixScanKey(key, math.MaxUint64))
+	it := store.Iterator(prefixRange(key))
 	defer it.Close()
 	return it.Valid()
 }
 
-func (i MultiKeyIndex) Get(ctx HasKVStore, key []byte) (Iterator, error) {
+// Get returns a result iterator for the searchKey. Parameters must not be nil.
+func (i MultiKeyIndex) Get(ctx HasKVStore, searchKey []byte) (Iterator, error) {
 	store := prefix.NewStore(ctx.KVStore(i.storeKey), []byte{i.prefix})
-	it := store.Iterator(makeIndexPrefixScanKey(key, 0), makeIndexPrefixScanKey(key, math.MaxUint64))
-	return indexIterator{ctx: ctx, it: it, rowGetter: i.rowGetter}, nil
+	it := store.Iterator(prefixRange(searchKey))
+	return indexIterator{ctx: ctx, it: it, rowGetter: i.rowGetter, keyCodec: i.indexKeyCodec}, nil
 }
 
 // PrefixScan returns an Iterator over a domain of keys in ascending order. End is exclusive.
-// Start is an MultiKeyIndex key or prefix. It must be less than end, or the Iterator is invalid.
+// Start is an MultiKeyIndex key or prefix. It must be less than end, or the Iterator is invalid and error is returned.
 // Iterator must be closed by caller.
 // To iterate over entire domain, use PrefixScan(nil, nil)
 //
@@ -75,11 +94,11 @@ func (i MultiKeyIndex) PrefixScan(ctx HasKVStore, start []byte, end []byte) (Ite
 	}
 	store := prefix.NewStore(ctx.KVStore(i.storeKey), []byte{i.prefix})
 	it := store.Iterator(start, end)
-	return indexIterator{ctx: ctx, it: it, rowGetter: i.rowGetter}, nil
+	return indexIterator{ctx: ctx, it: it, rowGetter: i.rowGetter, keyCodec: i.indexKeyCodec}, nil
 }
 
 // ReversePrefixScan returns an Iterator over a domain of keys in descending order. End is exclusive.
-// Start is an MultiKeyIndex key or prefix. It must be less than end, or the Iterator is invalid.
+// Start is an MultiKeyIndex key or prefix. It must be less than end, or the Iterator is invalid  and error is returned.
 // Iterator must be closed by caller.
 // To iterate over entire domain, use PrefixScan(nil, nil)
 //
@@ -93,10 +112,10 @@ func (i MultiKeyIndex) ReversePrefixScan(ctx HasKVStore, start []byte, end []byt
 	}
 	store := prefix.NewStore(ctx.KVStore(i.storeKey), []byte{i.prefix})
 	it := store.ReverseIterator(start, end)
-	return indexIterator{ctx: ctx, it: it, rowGetter: i.rowGetter}, nil
+	return indexIterator{ctx: ctx, it: it, rowGetter: i.rowGetter, keyCodec: i.indexKeyCodec}, nil
 }
 
-func (i MultiKeyIndex) onSave(ctx HasKVStore, rowID uint64, newValue, oldValue Persistent) error {
+func (i MultiKeyIndex) onSave(ctx HasKVStore, rowID RowID, newValue, oldValue Persistent) error {
 	store := prefix.NewStore(ctx.KVStore(i.storeKey), []byte{i.prefix})
 	if oldValue == nil {
 		return i.indexer.OnCreate(store, rowID, newValue)
@@ -104,7 +123,7 @@ func (i MultiKeyIndex) onSave(ctx HasKVStore, rowID uint64, newValue, oldValue P
 	return i.indexer.OnUpdate(store, rowID, newValue, oldValue)
 }
 
-func (i MultiKeyIndex) onDelete(ctx HasKVStore, rowID uint64, oldValue Persistent) error {
+func (i MultiKeyIndex) onDelete(ctx HasKVStore, rowID RowID, oldValue Persistent) error {
 	store := prefix.NewStore(ctx.KVStore(i.storeKey), []byte{i.prefix})
 	return i.indexer.OnDelete(store, rowID, oldValue)
 }
@@ -115,28 +134,9 @@ type UniqueIndex struct {
 
 // NewUniqueIndex create a new Index object where duplicate keys are prohibited.
 func NewUniqueIndex(builder Indexable, prefix byte, uniqueIndexerFunc UniqueIndexerFunc) *UniqueIndex {
-	idx := UniqueIndex{
-		MultiKeyIndex: MultiKeyIndex{
-			storeKey:  builder.StoreKey(),
-			prefix:    prefix,
-			rowGetter: builder.RowGetter(),
-			indexer:   NewUniqueIndexer(uniqueIndexerFunc),
-		},
+	return &UniqueIndex{
+		MultiKeyIndex: *newIndex(builder, prefix, NewUniqueIndexer(uniqueIndexerFunc, builder.IndexKeyCodec())),
 	}
-	builder.AddAfterSaveInterceptor(idx.onSave)
-	builder.AddAfterDeleteInterceptor(idx.onDelete)
-	return &idx
-}
-
-// RowID looks up the rowID for an MultiKeyIndex key. Returns `ErrNotFound` when not exists in MultiKeyIndex.
-func (i UniqueIndex) RowID(ctx HasKVStore, key []byte) (uint64, error) {
-	store := prefix.NewStore(ctx.KVStore(i.storeKey), []byte{i.prefix})
-	it := store.Iterator(makeIndexPrefixScanKey(key, 0), makeIndexPrefixScanKey(key, math.MaxUint64))
-	defer it.Close()
-	if !it.Valid() {
-		return 0, ErrNotFound
-	}
-	return stripRowIDFromIndexPrefixScanKey(it.Key()), nil
 }
 
 // indexIterator uses rowGetter to lazy load new model values on request.
@@ -144,19 +144,20 @@ type indexIterator struct {
 	ctx       HasKVStore
 	rowGetter RowGetter
 	it        types.Iterator
+	keyCodec  IndexKeyCodec
 }
 
 // LoadNext loads the next value in the sequence into the pointer passed as dest and returns the key. If there
 // are no more items the ErrIteratorDone error is returned
 // The key is the rowID and not any MultiKeyIndex key.
-func (i indexIterator) LoadNext(dest Persistent) ([]byte, error) {
+func (i indexIterator) LoadNext(dest Persistent) (RowID, error) {
 	if !i.it.Valid() {
 		return nil, ErrIteratorDone
 	}
 	indexPrefixKey := i.it.Key()
-	rowID := stripRowIDFromIndexPrefixScanKey(indexPrefixKey)
+	rowID := i.keyCodec.StripRowID(indexPrefixKey)
 	i.it.Next()
-	return i.rowGetter(i.ctx, rowID, dest)
+	return rowID, i.rowGetter(i.ctx, rowID, dest)
 }
 
 // Close releases the iterator and should be called at the end of iteration
@@ -165,7 +166,38 @@ func (i indexIterator) Close() error {
 	return nil
 }
 
-func stripRowIDFromIndexPrefixScanKey(indexPrefixKey []byte) uint64 {
-	n := len(indexPrefixKey)
-	return binary.BigEndian.Uint64(indexPrefixKey[n-8:])
+// prefixRange turns a prefix into a (start, end) range. The start is the given prefix value and
+// the end is calculated by adding 1 bit to the start value. Nil is not allowed as prefix.
+// 		Example: []byte{1, 3, 4} becomes []byte{1, 3, 5}
+// 				 []byte{15, 42, 255, 255} becomes []byte{15, 43, 0, 0}
+//
+// In case of an overflow the end is set to nil.
+//		Example: []byte{255, 255, 255, 255} becomes nil
+//
+func prefixRange(prefix []byte) ([]byte, []byte) {
+	if prefix == nil {
+		panic("nil key not allowed")
+	}
+	// special case: no prefix is whole range
+	if len(prefix) == 0 {
+		return nil, nil
+	}
+
+	// copy the prefix and update last byte
+	end := make([]byte, len(prefix))
+	copy(end, prefix)
+	l := len(end) - 1
+	end[l]++
+
+	// wait, what if that overflowed?....
+	for end[l] == 0 && l > 0 {
+		l--
+		end[l]++
+	}
+
+	// okay, funny guy, you gave us FFF, no end to this range...
+	if l == 0 && end[0] == 0 {
+		end = nil
+	}
+	return prefix, end
 }

@@ -13,11 +13,9 @@ func TestNaturalKeyTablePrefixScan(t *testing.T) {
 	storeKey := sdk.NewKVStoreKey("test")
 	const (
 		testTablePrefix = iota
-		testTableSeqPrefix
-		testTableIndexPrefix
 	)
 
-	tb := NewNaturalKeyTableBuilder(testTablePrefix, testTableSeqPrefix, testTableIndexPrefix, storeKey, &GroupMember{}).
+	tb := NewNaturalKeyTableBuilder(testTablePrefix, storeKey, &GroupMember{}, Max255DynamicLengthIndexKeyCodec{}).
 		Build()
 
 	ctx := NewMockContext()
@@ -45,7 +43,7 @@ func TestNaturalKeyTablePrefixScan(t *testing.T) {
 	specs := map[string]struct {
 		start, end []byte
 		expResult  []GroupMember
-		expRowIDs  [][]byte
+		expRowIDs  []RowID
 		expError   *errors.Error
 		method     func(ctx HasKVStore, start, end []byte) (Iterator, error)
 	}{
@@ -54,56 +52,56 @@ func TestNaturalKeyTablePrefixScan(t *testing.T) {
 			end:       []byte("group-amember-two"), // == m2.NaturalKey()
 			method:    tb.PrefixScan,
 			expResult: []GroupMember{m1},
-			expRowIDs: [][]byte{EncodeSequence(1)},
+			expRowIDs: []RowID{m1.NaturalKey()},
 		},
 		"one result by prefix": {
 			start:     []byte("group-a"),
 			end:       []byte("group-amember-two"), // == m2.NaturalKey()
 			method:    tb.PrefixScan,
 			expResult: []GroupMember{m1},
-			expRowIDs: [][]byte{EncodeSequence(1)},
+			expRowIDs: []RowID{m1.NaturalKey()},
 		},
 		"multi key elements by group prefix": {
 			start:     []byte("group-a"),
 			end:       []byte("group-b"),
 			method:    tb.PrefixScan,
 			expResult: []GroupMember{m1, m2},
-			expRowIDs: [][]byte{EncodeSequence(1), EncodeSequence(2)},
+			expRowIDs: []RowID{m1.NaturalKey(), m2.NaturalKey()},
 		},
 		"open end query with second group": {
 			start:     []byte("group-b"),
 			end:       nil,
 			method:    tb.PrefixScan,
 			expResult: []GroupMember{m3},
-			expRowIDs: [][]byte{EncodeSequence(3)},
+			expRowIDs: []RowID{m3.NaturalKey()},
 		},
 		"open end query with all": {
 			start:     []byte("group-a"),
 			end:       nil,
 			method:    tb.PrefixScan,
 			expResult: []GroupMember{m1, m2, m3},
-			expRowIDs: [][]byte{EncodeSequence(1), EncodeSequence(2), EncodeSequence(3)},
+			expRowIDs: []RowID{m1.NaturalKey(), m2.NaturalKey(), m3.NaturalKey()},
 		},
 		"open start query": {
 			start:     nil,
 			end:       []byte("group-b"),
 			method:    tb.PrefixScan,
 			expResult: []GroupMember{m1, m2},
-			expRowIDs: [][]byte{EncodeSequence(1), EncodeSequence(2)},
+			expRowIDs: []RowID{m1.NaturalKey(), m2.NaturalKey()},
 		},
 		"open start and end query": {
 			start:     nil,
 			end:       nil,
 			method:    tb.PrefixScan,
 			expResult: []GroupMember{m1, m2, m3},
-			expRowIDs: [][]byte{EncodeSequence(1), EncodeSequence(2), EncodeSequence(3)},
+			expRowIDs: []RowID{m1.NaturalKey(), m2.NaturalKey(), m3.NaturalKey()},
 		},
 		"all matching prefix": {
 			start:     []byte("group"),
 			end:       nil,
 			method:    tb.PrefixScan,
 			expResult: []GroupMember{m1, m2, m3},
-			expRowIDs: [][]byte{EncodeSequence(1), EncodeSequence(2), EncodeSequence(3)},
+			expRowIDs: []RowID{m1.NaturalKey(), m2.NaturalKey(), m3.NaturalKey()},
 		},
 		"non matching prefix": {
 			start:     []byte("nobody"),
@@ -128,56 +126,56 @@ func TestNaturalKeyTablePrefixScan(t *testing.T) {
 			end:       []byte("group-amember-two"), // == m2.NaturalKey()
 			method:    tb.ReversePrefixScan,
 			expResult: []GroupMember{m1},
-			expRowIDs: [][]byte{EncodeSequence(1)},
+			expRowIDs: []RowID{m1.NaturalKey()},
 		},
 		"reverse: one result by prefix": {
 			start:     []byte("group-a"),
 			end:       []byte("group-amember-two"), // == m2.NaturalKey()
 			method:    tb.ReversePrefixScan,
 			expResult: []GroupMember{m1},
-			expRowIDs: [][]byte{EncodeSequence(1)},
+			expRowIDs: []RowID{m1.NaturalKey()},
 		},
 		"reverse: multi key elements by group prefix": {
 			start:     []byte("group-a"),
 			end:       []byte("group-b"),
 			method:    tb.ReversePrefixScan,
 			expResult: []GroupMember{m2, m1},
-			expRowIDs: [][]byte{EncodeSequence(2), EncodeSequence(1)},
+			expRowIDs: []RowID{m2.NaturalKey(), m1.NaturalKey()},
 		},
 		"reverse: open end query with second group": {
 			start:     []byte("group-b"),
 			end:       nil,
 			method:    tb.ReversePrefixScan,
 			expResult: []GroupMember{m3},
-			expRowIDs: [][]byte{EncodeSequence(3)},
+			expRowIDs: []RowID{m3.NaturalKey()},
 		},
 		"reverse: open end query with all": {
 			start:     []byte("group-a"),
 			end:       nil,
 			method:    tb.ReversePrefixScan,
 			expResult: []GroupMember{m3, m2, m1},
-			expRowIDs: [][]byte{EncodeSequence(3), EncodeSequence(2), EncodeSequence(1)},
+			expRowIDs: []RowID{m3.NaturalKey(), m2.NaturalKey(), m1.NaturalKey()},
 		},
 		"reverse: open start query": {
 			start:     nil,
 			end:       []byte("group-b"),
 			method:    tb.ReversePrefixScan,
 			expResult: []GroupMember{m2, m1},
-			expRowIDs: [][]byte{EncodeSequence(2), EncodeSequence(1)},
+			expRowIDs: []RowID{m2.NaturalKey(), m1.NaturalKey()},
 		},
 		"reverse: open start and end query": {
 			start:     nil,
 			end:       nil,
 			method:    tb.ReversePrefixScan,
 			expResult: []GroupMember{m3, m2, m1},
-			expRowIDs: [][]byte{EncodeSequence(3), EncodeSequence(2), EncodeSequence(1)},
+			expRowIDs: []RowID{m3.NaturalKey(), m2.NaturalKey(), m1.NaturalKey()},
 		},
 		"reverse: all matching prefix": {
 			start:     []byte("group"),
 			end:       nil,
 			method:    tb.ReversePrefixScan,
 			expResult: []GroupMember{m3, m2, m1},
-			expRowIDs: [][]byte{EncodeSequence(3), EncodeSequence(2), EncodeSequence(1)},
+			expRowIDs: []RowID{m3.NaturalKey(), m2.NaturalKey(), m1.NaturalKey()},
 		},
 		"reverse: non matching prefix": {
 			start:     []byte("nobody"),

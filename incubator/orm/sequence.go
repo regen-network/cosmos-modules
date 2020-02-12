@@ -49,9 +49,12 @@ func DecodeSequence(bz []byte) uint64 {
 	return val
 }
 
+// EncodedSeqLength number of bytes used for the binary representation of a sequence value.
+const EncodedSeqLength = 8
+
 // EncodeSequence converts the sequence value into the binary representation.
 func EncodeSequence(val uint64) []byte {
-	bz := make([]byte, 8)
+	bz := make([]byte, EncodedSeqLength)
 	binary.BigEndian.PutUint64(bz, val)
 	return bz
 }

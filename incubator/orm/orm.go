@@ -15,18 +15,22 @@ import (
 const ormCodespace = "orm"
 
 var (
-	ErrNotFound         = errors.Register(ormCodespace, 100, "not found")
-	ErrIteratorDone     = errors.Register(ormCodespace, 101, "iterator done")
-	ErrIteratorInvalid  = errors.Register(ormCodespace, 102, "iterator invalid")
-	ErrType             = errors.Register(ormCodespace, 110, "invalid type")
-	ErrUniqueConstraint = errors.Register(ormCodespace, 111, "unique constraint violation")
-	ErrArgument         = errors.Register(ormCodespace, 112, "invalid argument")
+	ErrNotFound          = errors.Register(ormCodespace, 100, "not found")
+	ErrIteratorDone      = errors.Register(ormCodespace, 101, "iterator done")
+	ErrIteratorInvalid   = errors.Register(ormCodespace, 102, "iterator invalid")
+	ErrType              = errors.Register(ormCodespace, 110, "invalid type")
+	ErrUniqueConstraint  = errors.Register(ormCodespace, 111, "unique constraint violation")
+	ErrArgument          = errors.Register(ormCodespace, 112, "invalid argument")
+	ErrIndexKeyMaxLength = errors.Register(ormCodespace, 113, "index key exceeds max length")
 )
 
 // HasKVStore is a subset of the cosmos-sdk context defined for loose coupling and simpler test setups.
 type HasKVStore interface {
 	KVStore(key sdk.StoreKey) sdk.KVStore
 }
+
+// Unique identifier of a persistent table.
+type RowID []byte
 
 // Persistent supports Marshal and Unmarshal
 //
@@ -45,9 +49,39 @@ type Persistent interface {
 // so that the row NaturalKey is allows a fixed with 8 byte integer. This allows the MultiKeyIndex key bytes to be
 // variable length and scanned iteratively. The
 type Index interface {
+	// Has checks if a key exists. Panics on nil key.
 	Has(ctx HasKVStore, key []byte) bool
-	Get(ctx HasKVStore, key []byte) (Iterator, error)
+
+	// Get returns a result iterator for the searchKey. Parameters must not be nil.
+	Get(ctx HasKVStore, searchKey []byte) (Iterator, error)
+
+	// PrefixScan returns an Iterator over a domain of keys in ascending order. End is exclusive.
+	// Start is an MultiKeyIndex key or prefix. It must be less than end, or the Iterator is invalid and error is returned.
+	// Iterator must be closed by caller.
+	// To iterate over entire domain, use PrefixScan(nil, nil)
+	//
+	// WARNING: The use of a PrefixScan can be very expensive in terms of Gas. Please make sure you do not expose
+	// this as an endpoint to the public without further limits.
+	// Example:
+	//			it, err := idx.PrefixScan(ctx, start, end)
+	//			if err !=nil {
+	//				return err
+	//			}
+	//			const defaultLimit = 20
+	//			it = LimitIterator(it, defaultLimit)
+	//
+	// CONTRACT: No writes may happen within a domain while an iterator exists over it.
 	PrefixScan(ctx HasKVStore, start []byte, end []byte) (Iterator, error)
+
+	// ReversePrefixScan returns an Iterator over a domain of keys in descending order. End is exclusive.
+	// Start is an MultiKeyIndex key or prefix. It must be less than end, or the Iterator is invalid  and error is returned.
+	// Iterator must be closed by caller.
+	// To iterate over entire domain, use PrefixScan(nil, nil)
+	//
+	// WARNING: The use of a ReversePrefixScan can be very expensive in terms of Gas. Please make sure you do not expose
+	// this as an endpoint to the public without further limits. See `LimitIterator`
+	//
+	// CONTRACT: No writes may happen within a domain while an iterator exists over it.
 	ReversePrefixScan(ctx HasKVStore, start []byte, end []byte) (Iterator, error)
 }
 
@@ -56,44 +90,57 @@ type Iterator interface {
 	// LoadNext loads the next value in the sequence into the pointer passed as dest and returns the key. If there
 	// are no more items the ErrIteratorDone error is returned
 	// The key is the rowID and not any MultiKeyIndex key.
-	LoadNext(dest Persistent) (key []byte, err error)
+	LoadNext(dest Persistent) (RowID, error)
 	// Close releases the iterator and should be called at the end of iteration
 	io.Closer
+}
+
+// IndexKeyCodec defines the encoding/ decoding methods for building/ splitting index keys.
+type IndexKeyCodec interface {
+	// BuildIndexKey encodes a searchable key and the target RowID.
+	BuildIndexKey(searchableKey []byte, rowID RowID) []byte
+	// StripRowID returns the RowID from the combined persistentIndexKey. It is the reverse operation to BuildIndexKey
+	// but with the searchableKey dropped.
+	StripRowID(persistentIndexKey []byte) RowID
 }
 
 // Indexable types are used to setup new tables.
 // This interface provides a set of functions that can be called by indexes to register and interact with the tables.
 type Indexable interface {
 	StoreKey() sdk.StoreKey
+	RowGetter() RowGetter
+	IndexKeyCodec() IndexKeyCodec
 	AddAfterSaveInterceptor(interceptor AfterSaveInterceptor)
 	AddAfterDeleteInterceptor(interceptor AfterDeleteInterceptor)
-	RowGetter() RowGetter
 }
 
 // AfterSaveInterceptor defines a callback function to be called on Create + Update.
-type AfterSaveInterceptor func(ctx HasKVStore, rowID uint64, newValue, oldValue Persistent) error
+type AfterSaveInterceptor func(ctx HasKVStore, rowID RowID, newValue, oldValue Persistent) error
 
 // AfterDeleteInterceptor defines a callback function to be called on Delete operations.
-type AfterDeleteInterceptor func(ctx HasKVStore, rowID uint64, value Persistent) error
+type AfterDeleteInterceptor func(ctx HasKVStore, rowID RowID, value Persistent) error
 
 // RowGetter loads a persistent object by row ID into the destination object. The dest parameter must therefore be a pointer.
-// The key returned is the serialized row ID.
 // Any implementation must return `ErrNotFound` when no object for the rowID exists
-type RowGetter func(ctx HasKVStore, rowID uint64, dest Persistent) (key []byte, err error)
+type RowGetter func(ctx HasKVStore, rowID RowID, dest Persistent) error
 
 // NewTypeSafeRowGetter returns a `RowGetter` with type check on the dest parameter.
 func NewTypeSafeRowGetter(storeKey sdk.StoreKey, prefixKey byte, model reflect.Type) RowGetter {
-	return func(ctx HasKVStore, rowID uint64, dest Persistent) ([]byte, error) {
+	return func(ctx HasKVStore, rowID RowID, dest Persistent) error {
+		if len(rowID) == 0 {
+			return errors.Wrap(ErrArgument, "key must not be nil")
+		}
 		if err := assertCorrectType(model, dest); err != nil {
-			return nil, err
+			return err
 		}
+
 		store := prefix.NewStore(ctx.KVStore(storeKey), []byte{prefixKey})
-		key := EncodeSequence(rowID)
-		val := store.Get(key)
-		if val == nil {
-			return nil, ErrNotFound
+		it := store.Iterator(prefixRange(rowID))
+		defer it.Close()
+		if !it.Valid() {
+			return ErrNotFound
 		}
-		return key, dest.Unmarshal(val)
+		return dest.Unmarshal(it.Value())
 	}
 }
 

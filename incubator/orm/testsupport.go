@@ -1,9 +1,11 @@
 package orm
 
 import (
+	"fmt"
 	"io"
 
 	"github.com/cosmos/cosmos-sdk/store"
+	"github.com/cosmos/cosmos-sdk/store/gaskv"
 	"github.com/cosmos/cosmos-sdk/store/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	dbm "github.com/tendermint/tm-db"
@@ -31,6 +33,59 @@ func (m MockContext) KVStore(key sdk.StoreKey) sdk.KVStore {
 		panic(err)
 	}
 	return m.store.GetCommitKVStore(key)
+}
+
+type debuggingGasMeter struct {
+	g types.GasMeter
+}
+
+func (d debuggingGasMeter) GasConsumed() types.Gas {
+	return d.g.GasConsumed()
+}
+
+func (d debuggingGasMeter) GasConsumedToLimit() types.Gas {
+	return d.g.GasConsumedToLimit()
+}
+
+func (d debuggingGasMeter) Limit() types.Gas {
+	return d.g.Limit()
+}
+
+func (d debuggingGasMeter) ConsumeGas(amount types.Gas, descriptor string) {
+	fmt.Printf("++ Consuming gas: %q :%d\n", descriptor, amount)
+	d.g.ConsumeGas(amount, descriptor)
+}
+
+func (d debuggingGasMeter) IsPastLimit() bool {
+	return d.g.IsPastLimit()
+}
+
+func (d debuggingGasMeter) IsOutOfGas() bool {
+	return d.g.IsOutOfGas()
+}
+
+type GasCountingMockContext struct {
+	parent   HasKVStore
+	GasMeter sdk.GasMeter
+}
+
+func NewGasCountingMockContext(parent HasKVStore) *GasCountingMockContext {
+	return &GasCountingMockContext{
+		parent:   parent,
+		GasMeter: &debuggingGasMeter{sdk.NewInfiniteGasMeter()},
+	}
+}
+
+func (g GasCountingMockContext) KVStore(key sdk.StoreKey) sdk.KVStore {
+	return gaskv.NewStore(g.parent.KVStore(key), g.GasMeter, types.KVGasConfig())
+}
+
+func (g GasCountingMockContext) GasConsumed() types.Gas {
+	return g.GasMeter.GasConsumed()
+}
+
+func (g *GasCountingMockContext) ResetGasMeter() {
+	g.GasMeter = sdk.NewInfiniteGasMeter()
 }
 
 type AlwaysPanicKVStore struct{}
