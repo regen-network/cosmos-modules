@@ -36,7 +36,7 @@ type keeper struct {
 
 func (g GroupMember) NaturalKey() []byte {
 	result := make([]byte, 0, binary.MaxVarintLen64+len(g.Member))
-	binary.PutUvarint(result, g.Group)
+	binary.PutUvarint(result, uint64(g.Group))
 	result = append(result, g.Member...)
 	return result
 }
@@ -47,7 +47,7 @@ func (g GroupAccountMetadata) NaturalKey() []byte {
 
 func (v Vote) NaturalKey() []byte {
 	result := make([]byte, 0, binary.MaxVarintLen64+len(v.Voter))
-	binary.PutUvarint(result, v.Proposal)
+	binary.PutUvarint(result, uint64(v.Proposal))
 	result = append(result, v.Voter...)
 	return result
 }
@@ -104,7 +104,7 @@ func NewGroupKeeper(storeKey sdk.StoreKey) keeper {
 	groupMemberTableBuilder := orm.NewNaturalKeyTableBuilder(GroupMemberTablePrefix, GroupMemberTableSeqPrefix, GroupMemberTableIndexPrefix, storeKey, &GroupMember{})
 	k.groupMemberByGroupIndex = orm.NewUInt64Index(groupMemberTableBuilder, GroupMemberByGroupIndexPrefix, func(val interface{}) ([]uint64, error) {
 		group := val.(*GroupMember).Group
-		return []uint64{group}, nil
+		return []uint64{uint64(group)}, nil
 	})
 	k.groupMemberByMemberIndex = orm.NewIndex(groupMemberTableBuilder, GroupMemberByMemberIndexPrefix, func(val interface{}) ([][]byte, error) {
 		return [][]byte{val.(*GroupMember).Member}, nil
@@ -117,7 +117,7 @@ func NewGroupKeeper(storeKey sdk.StoreKey) keeper {
 	groupAccountTableBuilder := orm.NewNaturalKeyTableBuilder(GroupAccountTablePrefix, GroupAccountTableSeqPrefix, GroupAccountTableIndexPrefix, storeKey, &GroupAccountMetadata{})
 	k.groupAccountByGroupIndex = orm.NewUInt64Index(groupAccountTableBuilder, GroupAccountByGroupIndexPrefix, func(value interface{}) ([]uint64, error) {
 		group := value.(*GroupAccountMetadata).Group
-		return []uint64{group}, nil
+		return []uint64{uint64(group)}, nil
 	})
 	k.groupAccountByAdminIndex = orm.NewIndex(groupAccountTableBuilder, GroupAccountByAdminIndexPrefix, func(value interface{}) ([][]byte, error) {
 		admin := value.(*GroupAccountMetadata).Admin
@@ -143,10 +143,10 @@ func NewGroupKeeper(storeKey sdk.StoreKey) keeper {
 	//
 	voteTableBuilder := orm.NewNaturalKeyTableBuilder(VoteTablePrefix, VoteTableSeqPrefix, VoteTableIndexPrefix, storeKey, &Vote{})
 	k.voteByProposalIndex = orm.NewUInt64Index(voteTableBuilder, VoteByProposalIndexPrefix, func(value interface{}) ([]uint64, error) {
-		return []uint64{value.(*Vote).Proposal}, nil
+		return []uint64{uint64(value.(*Vote).Proposal)}, nil
 	})
 	k.voteByVoterIndex = orm.NewIndex(voteTableBuilder, VoteByVoterIndexPrefix, func(value interface{}) ([][]byte, error) {
-		return value.(*Vote).Voters, nil
+		return [][]byte{value.(*Vote).Voter}, nil
 	})
 	k.voteTable = voteTableBuilder.Build()
 
