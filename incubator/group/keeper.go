@@ -34,10 +34,6 @@ type keeper struct {
 	voteByVoterIndex    orm.Index
 }
 
-type GroupID uint64
-
-type ProposalID uint64
-
 func (g GroupMember) NaturalKey() []byte {
 	result := make([]byte, 0, binary.MaxVarintLen64+len(g.Member))
 	binary.PutUvarint(result, g.Group)
