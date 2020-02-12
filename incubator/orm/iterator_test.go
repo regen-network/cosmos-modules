@@ -44,6 +44,16 @@ func TestReadAll(t *testing.T) {
 			expIDs:    []RowID{EncodeSequence(1)},
 			expResult: &[]testdata.GroupMetadata{{}},
 		},
+		"empty iterator": {
+			srcIT: IteratorFunc(func(Persistent) (RowID, error) {
+				return nil, ErrIteratorDone
+			}),
+			destSlice: func() ModelSlicePtr {
+				x := make([]testdata.GroupMetadata, 1)
+				return &x
+			},
+			expResult: &[]testdata.GroupMetadata{},
+		},
 		"dest pointer with nil value": {
 			srcIT: mockIter(EncodeSequence(1), &testdata.GroupMetadata{}),
 			destSlice: func() ModelSlicePtr {

@@ -66,3 +66,11 @@ func (c FixLengthIndexKeyCodec) StripRowID(persistentIndexKey []byte) RowID {
 	n := len(persistentIndexKey)
 	return persistentIndexKey[n-c.rowIDLength:]
 }
+
+// PlainIndexKeyDecoder does not do any decoding but passes the key.
+type PlainIndexKeyDecoder struct{}
+
+// StripRowID returns the persistentIndexKey parameter value without modifications.
+func (PlainIndexKeyDecoder) StripRowID(persistentIndexKey []byte) RowID {
+	return persistentIndexKey
+}

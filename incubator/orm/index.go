@@ -23,15 +23,26 @@ type MultiKeyIndex struct {
 	prefix        byte
 	rowGetter     RowGetter
 	indexer       indexer
-	indexKeyCodec IndexKeyCodec
+	indexKeyCodec IndexKeyDecoder
 }
 
 // NewIndex builds a MultiKeyIndex
-func NewIndex(builder Indexable, prefix byte, indexer IndexerFunc) MultiKeyIndex {
-	return newIndex(builder, prefix, NewIndexer(indexer, builder.IndexKeyCodec()))
+func NewIndex(builder Indexable, prefix byte, indexerFunc IndexerFunc) MultiKeyIndex {
+	return newIndex(builder, prefix, NewIndexer(indexerFunc, builder.IndexKeyCodec()))
 }
 
-func newIndex(builder Indexable, prefix byte, indexer *Indexer) MultiKeyIndex {
+// NewVirtualIndex provides an index API on top of a natural key table. The use case is
+// a combined natural key where the first element has a fixed size.
+// This "virtual" index provides functionality without additional persistence costs.
+//
+// The use case is very limited. If you are unsure then better go with a normal index.
+func NewVirtualIndex(builder Indexable) MultiKeyIndex {
+	idx := newIndex(builder, builder.Prefix(), NoOpIndexer{})
+	idx.indexKeyCodec = PlainIndexKeyDecoder{}
+	return idx
+}
+
+func newIndex(builder Indexable, prefix byte, indexer indexer) MultiKeyIndex {
 	codec := builder.IndexKeyCodec()
 	if codec == nil {
 		panic("IndexKeyCodec must not be nil")
@@ -144,7 +155,7 @@ type indexIterator struct {
 	ctx       HasKVStore
 	rowGetter RowGetter
 	it        types.Iterator
-	keyCodec  IndexKeyCodec
+	keyCodec  IndexKeyDecoder
 }
 
 // LoadNext loads the next value in the sequence into the pointer passed as dest and returns the key. If there

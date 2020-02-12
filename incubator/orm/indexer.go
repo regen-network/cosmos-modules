@@ -99,6 +99,23 @@ func (i Indexer) OnUpdate(store sdk.KVStore, rowID RowID, newValue, oldValue int
 	return nil
 }
 
+var _ indexer = NoOpIndexer{}
+
+// NoOpIndexer implements the indexer interface without any operation. It returns always nil.
+type NoOpIndexer struct{}
+
+func (n NoOpIndexer) OnCreate(store sdk.KVStore, rowID RowID, value interface{}) error {
+	return nil
+}
+
+func (n NoOpIndexer) OnDelete(store sdk.KVStore, rowID RowID, value interface{}) error {
+	return nil
+}
+
+func (n NoOpIndexer) OnUpdate(store sdk.KVStore, rowID RowID, newValue, oldValue interface{}) error {
+	return nil
+}
+
 // uniqueKeysAddFunc enforces keys to be unique
 func uniqueKeysAddFunc(store sdk.KVStore, codec IndexKeyCodec, secondaryIndexKey []byte, rowID RowID) error {
 	if len(secondaryIndexKey) == 0 {
