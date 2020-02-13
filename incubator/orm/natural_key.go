@@ -29,7 +29,7 @@ type NaturalKeyed interface {
 	//
 	// The `IndexKeyCodec` used with the `NaturalKeyTable` may add certain constraints to the byte representation as
 	// max length = 255 in `Max255DynamicLengthIndexKeyCodec` or a fix length in `FixLengthIndexKeyCodec` for example.
-	NaturalKey() RowID
+	NaturalKey() []byte
 	Persistent
 }
 

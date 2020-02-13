@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	"github.com/cosmos/modules/incubator/orm/testdata"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -16,7 +17,7 @@ func TestKeeperEndToEndWithAutoUInt64Table(t *testing.T) {
 
 	k := NewGroupKeeper(storeKey)
 
-	g := GroupMetadata{
+	g := testdata.GroupMetadata{
 		Description: "my test",
 		Admin:       sdk.AccAddress([]byte("admin-address")),
 	}
@@ -28,7 +29,7 @@ func TestKeeperEndToEndWithAutoUInt64Table(t *testing.T) {
 	require.True(t, exists)
 
 	// and load it
-	var loaded GroupMetadata
+	var loaded testdata.GroupMetadata
 
 	binKey, err := k.groupTable.GetOne(ctx, rowID, &loaded)
 	require.NoError(t, err)
@@ -81,12 +82,12 @@ func TestKeeperEndToEndWithNaturalKeyTable(t *testing.T) {
 
 	k := NewGroupKeeper(storeKey)
 
-	g := GroupMetadata{
+	g := testdata.GroupMetadata{
 		Description: "my test",
 		Admin:       sdk.AccAddress([]byte("admin-address")),
 	}
 
-	m := GroupMember{
+	m := testdata.GroupMember{
 		Group:  sdk.AccAddress(EncodeSequence(1)),
 		Member: sdk.AccAddress([]byte("member-address")),
 		Weight: 10,
@@ -103,7 +104,7 @@ func TestKeeperEndToEndWithNaturalKeyTable(t *testing.T) {
 	exists := k.groupMemberTable.Has(ctx, naturalKey)
 	require.True(t, exists)
 	// and load it by natural key
-	var loaded GroupMember
+	var loaded testdata.GroupMember
 	err = k.groupMemberTable.GetOne(ctx, naturalKey, &loaded)
 	require.NoError(t, err)
 
@@ -129,7 +130,7 @@ func TestKeeperEndToEndWithNaturalKeyTable(t *testing.T) {
 	require.True(t, ErrUniqueConstraint.Is(err), err)
 
 	// and when entity updated with new natural key
-	updatedMember := &GroupMember{
+	updatedMember := &testdata.GroupMember{
 		Group:  m.Group,
 		Member: []byte("new-member-address"),
 		Weight: m.Weight,
@@ -139,7 +140,7 @@ func TestKeeperEndToEndWithNaturalKeyTable(t *testing.T) {
 	require.Error(t, err)
 
 	// and when entity updated with non natural key attribute modified
-	updatedMember = &GroupMember{
+	updatedMember = &testdata.GroupMember{
 		Group:  m.Group,
 		Member: m.Member,
 		Weight: 99,
@@ -167,12 +168,12 @@ func TestGasCostsNaturalKeyTable(t *testing.T) {
 
 	k := NewGroupKeeper(storeKey)
 
-	g := GroupMetadata{
+	g := testdata.GroupMetadata{
 		Description: "my test",
 		Admin:       sdk.AccAddress([]byte("admin-address")),
 	}
 
-	m := GroupMember{
+	m := testdata.GroupMember{
 		Group:  sdk.AccAddress(EncodeSequence(1)),
 		Member: sdk.AccAddress([]byte("member-address")),
 		Weight: 10,
@@ -187,7 +188,7 @@ func TestGasCostsNaturalKeyTable(t *testing.T) {
 
 	// get by natural key
 	gCtx.ResetGasMeter()
-	var loaded GroupMember
+	var loaded testdata.GroupMember
 	err = k.groupMemberTable.GetOne(gCtx, m.NaturalKey(), &loaded)
 	require.NoError(t, err)
 	t.Logf("gas consumed on get by natural key: %d", gCtx.GasConsumed())
@@ -197,7 +198,7 @@ func TestGasCostsNaturalKeyTable(t *testing.T) {
 	// and when loaded from MultiKeyIndex
 	it, err := k.groupMemberByGroupIndex.Get(gCtx, EncodeSequence(groupRowID))
 	require.NoError(t, err)
-	var loadedSlice []GroupMember
+	var loadedSlice []testdata.GroupMember
 	_, err = ReadAll(it, &loadedSlice)
 	require.NoError(t, err)
 
@@ -212,7 +213,7 @@ func TestGasCostsNaturalKeyTable(t *testing.T) {
 	// with 3 elements
 	for i := 1; i < 4; i++ {
 		gCtx.ResetGasMeter()
-		m := GroupMember{
+		m := testdata.GroupMember{
 			Group:  sdk.AccAddress(EncodeSequence(1)),
 			Member: sdk.AccAddress([]byte(fmt.Sprintf("member-addres%d", i))),
 			Weight: 10,
@@ -224,7 +225,7 @@ func TestGasCostsNaturalKeyTable(t *testing.T) {
 
 	for i := 1; i < 4; i++ {
 		gCtx.ResetGasMeter()
-		m := GroupMember{
+		m := testdata.GroupMember{
 			Group:  sdk.AccAddress(EncodeSequence(1)),
 			Member: sdk.AccAddress([]byte(fmt.Sprintf("member-addres%d", i))),
 			Weight: 10,
@@ -254,8 +255,8 @@ func TestGasCostsNaturalKeyTable(t *testing.T) {
 	}
 }
 
-func first(t *testing.T, it Iterator) ([]byte, GroupMetadata) {
-	var loaded GroupMetadata
+func first(t *testing.T, it Iterator) ([]byte, testdata.GroupMetadata) {
+	var loaded testdata.GroupMetadata
 	key, err := First(it, &loaded)
 	require.NoError(t, err)
 	return key, loaded

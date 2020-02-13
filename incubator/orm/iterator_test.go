@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/cosmos/cosmos-sdk/types/errors"
+	"github.com/cosmos/modules/incubator/orm/testdata"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -17,42 +18,42 @@ func TestReadAll(t *testing.T) {
 		expResult ModelSlicePtr
 	}{
 		"all good with object slice": {
-			srcIT: mockIter(EncodeSequence(1), &GroupMetadata{Description: "test"}),
+			srcIT: mockIter(EncodeSequence(1), &testdata.GroupMetadata{Description: "test"}),
 			destSlice: func() ModelSlicePtr {
-				x := make([]GroupMetadata, 1)
+				x := make([]testdata.GroupMetadata, 1)
 				return &x
 			},
 			expIDs:    []RowID{EncodeSequence(1)},
-			expResult: &[]GroupMetadata{{Description: "test"}},
+			expResult: &[]testdata.GroupMetadata{{Description: "test"}},
 		},
 		"all good with pointer slice": {
-			srcIT: mockIter(EncodeSequence(1), &GroupMetadata{Description: "test"}),
+			srcIT: mockIter(EncodeSequence(1), &testdata.GroupMetadata{Description: "test"}),
 			destSlice: func() ModelSlicePtr {
-				x := make([]*GroupMetadata, 1)
+				x := make([]*testdata.GroupMetadata, 1)
 				return &x
 			},
 			expIDs:    []RowID{EncodeSequence(1)},
-			expResult: &[]*GroupMetadata{{Description: "test"}},
+			expResult: &[]*testdata.GroupMetadata{{Description: "test"}},
 		},
 		"dest slice empty": {
-			srcIT: mockIter(EncodeSequence(1), &GroupMetadata{}),
+			srcIT: mockIter(EncodeSequence(1), &testdata.GroupMetadata{}),
 			destSlice: func() ModelSlicePtr {
-				x := make([]GroupMetadata, 0)
+				x := make([]testdata.GroupMetadata, 0)
 				return &x
 			},
 			expIDs:    []RowID{EncodeSequence(1)},
-			expResult: &[]GroupMetadata{{}},
+			expResult: &[]testdata.GroupMetadata{{}},
 		},
 		"dest pointer with nil value": {
-			srcIT: mockIter(EncodeSequence(1), &GroupMetadata{}),
+			srcIT: mockIter(EncodeSequence(1), &testdata.GroupMetadata{}),
 			destSlice: func() ModelSlicePtr {
-				return (*[]GroupMetadata)(nil)
+				return (*[]testdata.GroupMetadata)(nil)
 			},
 			expErr: ErrArgument,
 		},
 		"iterator is nil": {
 			srcIT:     nil,
-			destSlice: func() ModelSlicePtr { return new([]GroupMetadata) },
+			destSlice: func() ModelSlicePtr { return new([]testdata.GroupMetadata) },
 			expErr:    ErrArgument,
 		},
 		"dest slice is nil": {
@@ -62,13 +63,13 @@ func TestReadAll(t *testing.T) {
 		},
 		"dest slice is not a pointer": {
 			srcIT:     IteratorFunc(nil),
-			destSlice: func() ModelSlicePtr { return make([]GroupMetadata, 1) },
+			destSlice: func() ModelSlicePtr { return make([]testdata.GroupMetadata, 1) },
 			expErr:    ErrArgument,
 		},
 		"error on loadNext is returned": {
 			srcIT: NewInvalidIterator(),
 			destSlice: func() ModelSlicePtr {
-				x := make([]GroupMetadata, 1)
+				x := make([]testdata.GroupMetadata, 1)
 				return &x
 			},
 			expErr: ErrIteratorInvalid,

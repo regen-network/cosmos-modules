@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	"github.com/cosmos/modules/incubator/orm/testdata"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -12,38 +13,39 @@ import (
 func TestUInt64Index(t *testing.T) {
 	storeKey := sdk.NewKVStoreKey("test")
 
-	groupMemberTableBuilder := NewNaturalKeyTableBuilder(GroupMemberTablePrefix, storeKey, &GroupMember{}, Max255DynamicLengthIndexKeyCodec{})
-	idx := NewUInt64Index(groupMemberTableBuilder, GroupMemberByMemberIndexPrefix, func(val interface{}) ([]uint64, error) {
-		return []uint64{uint64(val.(*GroupMember).Member[0])}, nil
+	const anyPrefix = 0x10
+	tableBuilder := NewNaturalKeyTableBuilder(anyPrefix, storeKey, &testdata.GroupMember{}, Max255DynamicLengthIndexKeyCodec{})
+	myIndex := NewUInt64Index(tableBuilder, GroupMemberByMemberIndexPrefix, func(val interface{}) ([]uint64, error) {
+		return []uint64{uint64(val.(*testdata.GroupMember).Member[0])}, nil
 	})
-	groupMemberTable := groupMemberTableBuilder.Build()
+	myTable := tableBuilder.Build()
 
 	ctx := NewMockContext()
 
-	m := GroupMember{
+	m := testdata.GroupMember{
 		Group:  sdk.AccAddress(EncodeSequence(1)),
 		Member: sdk.AccAddress([]byte("member-address")),
 		Weight: 10,
 	}
-	err := groupMemberTable.Create(ctx, &m)
+	err := myTable.Create(ctx, &m)
 	require.NoError(t, err)
 
 	indexedKey := uint64('m')
 
 	// Has
-	assert.True(t, idx.Has(ctx, indexedKey))
+	assert.True(t, myIndex.Has(ctx, indexedKey))
 
 	// Get
-	it, err := idx.Get(ctx, indexedKey)
+	it, err := myIndex.Get(ctx, indexedKey)
 	require.NoError(t, err)
-	var loaded GroupMember
+	var loaded testdata.GroupMember
 	rowID, err := it.LoadNext(&loaded)
 	require.NoError(t, err)
 	require.Equal(t, uint64(1), DecodeSequence(rowID))
 	require.Equal(t, m, loaded)
 
 	// PrefixScan match
-	it, err = idx.PrefixScan(ctx, 0, 255)
+	it, err = myIndex.PrefixScan(ctx, 0, 255)
 	require.NoError(t, err)
 	rowID, err = it.LoadNext(&loaded)
 	require.NoError(t, err)
@@ -51,13 +53,13 @@ func TestUInt64Index(t *testing.T) {
 	require.Equal(t, m, loaded)
 
 	// PrefixScan no match
-	it, err = idx.PrefixScan(ctx, indexedKey+1, 255)
+	it, err = myIndex.PrefixScan(ctx, indexedKey+1, 255)
 	require.NoError(t, err)
 	rowID, err = it.LoadNext(&loaded)
 	require.Error(t, ErrIteratorDone, err)
 
 	// ReversePrefixScan match
-	it, err = idx.ReversePrefixScan(ctx, 0, 255)
+	it, err = myIndex.ReversePrefixScan(ctx, 0, 255)
 	require.NoError(t, err)
 	rowID, err = it.LoadNext(&loaded)
 	require.NoError(t, err)
@@ -65,7 +67,7 @@ func TestUInt64Index(t *testing.T) {
 	require.Equal(t, m, loaded)
 
 	// ReversePrefixScan no match
-	it, err = idx.ReversePrefixScan(ctx, indexedKey+1, 255)
+	it, err = myIndex.ReversePrefixScan(ctx, indexedKey+1, 255)
 	require.NoError(t, err)
 	rowID, err = it.LoadNext(&loaded)
 	require.Error(t, ErrIteratorDone, err)
