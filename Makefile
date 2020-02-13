@@ -1,15 +1,11 @@
-PACKAGES_NOSIMULATION=$(shell go list ./...)
+# modules to build in CI
+SUBDIRS = incubator/orm
 
 test: test-unit
 
 test-unit:
-	@go test -mod=readonly $(PACKAGES_NOSIMULATION) -tags='ledger test_ledger_mock'
+	for dir in $(SUBDIRS); do \
+        $(MAKE) -C "$$dir" test; \
+    done
 
 .PHONY: test test-unit
-
-lint:
-	@echo "--> Running linter"
-	@golangci-lint run ./...
-	find . -name '*.go' -type f -not -path "./vendor*" -not -path "*.git*" | xargs gofmt -d -s
-	go mod verify
-.PHONY: lint
