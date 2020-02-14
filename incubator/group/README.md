@@ -34,9 +34,9 @@ Both of these values must be less than a chain-wide max voting window parameter.
 
 ### Threshold decision policy
 
-A threshold decision policy defines a threshold of yes votes that must be achieved
-in order to pass a proposal. For this decision policy, abstain and veto are
-simply treated as no's.
+A threshold decision policy defines a threshold of yes votes (based on a tally
+of voter weights) that must be achieved in order for a proposal to pass. For
+this decision policy, abstain and veto are simply treated as no's.
 
 ## Proposal
 
@@ -48,6 +48,9 @@ passes as well as any comment associated with the proposal.
 
 There are four choices to choose while voting - yes, no, abstain and veto. Not
 all decision policies will support them. Votes can contain an optional comment.
+During the voting window, accounts that have already voted may change their vote.
+In the current implementation, the voting window begins as soon as a proposal
+is submitted.
 
 ## Executing Proposals
 
