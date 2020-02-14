@@ -1,7 +1,6 @@
 package group
 
 import (
-	"encoding/binary"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/modules/incubator/orm"
 )
@@ -15,75 +14,51 @@ type keeper struct {
 
 	// Group Member Table
 	groupMemberTable         orm.NaturalKeyTable
-	groupMemberByGroupIndex  *orm.UInt64Index
+	groupMemberByGroupIndex  orm.UInt64Index
 	groupMemberByMemberIndex orm.Index
 
 	// Group Account Table
 	groupAccountTable        orm.NaturalKeyTable
-	groupAccountByGroupIndex *orm.UInt64Index
+	groupAccountByGroupIndex orm.UInt64Index
 	groupAccountByAdminIndex orm.Index
 
-	// Proposal Table
-	proposalTable               orm.AutoUInt64Table
-	proposalByGroupAccountIndex orm.Index
-	proposalByProposerIndex     orm.Index
+	// ProposalBase Table
+	ProposalBaseTable               orm.AutoUInt64Table
+	ProposalBaseByGroupAccountIndex orm.Index
+	ProposalBaseByProposerIndex     orm.Index
 
 	// Vote Table
 	voteTable           orm.NaturalKeyTable
-	voteByProposalIndex *orm.UInt64Index
+	voteByProposalBaseIndex orm.UInt64Index
 	voteByVoterIndex    orm.Index
 }
 
-func (g GroupMember) NaturalKey() []byte {
-	result := make([]byte, 0, 8 + len(g.Member))
-	// TODO: append uint64 to result as BigEndian
-	result = append(result, g.Member...)
-	return result
-}
-
-func (g GroupAccountMetadata) NaturalKey() []byte {
-	return g.GroupAccount
-}
-
-func (v Vote) NaturalKey() []byte {
-	result := make([]byte, 0, 8 + len(v.Voter))
-	// TODO: append uint64 to result as BigEndian
-	result = append(result, v.Voter...)
-	return result
-}
-
-var (
+const (
 	// Group Table
-	GroupTablePrefix               byte = 0x0
-	GroupTableSeqPrefix            byte = 0x1
-	GroupByAdminIndexPrefix        byte = 0x2
+	GroupTablePrefix        byte = 0x0
+	GroupTableSeqPrefix     byte = 0x1
+	GroupByAdminIndexPrefix byte = 0x2
 
 	// Group Member Table
-	GroupMemberTablePrefix         byte = 0x3
-	GroupMemberTableSeqPrefix      byte = 0x4
-	GroupMemberTableIndexPrefix    byte = 0x5
-	GroupMemberByGroupIndexPrefix  byte = 0x6
-	GroupMemberByMemberIndexPrefix byte = 0x7
+	GroupMemberTablePrefix byte = 0x10
+	GroupMemberByGroupIndexPrefix  byte = 0x11
+	GroupMemberByMemberIndexPrefix byte = 0x12
 
 	// Group Account Table
-	GroupAccountTablePrefix      byte = 0x8
-	GroupAccountTableSeqPrefix   byte = 0x9
-	GroupAccountTableIndexPrefix byte = 0x10
-	GroupAccountByGroupIndexPrefix byte = 0x11
-	GroupAccountByAdminIndexPrefix byte = 0x12
+	GroupAccountTablePrefix byte = 0x20
+	GroupAccountByGroupIndexPrefix byte = 0x21
+	GroupAccountByAdminIndexPrefix byte = 0x22
 
-	// Proposal Table
-	ProposalTablePrefix byte = 0x13
-	ProposalTableSeqPrefix byte = 0x14
-	ProposalByGroupAccountIndexPrefix byte = 0x15
-	ProposalByProposerIndexPrefix byte = 0x16
+	// ProposalBase Table
+	ProposalBaseTablePrefix               byte = 0x30
+	ProposalBaseTableSeqPrefix            byte = 0x31
+	ProposalBaseByGroupAccountIndexPrefix byte = 0x32
+	ProposalBaseByProposerIndexPrefix     byte = 0x33
 
 	// Vote Table
-	VoteTablePrefix byte = 0x17
-	VoteTableSeqPrefix byte = 0x18
-	VoteTableIndexPrefix byte = 0x19
-	VoteByProposalIndexPrefix byte = 0x20
-	VoteByVoterIndexPrefix byte = 0x21
+	VoteTablePrefix byte = 0x40
+	VoteByProposalBaseIndexPrefix byte = 0x41
+	VoteByVoterIndexPrefix    byte = 0x42
 )
 
 func NewGroupKeeper(storeKey sdk.StoreKey) keeper {
@@ -93,60 +68,67 @@ func NewGroupKeeper(storeKey sdk.StoreKey) keeper {
 	// Group Table
 	//
 	groupTableBuilder := orm.NewAutoUInt64TableBuilder(GroupTablePrefix, GroupTableSeqPrefix, storeKey, &GroupMetadata{})
-	k.groupByAdminIndex = orm.NewIndex(groupTableBuilder, GroupByAdminIndexPrefix, func(val interface{}) ([][]byte, error) {
-		return [][]byte{val.(*GroupMetadata).Admin}, nil
+	k.groupByAdminIndex = orm.NewIndex(groupTableBuilder, GroupByAdminIndexPrefix, func(val interface{}) ([]orm.RowID, error) {
+		return []orm.RowID{val.(*GroupMetadata).Admin.Bytes()}, nil
 	})
 	k.groupTable = groupTableBuilder.Build()
 
 	//
 	// Group Member Table
 	//
-	groupMemberTableBuilder := orm.NewNaturalKeyTableBuilder(GroupMemberTablePrefix, GroupMemberTableSeqPrefix, GroupMemberTableIndexPrefix, storeKey, &GroupMember{})
+	groupMemberTableBuilder := orm.NewNaturalKeyTableBuilder(GroupMemberTablePrefix, storeKey, &GroupMember{}, orm.FixLengthIndexKeys(8))
 	k.groupMemberByGroupIndex = orm.NewUInt64Index(groupMemberTableBuilder, GroupMemberByGroupIndexPrefix, func(val interface{}) ([]uint64, error) {
 		group := val.(*GroupMember).Group
 		return []uint64{uint64(group)}, nil
 	})
-	k.groupMemberByMemberIndex = orm.NewIndex(groupMemberTableBuilder, GroupMemberByMemberIndexPrefix, func(val interface{}) ([][]byte, error) {
-		return [][]byte{val.(*GroupMember).Member}, nil
+	k.groupMemberByMemberIndex = orm.NewIndex(groupMemberTableBuilder, GroupMemberByMemberIndexPrefix, func(val interface{}) ([]orm.RowID, error) {
+		member := val.(*GroupMember).Member
+		return []orm.RowID{member.Bytes()}, nil
 	})
 	k.groupMemberTable = groupMemberTableBuilder.Build()
 
 	//
 	// Group Account Table
 	//
-	groupAccountTableBuilder := orm.NewNaturalKeyTableBuilder(GroupAccountTablePrefix, GroupAccountTableSeqPrefix, GroupAccountTableIndexPrefix, storeKey, &GroupAccountMetadata{})
+	groupAccountTableBuilder := orm.NewNaturalKeyTableBuilder(GroupAccountTablePrefix, storeKey, &GroupAccountMetadataBase{}, orm.Max255DynamicLengthIndexKeyCodec{})
 	k.groupAccountByGroupIndex = orm.NewUInt64Index(groupAccountTableBuilder, GroupAccountByGroupIndexPrefix, func(value interface{}) ([]uint64, error) {
-		group := value.(*GroupAccountMetadata).Group
+		group := value.(*GroupAccountMetadataBase).Group
 		return []uint64{uint64(group)}, nil
 	})
-	k.groupAccountByAdminIndex = orm.NewIndex(groupAccountTableBuilder, GroupAccountByAdminIndexPrefix, func(value interface{}) ([][]byte, error) {
-		admin := value.(*GroupAccountMetadata).Admin
-		return [][]byte{admin}, nil
+	k.groupAccountByAdminIndex = orm.NewIndex(groupAccountTableBuilder, GroupAccountByAdminIndexPrefix, func(value interface{}) ([]orm.RowID, error) {
+		admin := value.(*GroupAccountMetadataBase).Admin
+		return []orm.RowID{admin.Bytes()}, nil
 	})
 	k.groupAccountTable = groupAccountTableBuilder.Build()
 
 	//
-	// Proposal Table
+	// ProposalBase Table
 	//
-	proposalTableBuilder := orm.NewAutoUInt64TableBuilder(ProposalTablePrefix, ProposalTableSeqPrefix, storeKey, &Proposal{})
-	k.proposalByGroupAccountIndex = orm.NewIndex(proposalTableBuilder, ProposalByGroupAccountIndexPrefix, func(value interface{}) ([][]byte, error) {
-		return [][]byte{value.(*Proposal).GroupAccount}, nil
+	ProposalBaseTableBuilder := orm.NewAutoUInt64TableBuilder(ProposalBaseTablePrefix, ProposalBaseTableSeqPrefix, storeKey, &ProposalBase{})
+	k.ProposalBaseByGroupAccountIndex = orm.NewIndex(ProposalBaseTableBuilder, ProposalBaseByGroupAccountIndexPrefix, func(value interface{}) ([]orm.RowID, error) {
+		account := value.(*ProposalBase).GroupAccount
+		return []orm.RowID{account.Bytes()}, nil
 
 	})
-	k.proposalByProposerIndex = orm.NewIndex(proposalTableBuilder, ProposalByProposerIndexPrefix, func(value interface{}) ([][]byte, error) {
-		return value.(*Proposal).Proposers, nil
+	k.ProposalBaseByProposerIndex = orm.NewIndex(ProposalBaseTableBuilder, ProposalBaseByProposerIndexPrefix, func(value interface{}) ([]orm.RowID, error) {
+		proposers := value.(*ProposalBase).Proposers
+		r := make([]orm.RowID, len(proposers))
+		for i := range proposers {
+			r[i] = proposers[i].Bytes()
+		}
+		return r, nil
 	})
-	k.proposalTable = proposalTableBuilder.Build()
+	k.ProposalBaseTable = ProposalBaseTableBuilder.Build()
 
 	//
 	// Vote Table
 	//
-	voteTableBuilder := orm.NewNaturalKeyTableBuilder(VoteTablePrefix, VoteTableSeqPrefix, VoteTableIndexPrefix, storeKey, &Vote{})
-	k.voteByProposalIndex = orm.NewUInt64Index(voteTableBuilder, VoteByProposalIndexPrefix, func(value interface{}) ([]uint64, error) {
+	voteTableBuilder := orm.NewNaturalKeyTableBuilder(VoteTablePrefix, storeKey, &Vote{}, orm.Max255DynamicLengthIndexKeyCodec{})
+	k.voteByProposalBaseIndex = orm.NewUInt64Index(voteTableBuilder, VoteByProposalBaseIndexPrefix, func(value interface{}) ([]uint64, error) {
 		return []uint64{uint64(value.(*Vote).Proposal)}, nil
 	})
-	k.voteByVoterIndex = orm.NewIndex(voteTableBuilder, VoteByVoterIndexPrefix, func(value interface{}) ([][]byte, error) {
-		return [][]byte{value.(*Vote).Voter}, nil
+	k.voteByVoterIndex = orm.NewIndex(voteTableBuilder, VoteByVoterIndexPrefix, func(value interface{}) ([]orm.RowID, error) {
+		return []orm.RowID{value.(*Vote).Voter.Bytes()}, nil
 	})
 	k.voteTable = voteTableBuilder.Build()
 
@@ -166,15 +148,15 @@ type Keeper interface {
 	UpdateGroupAccountDecisionPolicy(ctx sdk.Context, groupAcc sdk.AccAddress, newPolicy DecisionPolicy) error
 	UpdateGroupAccountComment(ctx sdk.Context, groupAcc sdk.AccAddress, newComment string) error
 
-	// Proposals
+	// ProposalBases
 
-	// Propose returns a new proposal ID and a populated sdk.Result which could return an error
+	// Propose returns a new ProposalBase ID and a populated sdk.Result which could return an error
 	// or the result of execution if execNow was set to true
 	Propose(ctx sdk.Context, groupAcc sdk.AccAddress, approvers []sdk.AccAddress, msgs []sdk.Msg, comment string, execNow bool) (id ProposalID, execResult sdk.Result)
 
 	Vote(ctx sdk.Context, id ProposalID, voters []sdk.AccAddress, choice Choice) error
 
-	// Exec attempts to execute the specified proposal. If the proposal is in a valid
+	// Exec attempts to execute the specified ProposalBase. If the ProposalBase is in a valid
 	// state and has enough approvals, then it will be executed and its result will be
 	// returned, otherwise the result will contain an error
 	Exec(ctx sdk.Context, id ProposalID) sdk.Result

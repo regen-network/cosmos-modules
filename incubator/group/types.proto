@@ -4,23 +4,23 @@ package cosmos_modules.incubator.group.v1_alpha;
 
 option go_package = "github.com/cosmos/modules/incubator/group";
 
+import "gogoproto/gogo.proto";
 import "google/protobuf/duration.proto";
 import "google/protobuf/timestamp.proto";
-import "vendor/github.com/gogo/protobuf/gogoproto/gogo.proto";
 
 message Msg {
-    oneof sum {
-        MsgCreateGroup create_group = 1; // returns uint64 GroupID
-        MsgUpdateGroupMembers update_group_members = 2;
-        MsgUpdateGroupAdmin update_group_admin = 3;
-        MsgUpdateGroupComment update_group_comment = 4;
-        MsgCreateGroupAccountStd create_group_account = 5; // returns sdk.AccAddress
-        MsgUpdateGroupAccountAdmin update_group_account_admin = 6;
-        MsgUpdateGroupAccountDecisionPolicyStd update_group_account_decision_policy = 7;
-        MsgUpdateGroupAccountComment update_group_account_comment = 8;
-        MsgVote vote = 9;
-        MsgExec exec = 10;
-    }
+  oneof sum {
+    MsgCreateGroup create_group = 1; // returns uint64 GroupID
+    MsgUpdateGroupMembers update_group_members = 2;
+    MsgUpdateGroupAdmin update_group_admin = 3;
+    MsgUpdateGroupComment update_group_comment = 4;
+    MsgCreateGroupAccountStd create_group_account = 5; // returns sdk.AccAddress
+    MsgUpdateGroupAccountAdmin update_group_account_admin = 6;
+    MsgUpdateGroupAccountDecisionPolicyStd update_group_account_decision_policy = 7;
+    MsgUpdateGroupAccountComment update_group_account_comment = 8;
+    MsgVote vote = 9;
+    MsgExec exec = 10;
+  }
 }
 
 //
@@ -28,33 +28,33 @@ message Msg {
 //
 
 message MsgCreateGroup {
-    bytes admin = 1 [(gogoproto.casttype) = "github.com/cosmos/cosmos-sdk/types.AccAddress"];
-    repeated Member members = 2;
-    string comment = 3;
+  bytes admin = 1 [(gogoproto.casttype) = "github.com/cosmos/cosmos-sdk/types.AccAddress"];
+  repeated Member members = 2;
+  string comment = 3;
 }
 
 message MsgUpdateGroupMembers {
-    bytes admin = 1 [(gogoproto.casttype) = "github.com/cosmos/cosmos-sdk/types.AccAddress"];
-    uint64 group = 2 [(gogoproto.casttype) = "GroupID"];
-    repeated Member member_updates = 3; // set power to 0 to remove
+  bytes admin = 1 [(gogoproto.casttype) = "github.com/cosmos/cosmos-sdk/types.AccAddress"];
+  uint64 group = 2 [(gogoproto.casttype) = "GroupID"];
+  repeated Member member_updates = 3; // set power to 0 to remove
 }
 
 message MsgUpdateGroupAdmin {
-    bytes admin = 1 [(gogoproto.casttype) = "github.com/cosmos/cosmos-sdk/types.AccAddress"];
-    uint64 group = 2 [(gogoproto.casttype) = "GroupID"];
-    bytes new_admin = 3 [(gogoproto.casttype) = "github.com/cosmos/cosmos-sdk/types.AccAddress"];
+  bytes admin = 1 [(gogoproto.casttype) = "github.com/cosmos/cosmos-sdk/types.AccAddress"];
+  uint64 group = 2 [(gogoproto.casttype) = "GroupID"];
+  bytes new_admin = 3 [(gogoproto.casttype) = "github.com/cosmos/cosmos-sdk/types.AccAddress"];
 }
 
 message MsgUpdateGroupComment {
-    bytes admin = 1 [(gogoproto.casttype) = "github.com/cosmos/cosmos-sdk/types.AccAddress"];
-    uint64 group = 2 [(gogoproto.casttype) = "GroupID"];
-    string comment = 3;
+  bytes admin = 1 [(gogoproto.casttype) = "github.com/cosmos/cosmos-sdk/types.AccAddress"];
+  uint64 group = 2 [(gogoproto.casttype) = "GroupID"];
+  string comment = 3;
 }
 
 message Member {
-    bytes address = 1 [(gogoproto.casttype) = "github.com/cosmos/cosmos-sdk/types.AccAddress"];
-    string power = 2 [(gogoproto.customtype) = "github.com/cosmos/cosmos-sdk/types.Dec"];
-    string comment = 3;
+  bytes address = 1 [(gogoproto.casttype) = "github.com/cosmos/cosmos-sdk/types.AccAddress"];
+  string power = 2 [(gogoproto.customtype) = "github.com/cosmos/cosmos-sdk/types.Dec"];
+  string comment = 3;
 }
 
 //
@@ -62,41 +62,41 @@ message Member {
 //
 
 message MsgCreateGroupAccountBase {
-    bytes admin = 1 [(gogoproto.casttype) = "github.com/cosmos/cosmos-sdk/types.AccAddress"];
-    uint64 group = 2 [(gogoproto.casttype) = "GroupID"];
-    string comment = 3;
+  bytes admin = 1 [(gogoproto.casttype) = "github.com/cosmos/cosmos-sdk/types.AccAddress"];
+  uint64 group = 2 [(gogoproto.casttype) = "GroupID"];
+  string comment = 3;
 }
 
 // MsgCreateGroupAccountStd creates a group account using one of the members of StdDecisionPolicy. Apps can
 // create their own create account msg that supports custom DecisionPolicy's using MsgCreateGroupAccountBase as
 // starting point
 message MsgCreateGroupAccountStd {
-    MsgCreateGroupAccountBase base = 1;
-    StdDecisionPolicy decision_policy = 2;
+  MsgCreateGroupAccountBase base = 1;
+  StdDecisionPolicy decision_policy = 2;
 }
 
 message MsgUpdateGroupAccountAdmin {
-    bytes admin = 1 [(gogoproto.casttype) = "github.com/cosmos/cosmos-sdk/types.AccAddress"];
-    bytes group_acount = 2 [(gogoproto.casttype) = "github.com/cosmos/cosmos-sdk/types.AccAddress"];
-    bytes new_admin = 3 [(gogoproto.casttype) = "github.com/cosmos/cosmos-sdk/types.AccAddress"];
+  bytes admin = 1 [(gogoproto.casttype) = "github.com/cosmos/cosmos-sdk/types.AccAddress"];
+  bytes group_acount = 2 [(gogoproto.casttype) = "github.com/cosmos/cosmos-sdk/types.AccAddress"];
+  bytes new_admin = 3 [(gogoproto.casttype) = "github.com/cosmos/cosmos-sdk/types.AccAddress"];
 }
 
 message MsgUpdateGroupAccountBase {
-    bytes admin = 1 [(gogoproto.casttype) = "github.com/cosmos/cosmos-sdk/types.AccAddress"];
-    uint64 group = 2 [(gogoproto.casttype) = "GroupID"];
+  bytes admin = 1 [(gogoproto.casttype) = "github.com/cosmos/cosmos-sdk/types.AccAddress"];
+  uint64 group = 2 [(gogoproto.casttype) = "GroupID"];
 }
 
 // MsgCreateGroupAccountStd allows a group account decision policy to be updated to a member of StdDecisionPolicy, can
 // be overridden to support custom DecisionPolicy's by apps.
 message MsgUpdateGroupAccountDecisionPolicyStd {
-    MsgUpdateGroupAccountBase base = 1;
-    StdDecisionPolicy decision_policy = 3;
+  MsgUpdateGroupAccountBase base = 1;
+  StdDecisionPolicy decision_policy = 3;
 }
 
 message MsgUpdateGroupAccountComment {
-    bytes admin = 1 [(gogoproto.casttype) = "github.com/cosmos/cosmos-sdk/types.AccAddress"];
-    bytes group_acount = 2 [(gogoproto.casttype) = "github.com/cosmos/cosmos-sdk/types.AccAddress"];
-    string comment = 3;
+  bytes admin = 1 [(gogoproto.casttype) = "github.com/cosmos/cosmos-sdk/types.AccAddress"];
+  bytes group_acount = 2 [(gogoproto.casttype) = "github.com/cosmos/cosmos-sdk/types.AccAddress"];
+  string comment = 3;
 }
 
 // StdDecisionPolicy is a set of standard decision policies that can be used by zones that do not implement custom
@@ -105,15 +105,15 @@ message MsgUpdateGroupAccountComment {
 // MyAppDecisionPolicy should include all the existing StdDecisionPolicy types with the same field number and then
 // add custom DecisionPolicy types afterwards.
 message StdDecisionPolicy {
-    oneof sum {
-        ThresholdDecisionPolicy threshold = 1;
-    }
+  oneof sum {
+    ThresholdDecisionPolicy threshold = 1;
+  }
 }
 
 message ThresholdDecisionPolicy {
-    string threshold = 1 [(gogoproto.customtype) = "github.com/cosmos/cosmos-sdk/types.Dec"];
-    google.protobuf.Duration min_voting_window = 2;
-    google.protobuf.Duration max_voting_window = 3;
+  string threshold = 1 [(gogoproto.customtype) = "github.com/cosmos/cosmos-sdk/types.Dec"];
+  google.protobuf.Duration min_voting_window = 2;
+  google.protobuf.Duration max_voting_window = 3;
 }
 
 //
@@ -129,33 +129,33 @@ message ThresholdDecisionPolicy {
 //   repeated MyAppMsg msgs = 2;
 // }
 message MsgProposeBase {
-    bytes group_account = 1 [(gogoproto.casttype) = "github.com/cosmos/cosmos-sdk/types.AccAddress"];
-    // Proposers signatures will be counted as yes votes
-    repeated bytes proposers = 2 [(gogoproto.casttype) = "github.com/cosmos/cosmos-sdk/types.AccAddress"];
-    string comment = 3;
-    // ExecNow will attempt to execute the proposal immediately based on
-    // the proposers signing the transaction
-    bool exec_now = 4;
+  bytes group_account = 1 [(gogoproto.casttype) = "github.com/cosmos/cosmos-sdk/types.AccAddress"];
+  // Proposers signatures will be counted as yes votes
+  repeated bytes proposers = 2 [(gogoproto.casttype) = "github.com/cosmos/cosmos-sdk/types.AccAddress"];
+  string comment = 3;
+  // ExecNow will attempt to execute the proposal immediately based on
+  // the proposers signing the transaction
+  bool exec_now = 4;
 }
 
 enum Choice {
-    UNKNOWN = 0;
-    NO = 1;
-    YES = 2;
-    ABSTAIN = 3;
-    VETO = 4;
+  UNKNOWN = 0;
+  NO = 1;
+  YES = 2;
+  ABSTAIN = 3;
+  VETO = 4;
 }
 
 message MsgVote {
-    uint64 proposal = 1 [(gogoproto.casttype) = "ProposalID"];
-    repeated bytes voters = 2 [(gogoproto.casttype) = "github.com/cosmos/cosmos-sdk/types.AccAddress"];
-    Choice choice = 3;
-    string comment = 4;
+  uint64 proposal = 1 [(gogoproto.casttype) = "ProposalID"];
+  repeated bytes voters = 2 [(gogoproto.casttype) = "github.com/cosmos/cosmos-sdk/types.AccAddress"];
+  Choice choice = 3;
+  string comment = 4;
 }
 
 message MsgExec {
-    uint64 proposal = 1 [(gogoproto.casttype) = "ProposalID"];
-    bytes signer = 2 [(gogoproto.casttype) = "github.com/cosmos/cosmos-sdk/types.AccAddress"];
+  uint64 proposal = 1 [(gogoproto.casttype) = "ProposalID"];
+  bytes signer = 2 [(gogoproto.casttype) = "github.com/cosmos/cosmos-sdk/types.AccAddress"];
 }
 
 //
@@ -163,20 +163,20 @@ message MsgExec {
 //
 
 message GroupMetadata {
-    uint64 group = 1 [(gogoproto.casttype) = "GroupID"];
-    bytes admin = 2 [(gogoproto.casttype) = "github.com/cosmos/cosmos-sdk/types.AccAddress"];
-    string comment = 3;
-    // version is used to track changes to a group's membership structure that
-    // would break existing proposals. Whenever any members power is changed,
-    // or any member is added or removed this version is incremented and will
-    // cause proposals based on older versions of this group to fail
-    uint64 version = 4;
+  uint64 group = 1 [(gogoproto.casttype) = "GroupID"];
+  bytes admin = 2 [(gogoproto.casttype) = "github.com/cosmos/cosmos-sdk/types.AccAddress"];
+  string comment = 3;
+  // version is used to track changes to a group's membership structure that
+  // would break existing proposals. Whenever any members power is changed,
+  // or any member is added or removed this version is incremented and will
+  // cause proposals based on older versions of this group to fail
+  uint64 version = 4;
 }
 
 message GroupMember {
-    uint64 group = 1 [(gogoproto.casttype) = "GroupID"];
-    bytes member = 2 [(gogoproto.casttype) = "github.com/cosmos/cosmos-sdk/types.AccAddress"];
-    string weight = 3 [(gogoproto.customtype) = "github.com/cosmos/cosmos-sdk/types.Dec"];
+  uint64 group = 1 [(gogoproto.casttype) = "GroupID"];
+  bytes member = 2 [(gogoproto.casttype) = "github.com/cosmos/cosmos-sdk/types.AccAddress"];
+  string weight = 3 [(gogoproto.customtype) = "github.com/cosmos/cosmos-sdk/types.Dec"];
 }
 
 // GroupAccountMetadataBase is the base message that app's should use to specify group account metadata based on the
@@ -190,19 +190,18 @@ message GroupMember {
 //
 // App's which do not implement custom DecisionPolicy's can use StdGroupAccountMetadata.
 message GroupAccountMetadataBase {
-    bytes group_account = 1 [(gogoproto.casttype) = "github.com/cosmos/cosmos-sdk/types.AccAddress"];
-    uint64 group = 2 [(gogoproto.casttype) = "GroupID"];
-    bytes admin = 3 [(gogoproto.casttype) = "github.com/cosmos/cosmos-sdk/types.AccAddress"];
-    string comment = 4;
+  bytes group_account = 1 [(gogoproto.casttype) = "github.com/cosmos/cosmos-sdk/types.AccAddress"];
+  uint64 group = 2 [(gogoproto.casttype) = "GroupID"];
+  bytes admin = 3 [(gogoproto.casttype) = "github.com/cosmos/cosmos-sdk/types.AccAddress"];
+  string comment = 4;
 }
 
 // StdGroupAccountMetadata is a default group account metadata type to be used by apps which do not implement custom
 // DecisionPolicy's.
 message StdGroupAccountMetadata {
-    GroupAccountMetadataBase base = 1;
-    StdDecisionPolicy decision_policy = 2;
+  GroupAccountMetadataBase base = 1;
+  StdDecisionPolicy decision_policy = 2;
 }
-
 
 // ProposalBase is the base proposal type that app should use to implement a Proposal type based
 // on their app Msg type.
@@ -213,26 +212,26 @@ message StdGroupAccountMetadata {
 //   repeated MyAppMsg msgs = 2;
 // }
 message ProposalBase {
-    bytes group_account = 1 [(gogoproto.casttype) = "github.com/cosmos/cosmos-sdk/types.AccAddress"];
-    string comment = 2;
-    repeated bytes proposers = 3 [(gogoproto.casttype) = "github.com/cosmos/cosmos-sdk/types.AccAddress"];
-    google.protobuf.Timestamp submitted_at = 4;
-    // GroupVersion tracks the version of the group that this proposal corresponds to. When group membership is changed
-    // existing proposals for prior group versions will become invalid.
-    uint64 group_version = 5;
+  bytes group_account = 1 [(gogoproto.casttype) = "github.com/cosmos/cosmos-sdk/types.AccAddress"];
+  string comment = 2;
+  repeated bytes proposers = 3 [(gogoproto.casttype) = "github.com/cosmos/cosmos-sdk/types.AccAddress"];
+  google.protobuf.Timestamp submitted_at = 4;
+  // GroupVersion tracks the version of the group that this proposal corresponds to. When group membership is changed
+  // existing proposals for prior group versions will become invalid.
+  uint64 group_version = 5;
 }
 
 message Tally {
-    string yes_count = 1 [(gogoproto.customtype) = "github.com/cosmos/cosmos-sdk/types.Dec"];
-    string no_count = 2 [(gogoproto.customtype) = "github.com/cosmos/cosmos-sdk/types.Dec"];
-    string abstain_count = 3 [(gogoproto.customtype) = "github.com/cosmos/cosmos-sdk/types.Dec"];
-    string veto_count = 4 [(gogoproto.customtype) = "github.com/cosmos/cosmos-sdk/types.Dec"];
+  string yes_count = 1 [(gogoproto.customtype) = "github.com/cosmos/cosmos-sdk/types.Dec"];
+  string no_count = 2 [(gogoproto.customtype) = "github.com/cosmos/cosmos-sdk/types.Dec"];
+  string abstain_count = 3 [(gogoproto.customtype) = "github.com/cosmos/cosmos-sdk/types.Dec"];
+  string veto_count = 4 [(gogoproto.customtype) = "github.com/cosmos/cosmos-sdk/types.Dec"];
 }
 
 message Vote {
-    uint64 proposal = 1 [(gogoproto.casttype) = "ProposalID"];
-    bytes voter = 2 [(gogoproto.casttype) = "github.com/cosmos/cosmos-sdk/types.AccAddress"];
-    Choice choice = 3;
-    string comment = 4;
-    google.protobuf.Timestamp submitted_at = 5;
+  uint64 proposal = 1 [(gogoproto.casttype) = "ProposalID"];
+  bytes voter = 2 [(gogoproto.casttype) = "github.com/cosmos/cosmos-sdk/types.AccAddress"];
+  Choice choice = 3;
+  string comment = 4;
+  google.protobuf.Timestamp submitted_at = 5;
 }
