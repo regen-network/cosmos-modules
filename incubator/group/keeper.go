@@ -28,9 +28,9 @@ type keeper struct {
 	ProposalBaseByProposerIndex     orm.Index
 
 	// Vote Table
-	voteTable           orm.NaturalKeyTable
+	voteTable               orm.NaturalKeyTable
 	voteByProposalBaseIndex orm.UInt64Index
-	voteByVoterIndex    orm.Index
+	voteByVoterIndex        orm.Index
 }
 
 const (
@@ -40,12 +40,12 @@ const (
 	GroupByAdminIndexPrefix byte = 0x2
 
 	// Group Member Table
-	GroupMemberTablePrefix byte = 0x10
+	GroupMemberTablePrefix         byte = 0x10
 	GroupMemberByGroupIndexPrefix  byte = 0x11
 	GroupMemberByMemberIndexPrefix byte = 0x12
 
 	// Group Account Table
-	GroupAccountTablePrefix byte = 0x20
+	GroupAccountTablePrefix        byte = 0x20
 	GroupAccountByGroupIndexPrefix byte = 0x21
 	GroupAccountByAdminIndexPrefix byte = 0x22
 
@@ -56,9 +56,9 @@ const (
 	ProposalBaseByProposerIndexPrefix     byte = 0x33
 
 	// Vote Table
-	VoteTablePrefix byte = 0x40
+	VoteTablePrefix               byte = 0x40
 	VoteByProposalBaseIndexPrefix byte = 0x41
-	VoteByVoterIndexPrefix    byte = 0x42
+	VoteByVoterIndexPrefix        byte = 0x42
 )
 
 func NewGroupKeeper(storeKey sdk.StoreKey) keeper {
