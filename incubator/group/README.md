@@ -40,9 +40,9 @@ simply treated as no's.
 
 ## Proposal
 
-Any account can submit a proposal for a group account to decide upon. A proposal
-consists of a set of `sdk.Msg`s that will be executed if the proposal passes
-as well as any comment associated with the proposal.
+Any member of a group can submit a proposal for a group account to decide upon.
+A proposal consists of a set of `sdk.Msg`s that will be executed if the proposal
+passes as well as any comment associated with the proposal.
 
 ## Voting
 

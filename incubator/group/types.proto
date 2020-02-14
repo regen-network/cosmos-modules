@@ -6,7 +6,6 @@ option go_package = "github.com/cosmos/modules/incubator/group";
 
 import "google/protobuf/duration.proto";
 import "google/protobuf/timestamp.proto";
-import "google/protobuf/any.proto";
 import "vendor/github.com/gogo/protobuf/gogoproto/gogo.proto";
 
 message Msg {
@@ -15,13 +14,12 @@ message Msg {
         MsgUpdateGroupMembers update_group_members = 2;
         MsgUpdateGroupAdmin update_group_admin = 3;
         MsgUpdateGroupComment update_group_comment = 4;
-        MsgCreateGroupAccount create_group_account = 5; // returns sdk.AccAddress
+        MsgCreateGroupAccountStd create_group_account = 5; // returns sdk.AccAddress
         MsgUpdateGroupAccountAdmin update_group_account_admin = 6;
-        MsgUpdateGroupAccountDecisionPolicy update_group_account_decision_policy = 7;
+        MsgUpdateGroupAccountDecisionPolicyStd update_group_account_decision_policy = 7;
         MsgUpdateGroupAccountComment update_group_account_comment = 8;
-        MsgPropose propose = 9;
-        MsgVote vote = 10;
-        MsgExec exec = 11;
+        MsgVote vote = 9;
+        MsgExec exec = 10;
     }
 }
 
@@ -63,11 +61,18 @@ message Member {
 // Group Accounts
 //
 
-message MsgCreateGroupAccount {
+message MsgCreateGroupAccountBase {
     bytes admin = 1 [(gogoproto.casttype) = "github.com/cosmos/cosmos-sdk/types.AccAddress"];
     uint64 group = 2 [(gogoproto.casttype) = "GroupID"];
-    google.protobuf.Any decision_policy = 3;
-    string comment = 4;
+    string comment = 3;
+}
+
+// MsgCreateGroupAccountStd creates a group account using one of the members of StdDecisionPolicy. Apps can
+// create their own create account msg that supports custom DecisionPolicy's using MsgCreateGroupAccountBase as
+// starting point
+message MsgCreateGroupAccountStd {
+    MsgCreateGroupAccountBase base = 1;
+    StdDecisionPolicy decision_policy = 2;
 }
 
 message MsgUpdateGroupAccountAdmin {
@@ -76,16 +81,33 @@ message MsgUpdateGroupAccountAdmin {
     bytes new_admin = 3 [(gogoproto.casttype) = "github.com/cosmos/cosmos-sdk/types.AccAddress"];
 }
 
-message MsgUpdateGroupAccountDecisionPolicy {
+message MsgUpdateGroupAccountBase {
     bytes admin = 1 [(gogoproto.casttype) = "github.com/cosmos/cosmos-sdk/types.AccAddress"];
-    bytes group_acount = 2 [(gogoproto.casttype) = "github.com/cosmos/cosmos-sdk/types.AccAddress"];
-    google.protobuf.Any decision_policy = 3;
+    uint64 group = 2 [(gogoproto.casttype) = "GroupID"];
+}
+
+// MsgCreateGroupAccountStd allows a group account decision policy to be updated to a member of StdDecisionPolicy, can
+// be overridden to support custom DecisionPolicy's by apps.
+message MsgUpdateGroupAccountDecisionPolicyStd {
+    MsgUpdateGroupAccountBase base = 1;
+    StdDecisionPolicy decision_policy = 3;
 }
 
 message MsgUpdateGroupAccountComment {
     bytes admin = 1 [(gogoproto.casttype) = "github.com/cosmos/cosmos-sdk/types.AccAddress"];
     bytes group_acount = 2 [(gogoproto.casttype) = "github.com/cosmos/cosmos-sdk/types.AccAddress"];
     string comment = 3;
+}
+
+// StdDecisionPolicy is a set of standard decision policies that can be used by zones that do not implement custom
+// DecisionPolicy types. Apps can start with StdDecisionPolicy and later add custom DecisionPolicy's by creating
+// a MyAppDecisionPolicy and registering that with the group module codec. In order to be backwards compatible,
+// MyAppDecisionPolicy should include all the existing StdDecisionPolicy types with the same field number and then
+// add custom DecisionPolicy types afterwards.
+message StdDecisionPolicy {
+    oneof sum {
+        ThresholdDecisionPolicy threshold = 1;
+    }
 }
 
 message ThresholdDecisionPolicy {
@@ -98,22 +120,30 @@ message ThresholdDecisionPolicy {
 // Proposals and Voting
 //
 
-message MsgPropose {
+// MsgProposeBase is the base propose msg that app should use to implement a MsgPropose type based
+// on their app Msg type.
+//
+// Ex:
+// message MsgPropose {
+//   MsgProposeBase base = 1;
+//   repeated MyAppMsg msgs = 2;
+// }
+message MsgProposeBase {
     bytes group_account = 1 [(gogoproto.casttype) = "github.com/cosmos/cosmos-sdk/types.AccAddress"];
     // Proposers signatures will be counted as yes votes
     repeated bytes proposers = 2 [(gogoproto.casttype) = "github.com/cosmos/cosmos-sdk/types.AccAddress"];
-    repeated google.protobuf.Any msgs= 3; // []sdk.Msg
-    string comment = 4;
+    string comment = 3;
     // ExecNow will attempt to execute the proposal immediately based on
     // the proposers signing the transaction
-    bool exec_now = 5;
+    bool exec_now = 4;
 }
 
 enum Choice {
-    NO = 0;
-    YES = 1;
-    ABSTAIN = 2;
-    VETO = 3;
+    UNKNOWN = 0;
+    NO = 1;
+    YES = 2;
+    ABSTAIN = 3;
+    VETO = 4;
 }
 
 message MsgVote {
@@ -149,20 +179,47 @@ message GroupMember {
     string weight = 3 [(gogoproto.customtype) = "github.com/cosmos/cosmos-sdk/types.Dec"];
 }
 
-message GroupAccountMetadata {
+// GroupAccountMetadataBase is the base message that app's should use to specify group account metadata based on the
+// DecisionPolicy's they support.
+//
+// Ex:
+// message MyAppGroupAccountMetadata {
+//     GroupAccountMetadataBase base = 1;
+//     MyAppDecisionPolicy decision_policy = 2;
+// }
+//
+// App's which do not implement custom DecisionPolicy's can use StdGroupAccountMetadata.
+message GroupAccountMetadataBase {
     bytes group_account = 1 [(gogoproto.casttype) = "github.com/cosmos/cosmos-sdk/types.AccAddress"];
     uint64 group = 2 [(gogoproto.casttype) = "GroupID"];
     bytes admin = 3 [(gogoproto.casttype) = "github.com/cosmos/cosmos-sdk/types.AccAddress"];
     string comment = 4;
-    google.protobuf.Any decision_policy = 5;
 }
 
-message Proposal {
+// StdGroupAccountMetadata is a default group account metadata type to be used by apps which do not implement custom
+// DecisionPolicy's.
+message StdGroupAccountMetadata {
+    GroupAccountMetadataBase base = 1;
+    StdDecisionPolicy decision_policy = 2;
+}
+
+
+// ProposalBase is the base proposal type that app should use to implement a Proposal type based
+// on their app Msg type.
+//
+// Ex:
+// message MyAppProposal {
+//   ProposalBase base = 1;
+//   repeated MyAppMsg msgs = 2;
+// }
+message ProposalBase {
     bytes group_account = 1 [(gogoproto.casttype) = "github.com/cosmos/cosmos-sdk/types.AccAddress"];
-    repeated google.protobuf.Any msg = 2; // []sdk.Msg
-    string comment = 3;
-    repeated bytes proposers = 5 [(gogoproto.casttype) = "github.com/cosmos/cosmos-sdk/types.AccAddress"];
-    google.protobuf.Timestamp submitted_at = 6;
+    string comment = 2;
+    repeated bytes proposers = 3 [(gogoproto.casttype) = "github.com/cosmos/cosmos-sdk/types.AccAddress"];
+    google.protobuf.Timestamp submitted_at = 4;
+    // GroupVersion tracks the version of the group that this proposal corresponds to. When group membership is changed
+    // existing proposals for prior group versions will become invalid.
+    uint64 group_version = 5;
 }
 
 message Tally {
