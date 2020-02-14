@@ -35,8 +35,8 @@ type keeper struct {
 }
 
 func (g GroupMember) NaturalKey() []byte {
-	result := make([]byte, 0, binary.MaxVarintLen64+len(g.Member))
-	binary.PutUvarint(result, uint64(g.Group))
+	result := make([]byte, 0, 8 + len(g.Member))
+	// TODO: append uint64 to result as BigEndian
 	result = append(result, g.Member...)
 	return result
 }
@@ -46,8 +46,8 @@ func (g GroupAccountMetadata) NaturalKey() []byte {
 }
 
 func (v Vote) NaturalKey() []byte {
-	result := make([]byte, 0, binary.MaxVarintLen64+len(v.Voter))
-	binary.PutUvarint(result, uint64(v.Proposal))
+	result := make([]byte, 0, 8 + len(v.Voter))
+	// TODO: append uint64 to result as BigEndian
 	result = append(result, v.Voter...)
 	return result
 }
