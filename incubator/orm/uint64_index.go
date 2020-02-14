@@ -20,12 +20,12 @@ func UInt64MultiKeyAdapter(indexer UInt64IndexerFunc) IndexerFunc {
 
 // UInt64Index is a typed index.
 type UInt64Index struct {
-	multiKeyIndex *MultiKeyIndex
+	multiKeyIndex MultiKeyIndex
 }
 
 // NewUInt64Index creates a typed secondary index
-func NewUInt64Index(builder Indexable, prefix byte, indexer UInt64IndexerFunc) *UInt64Index {
-	return &UInt64Index{
+func NewUInt64Index(builder Indexable, prefix byte, indexer UInt64IndexerFunc) UInt64Index {
+	return UInt64Index{
 		multiKeyIndex: NewIndex(builder, prefix, UInt64MultiKeyAdapter(indexer)),
 	}
 }
