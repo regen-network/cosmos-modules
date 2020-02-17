@@ -16,14 +16,14 @@ type Sequence struct {
 	prefix   byte
 }
 
-func NewSequence(storeKey sdk.StoreKey, prefix byte) *Sequence {
-	return &Sequence{
+func NewSequence(storeKey sdk.StoreKey, prefix byte) Sequence {
+	return Sequence{
 		prefix:   prefix,
 		storeKey: storeKey,
 	}
 }
 
-// NextVal increments the counter by one and returns the value.
+// NextVal increments and persists the counter by one and returns the value.
 func (s Sequence) NextVal(ctx HasKVStore) uint64 {
 	store := prefix.NewStore(ctx.KVStore(s.storeKey), []byte{s.prefix})
 	v := store.Get(sequenceStorageKey)
@@ -33,11 +33,18 @@ func (s Sequence) NextVal(ctx HasKVStore) uint64 {
 	return seq
 }
 
-// CurVal returns the last value used. 0Nex if none.
+// CurVal returns the last value used. 0 if none.
 func (s Sequence) CurVal(ctx HasKVStore) uint64 {
 	store := prefix.NewStore(ctx.KVStore(s.storeKey), []byte{s.prefix})
 	v := store.Get(sequenceStorageKey)
 	return DecodeSequence(v)
+}
+
+// PeekNextVal returns the CurVal + increment step. Not persistent.
+func (s Sequence) PeekNextVal(ctx HasKVStore) uint64 {
+	store := prefix.NewStore(ctx.KVStore(s.storeKey), []byte{s.prefix})
+	v := store.Get(sequenceStorageKey)
+	return DecodeSequence(v) + 1
 }
 
 // DecodeSequence converts the binary representation into an Uint64 value.

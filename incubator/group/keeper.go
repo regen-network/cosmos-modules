@@ -2,36 +2,9 @@ package group
 
 import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	"github.com/cosmos/cosmos-sdk/types/errors"
 	"github.com/cosmos/modules/incubator/orm"
 )
-
-type keeper struct {
-	key sdk.StoreKey
-
-	// Group Table
-	groupTable        orm.AutoUInt64Table
-	groupByAdminIndex orm.Index
-
-	// Group Member Table
-	groupMemberTable         orm.NaturalKeyTable
-	groupMemberByGroupIndex  orm.UInt64Index
-	groupMemberByMemberIndex orm.Index
-
-	// Group Account Table
-	groupAccountTable        orm.NaturalKeyTable
-	groupAccountByGroupIndex orm.UInt64Index
-	groupAccountByAdminIndex orm.Index
-
-	// ProposalBase Table
-	ProposalBaseTable               orm.AutoUInt64Table
-	ProposalBaseByGroupAccountIndex orm.Index
-	ProposalBaseByProposerIndex     orm.Index
-
-	// Vote Table
-	voteTable               orm.NaturalKeyTable
-	voteByProposalBaseIndex orm.UInt64Index
-	voteByVoterIndex        orm.Index
-}
 
 const (
 	// Group Table
@@ -61,8 +34,36 @@ const (
 	VoteByVoterIndexPrefix        byte = 0x42
 )
 
-func NewGroupKeeper(storeKey sdk.StoreKey) keeper {
-	k := keeper{key: storeKey}
+type Keeper struct {
+	key sdk.StoreKey
+
+	// Group Table
+	groupTable        orm.AutoUInt64Table
+	groupByAdminIndex orm.Index
+
+	// Group Member Table
+	groupMemberTable         orm.NaturalKeyTable
+	groupMemberByGroupIndex  orm.UInt64Index
+	groupMemberByMemberIndex orm.Index
+
+	// Group Account Table
+	groupAccountTable        orm.NaturalKeyTable
+	groupAccountByGroupIndex orm.UInt64Index
+	groupAccountByAdminIndex orm.Index
+
+	// ProposalBase Table
+	ProposalBaseTable               orm.AutoUInt64Table
+	ProposalBaseByGroupAccountIndex orm.Index
+	ProposalBaseByProposerIndex     orm.Index
+
+	// Vote Table
+	voteTable               orm.NaturalKeyTable
+	voteByProposalBaseIndex orm.UInt64Index
+	voteByVoterIndex        orm.Index
+}
+
+func NewGroupKeeper(storeKey sdk.StoreKey) Keeper {
+	k := Keeper{key: storeKey}
 
 	//
 	// Group Table
@@ -76,7 +77,7 @@ func NewGroupKeeper(storeKey sdk.StoreKey) keeper {
 	//
 	// Group Member Table
 	//
-	groupMemberTableBuilder := orm.NewNaturalKeyTableBuilder(GroupMemberTablePrefix, storeKey, &GroupMember{}, orm.FixLengthIndexKeys(8))
+	groupMemberTableBuilder := orm.NewNaturalKeyTableBuilder(GroupMemberTablePrefix, storeKey, &GroupMember{}, orm.Max255DynamicLengthIndexKeyCodec{})
 	k.groupMemberByGroupIndex = orm.NewUInt64Index(groupMemberTableBuilder, GroupMemberByGroupIndexPrefix, func(val interface{}) ([]uint64, error) {
 		group := val.(*GroupMember).Group
 		return []uint64{uint64(group)}, nil
@@ -135,29 +136,96 @@ func NewGroupKeeper(storeKey sdk.StoreKey) keeper {
 	return k
 }
 
-type Keeper interface {
+func (k Keeper) CreateGroup(ctx orm.HasKVStore, admin sdk.AccAddress, members []Member, comment string) (GroupID, error) {
+	var val = GroupID(k.groupTable.Sequence().PeekNextVal(ctx))
+	id, err := k.groupTable.Create(ctx, &GroupMetadata{
+		Group:   val,
+		Admin:   admin,
+		Comment: comment,
+		Version: 0,
+	})
+	if err != nil {
+		return 0, errors.Wrap(err, "could not create group")
+	}
+	groupID := GroupID(id)
+
+	for i := range members {
+		m := members[i]
+		err := k.groupMemberTable.Create(ctx, &GroupMember{
+			Group:  groupID,
+			Member: m.Address,
+			Weight: m.Power,
+		})
+		if err != nil {
+			return 0, errors.Wrapf(err, "could not store member %d", i)
+		}
+	}
+	return groupID, nil
+}
+
+func (k Keeper) UpdateGroupMembers(ctx orm.HasKVStore, group GroupID, membersUpdates []Member) error {
+	panic("implement me")
+}
+
+func (k Keeper) UpdateGroupAdmin(ctx orm.HasKVStore, group GroupID, newAdmin sdk.AccAddress) error {
+	panic("implement me")
+}
+
+func (k Keeper) UpdateGroupComment(ctx orm.HasKVStore, group GroupID, newComment string) error {
+	panic("implement me")
+}
+
+//func (k Keeper) CreateGroupAccount(ctx orm.HasKVStore, admin sdk.AccAddress, group GroupID, policy DecisionPolicy, comment string) (sdk.AccAddress, error) {
+//	panic("implement me")
+//}
+//
+//func (k Keeper) UpdateGroupAccountAdmin(ctx orm.HasKVStore, groupAcc sdk.AccAddress, newAdmin sdk.AccAddress) error {
+//	panic("implement me")
+//}
+//
+//func (k Keeper) UpdateGroupAccountDecisionPolicy(ctx orm.HasKVStore, groupAcc sdk.AccAddress, newPolicy DecisionPolicy) error {
+//	panic("implement me")
+//}
+//
+//func (k Keeper) UpdateGroupAccountComment(ctx orm.HasKVStore, groupAcc sdk.AccAddress, newComment string) error {
+//	panic("implement me")
+//}
+//
+//func (k Keeper) Propose(ctx orm.HasKVStore, groupAcc sdk.AccAddress, approvers []sdk.AccAddress, msgs []sdk.Msg, comment string, execNow bool) (id ProposalID, execResult sdk.Result) {
+//	panic("implement me")
+//}
+//
+//func (k Keeper) Vote(ctx orm.HasKVStore, id ProposalID, voters []sdk.AccAddress, choice Choice) error {
+//	panic("implement me")
+//}
+//
+//func (k Keeper) Exec(ctx orm.HasKVStore, id ProposalID) sdk.Result {
+//	panic("implement me")
+//}
+
+type KeeperDELME interface { // obsolete when Keeper implements all functions
 	// Groups
-	CreateGroup(ctx sdk.Context, admin sdk.AccAddress, members []Member, comment string) (GroupID, error)
-	UpdateGroupMembers(ctx sdk.Context, group GroupID, membersUpdates []Member) error
-	UpdateGroupAdmin(ctx sdk.Context, group GroupID, newAdmin sdk.AccAddress) error
-	UpdateGroupComment(ctx sdk.Context, group GroupID, newComment string) error
+	CreateGroup(ctx orm.HasKVStore, admin sdk.AccAddress, members []Member, comment string) (GroupID, error)
+	UpdateGroupMembers(ctx orm.HasKVStore, group GroupID, membersUpdates []Member) error
+	UpdateGroupAdmin(ctx orm.HasKVStore, group GroupID, newAdmin sdk.AccAddress) error
+	UpdateGroupComment(ctx orm.HasKVStore, group GroupID, newComment string) error
 
 	// Group Accounts
-	CreateGroupAccount(ctx sdk.Context, admin sdk.AccAddress, group GroupID, policy DecisionPolicy, comment string) (sdk.AccAddress, error)
-	UpdateGroupAccountAdmin(ctx sdk.Context, groupAcc sdk.AccAddress, newAdmin sdk.AccAddress) error
-	UpdateGroupAccountDecisionPolicy(ctx sdk.Context, groupAcc sdk.AccAddress, newPolicy DecisionPolicy) error
-	UpdateGroupAccountComment(ctx sdk.Context, groupAcc sdk.AccAddress, newComment string) error
+	CreateGroupAccount(ctx orm.HasKVStore, admin sdk.AccAddress, group GroupID, policy DecisionPolicy, comment string) (sdk.AccAddress, error)
+	UpdateGroupAccountAdmin(ctx orm.HasKVStore, groupAcc sdk.AccAddress, newAdmin sdk.AccAddress) error
+	UpdateGroupAccountDecisionPolicy(ctx orm.HasKVStore, groupAcc sdk.AccAddress, newPolicy DecisionPolicy) error
+	UpdateGroupAccountComment(ctx orm.HasKVStore, groupAcc sdk.AccAddress, newComment string) error
 
 	// ProposalBases
 
 	// Propose returns a new ProposalBase ID and a populated sdk.Result which could return an error
 	// or the result of execution if execNow was set to true
-	Propose(ctx sdk.Context, groupAcc sdk.AccAddress, approvers []sdk.AccAddress, msgs []sdk.Msg, comment string, execNow bool) (id ProposalID, execResult sdk.Result)
+	Propose(ctx orm.HasKVStore, groupAcc sdk.AccAddress, approvers []sdk.AccAddress, msgs []sdk.Msg, comment string, execNow bool) (id ProposalID, execResult sdk.Result)
 
-	Vote(ctx sdk.Context, id ProposalID, voters []sdk.AccAddress, choice Choice) error
+	Vote(ctx orm.HasKVStore, id ProposalID, voters []sdk.AccAddress, choice Choice) error
 
 	// Exec attempts to execute the specified ProposalBase. If the ProposalBase is in a valid
 	// state and has enough approvals, then it will be executed and its result will be
 	// returned, otherwise the result will contain an error
-	Exec(ctx sdk.Context, id ProposalID) sdk.Result
+	Exec(ctx orm.HasKVStore, id ProposalID) sdk.Result
 }

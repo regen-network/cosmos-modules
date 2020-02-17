@@ -21,7 +21,7 @@ func NewCodec(amino *codec.Codec) *Codec {
 // RegisterCodec registers all the necessary crisis module concrete types and
 // interfaces with the provided codec reference.
 func RegisterCodec(cdc *codec.Codec) {
-	cdc.RegisterConcrete(MsgCreateGroup{}, "cosmos-modules/MsgCreateGroup", nil)
+	cdc.RegisterConcrete(MsgCreateGroup{}, "ccosmos-sdk/MsgCreateGroup", nil)
 }
 
 // generic sealed codec to be used throughout module

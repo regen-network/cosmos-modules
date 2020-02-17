@@ -1,8 +1,11 @@
 package group
 
 import (
+	"fmt"
+
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
+	"github.com/pkg/errors"
 )
 
 func NewHandler(k Keeper) sdk.Handler {
@@ -18,13 +21,17 @@ func NewHandler(k Keeper) sdk.Handler {
 		//case MsgUpdateGroupComment:
 		//	return handleMsgUpdateGroupComment(ctx, k, msg)
 		default:
-			return nil, sdkerrors.Wrapf(sdkerrors.ErrUnknownRequest, "unrecognized bank message type: %T", msg)
+			return nil, sdkerrors.Wrapf(sdkerrors.ErrUnknownRequest, "unrecognized group message type: %T", msg)
 		}
 	}
 
 }
 
 func handleMsgCreateGroup(ctx sdk.Context, k Keeper, msg MsgCreateGroup) (*sdk.Result, error) {
+	id, err := k.CreateGroup(ctx, msg.Admin, msg.Members, msg.Comment)
+	if err != nil {
+		return nil, errors.Wrap(err, "create group")
+	}
 
 	ctx.EventManager().EmitEvent(
 		sdk.NewEvent(
@@ -34,5 +41,10 @@ func handleMsgCreateGroup(ctx sdk.Context, k Keeper, msg MsgCreateGroup) (*sdk.R
 		),
 	)
 
-	return &sdk.Result{Events: ctx.EventManager().Events()}, nil
+	//TODO: the data/ log response is not specified
+	return &sdk.Result{
+		Data:   id.Byte(),
+		Log:    fmt.Sprintf("New group created with id %d", id),
+		Events: ctx.EventManager().Events(),
+	}, nil
 }
