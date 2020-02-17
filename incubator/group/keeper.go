@@ -38,7 +38,7 @@ type Keeper struct {
 	key sdk.StoreKey
 
 	// Group Table
-	groupTable        orm.AutoUInt64Table
+	groupTable        orm.Table
 	groupByAdminIndex orm.Index
 
 	// Group Member Table
@@ -60,6 +60,7 @@ type Keeper struct {
 	voteTable               orm.NaturalKeyTable
 	voteByProposalBaseIndex orm.UInt64Index
 	voteByVoterIndex        orm.Index
+	groupSeq                orm.Sequence
 }
 
 func NewGroupKeeper(storeKey sdk.StoreKey) Keeper {
@@ -68,7 +69,8 @@ func NewGroupKeeper(storeKey sdk.StoreKey) Keeper {
 	//
 	// Group Table
 	//
-	groupTableBuilder := orm.NewAutoUInt64TableBuilder(GroupTablePrefix, GroupTableSeqPrefix, storeKey, &GroupMetadata{})
+	groupTableBuilder := orm.NewTableBuilder(GroupTablePrefix, storeKey, &GroupMetadata{}, orm.FixLengthIndexKeys(orm.EncodedSeqLength))
+	k.groupSeq = orm.NewSequence(storeKey, GroupTableSeqPrefix)
 	k.groupByAdminIndex = orm.NewIndex(groupTableBuilder, GroupByAdminIndexPrefix, func(val interface{}) ([]orm.RowID, error) {
 		return []orm.RowID{val.(*GroupMetadata).Admin.Bytes()}, nil
 	})
@@ -137,9 +139,10 @@ func NewGroupKeeper(storeKey sdk.StoreKey) Keeper {
 }
 
 func (k Keeper) CreateGroup(ctx orm.HasKVStore, admin sdk.AccAddress, members []Member, comment string) (GroupID, error) {
-	var val = GroupID(k.groupTable.Sequence().PeekNextVal(ctx))
-	id, err := k.groupTable.Create(ctx, &GroupMetadata{
-		Group:   val,
+	id := k.groupSeq.NextVal(ctx)
+	var groupID = GroupID(id)
+	err := k.groupTable.Create(ctx, orm.EncodeSequence(id), &GroupMetadata{
+		Group:   groupID,
 		Admin:   admin,
 		Comment: comment,
 		Version: 0,
@@ -147,7 +150,6 @@ func (k Keeper) CreateGroup(ctx orm.HasKVStore, admin sdk.AccAddress, members []
 	if err != nil {
 		return 0, errors.Wrap(err, "could not create group")
 	}
-	groupID := GroupID(id)
 
 	for i := range members {
 		m := members[i]
@@ -163,19 +165,33 @@ func (k Keeper) CreateGroup(ctx orm.HasKVStore, admin sdk.AccAddress, members []
 	return groupID, nil
 }
 
-func (k Keeper) UpdateGroupMembers(ctx orm.HasKVStore, group GroupID, membersUpdates []Member) error {
+func (k Keeper) UpdateGroupMembers(ctx orm.HasKVStore, groupID GroupID, membersUpdates []Member) error {
 	panic("implement me")
 }
 
-func (k Keeper) UpdateGroupAdmin(ctx orm.HasKVStore, group GroupID, newAdmin sdk.AccAddress) error {
-	panic("implement me")
+func (k Keeper) UpdateGroupAdmin(ctx orm.HasKVStore, groupID GroupID, newAdmin sdk.AccAddress) error {
+	var obj GroupMetadata
+	rowID := orm.EncodeSequence(uint64(groupID))
+	err := k.groupTable.GetOne(ctx, rowID, &obj)
+	if err != nil {
+		return err
+	}
+	obj.Admin = newAdmin
+	return k.groupTable.Save(ctx, rowID, &obj)
 }
 
-func (k Keeper) UpdateGroupComment(ctx orm.HasKVStore, group GroupID, newComment string) error {
-	panic("implement me")
+func (k Keeper) UpdateGroupComment(ctx orm.HasKVStore, groupID GroupID, newComment string) error {
+	var obj GroupMetadata
+	rowID := orm.EncodeSequence(uint64(groupID))
+	err := k.groupTable.GetOne(ctx, rowID, &obj)
+	if err != nil {
+		return err
+	}
+	obj.Comment = newComment
+	return k.groupTable.Save(ctx, rowID, &obj)
 }
 
-//func (k Keeper) CreateGroupAccount(ctx orm.HasKVStore, admin sdk.AccAddress, group GroupID, policy DecisionPolicy, comment string) (sdk.AccAddress, error) {
+//func (k Keeper) CreateGroupAccount(ctx orm.HasKVStore, admin sdk.AccAddress, groupID GroupID, policy DecisionPolicy, comment string) (sdk.AccAddress, error) {
 //	panic("implement me")
 //}
 //
