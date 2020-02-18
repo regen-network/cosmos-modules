@@ -109,6 +109,7 @@ type SimApp struct {
 	UpgradeKeeper  upgrade.Keeper
 	ParamsKeeper   params.Keeper
 	EvidenceKeeper evidence.Keeper
+	GroupKeeper    Keeper
 
 	// the module manager
 	mm *module.Manager
@@ -199,6 +200,8 @@ func NewSimApp(
 	evidenceKeeper := evidence.NewKeeper(
 		app.cdc, keys[evidence.StoreKey], app.subspaces[evidence.ModuleName], &app.StakingKeeper, app.SlashingKeeper,
 	)
+	app.GroupKeeper = NewGroupKeeper(keys[StoreKeyName], app.subspaces[ModuleName])
+
 	evidenceRouter := evidence.NewRouter()
 	// TODO: Register evidence routes.
 	evidenceKeeper.SetRouter(evidenceRouter)
@@ -236,7 +239,7 @@ func NewSimApp(
 		staking.NewAppModule(app.StakingKeeper, app.AccountKeeper, app.BankKeeper, app.SupplyKeeper),
 		upgrade.NewAppModule(app.UpgradeKeeper),
 		evidence.NewAppModule(app.EvidenceKeeper),
-		NewAppModule(NewGroupKeeper(keys[StoreKeyName])),
+		NewAppModule(app.GroupKeeper),
 	)
 
 	// During begin block slashing happens after distr.BeginBlocker so that

@@ -3,13 +3,13 @@ package group
 import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
+	"github.com/cosmos/cosmos-sdk/x/params"
+	"github.com/cosmos/cosmos-sdk/x/params/subspace"
 	"github.com/cosmos/modules/incubator/orm"
+	"gopkg.in/yaml.v2"
 
 	"time"
 )
-
-// TODO: what makes sense here?
-const MaxCommentSize = 256
 
 type GroupID uint64
 
@@ -49,8 +49,38 @@ func (m Member) ValidateBasic() error {
 	if m.Address.Empty() {
 		return sdkerrors.Wrap(ErrEmpty, "address")
 	}
-	if len(m.Comment) > MaxCommentSize {
-		return sdkerrors.Wrap(ErrMaxLimit, "comment size")
-	}
 	return nil
+}
+
+const defaultMaxCommentLength = 255
+
+// Parameter keys
+var (
+	ParamMaxCommentLength = []byte("MaxCommentLength")
+)
+
+// DefaultParams returns the default parameters for the group module.
+func DefaultParams() Params {
+	return Params{
+		MaxCommentLength: defaultMaxCommentLength,
+	}
+}
+
+func (p Params) String() string {
+	out, _ := yaml.Marshal(p)
+	return string(out)
+}
+
+// ParamSetPairs returns the parameter set pairs.
+func (p *Params) ParamSetPairs() params.ParamSetPairs {
+	return params.ParamSetPairs{
+		params.NewParamSetPair(ParamMaxCommentLength, &p.MaxCommentLength, noopValidator()),
+	}
+}
+func (p Params) Validate() error {
+	return nil
+}
+
+func noopValidator() subspace.ValueValidatorFn {
+	return func(value interface{}) error { return nil }
 }

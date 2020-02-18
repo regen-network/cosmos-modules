@@ -2,6 +2,7 @@ package group
 
 import (
 	"encoding/json"
+	"fmt"
 
 	"github.com/cosmos/cosmos-sdk/client/context"
 	"github.com/cosmos/cosmos-sdk/codec"
@@ -47,16 +48,15 @@ func (a AppModule) RegisterCodec(cdc *codec.Codec) {
 }
 
 func (a AppModule) DefaultGenesis() json.RawMessage {
-	return ModuleCdc.MustMarshalJSON(DefaultGenesisState())
+	return ModuleCdc.MustMarshalJSON(NewGenesisState())
 }
 
 func (a AppModule) ValidateGenesis(bz json.RawMessage) error {
 	var data GenesisState
-	err := ModuleCdc.UnmarshalJSON(bz, &data)
-	if err != nil {
+	if err := ModuleCdc.UnmarshalJSON(bz, &data); err != nil {
 		return err
 	}
-	return ValidateGenesis(data)
+	return data.Validate()
 }
 
 func (a AppModule) RegisterRESTRoutes(ctx context.CLIContext, r *mux.Router) {
@@ -78,7 +78,10 @@ func (a AppModule) GetQueryCmd(*codec.Codec) *cobra.Command {
 func (a AppModule) InitGenesis(ctx sdk.Context, data json.RawMessage) []types.ValidatorUpdate {
 	var genesisState GenesisState
 	ModuleCdc.MustUnmarshalJSON(data, &genesisState)
-	//InitGenesis(ctx, am.Keeper, genesisState)
+	if err := genesisState.Validate(); err != nil {
+		panic(fmt.Sprintf("failed to validate %s genesis state: %s", ModuleName, err))
+	}
+	a.keeper.setParams(ctx, genesisState.Params)
 	return []abci.ValidatorUpdate{}
 
 }

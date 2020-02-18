@@ -3,6 +3,7 @@ package group
 import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/types/errors"
+	"github.com/cosmos/cosmos-sdk/x/params"
 	"github.com/cosmos/modules/incubator/orm"
 )
 
@@ -61,10 +62,17 @@ type Keeper struct {
 	voteByProposalBaseIndex orm.UInt64Index
 	voteByVoterIndex        orm.Index
 	groupSeq                orm.Sequence
+
+	paramSpace params.Subspace
 }
 
-func NewGroupKeeper(storeKey sdk.StoreKey) Keeper {
-	k := Keeper{key: storeKey}
+func NewGroupKeeper(storeKey sdk.StoreKey, paramSpace params.Subspace) Keeper {
+	// set KeyTable if it has not already been set
+	if !paramSpace.HasKeyTable() {
+		paramSpace = paramSpace.WithKeyTable(params.NewKeyTable().RegisterParamSet(&Params{}))
+	}
+
+	k := Keeper{key: storeKey, paramSpace: paramSpace}
 
 	//
 	// Group Table
@@ -138,7 +146,18 @@ func NewGroupKeeper(storeKey sdk.StoreKey) Keeper {
 	return k
 }
 
-func (k Keeper) CreateGroup(ctx orm.HasKVStore, admin sdk.AccAddress, members []Member, comment string) (GroupID, error) {
+// MaxCommentSize returns the maximum length of a comment
+func (k Keeper) MaxCommentSize(ctx sdk.Context) int {
+	var result uint32
+	k.paramSpace.Get(ctx, ParamMaxCommentLength, &result)
+	return int(result)
+}
+
+func (k Keeper) CreateGroup(ctx sdk.Context, admin sdk.AccAddress, members []Member, comment string) (GroupID, error) {
+	maxCommentSize := k.MaxCommentSize(ctx)
+	if len(comment) > maxCommentSize {
+		return 0, errors.Wrap(ErrMaxLimit, "group comment")
+	}
 	id := k.groupSeq.NextVal(ctx)
 	var groupID = GroupID(id)
 	err := k.groupTable.Create(ctx, orm.EncodeSequence(id), &GroupMetadata{
@@ -153,6 +172,10 @@ func (k Keeper) CreateGroup(ctx orm.HasKVStore, admin sdk.AccAddress, members []
 
 	for i := range members {
 		m := members[i]
+		if len(m.Comment) > maxCommentSize {
+			return 0, errors.Wrap(ErrMaxLimit, "group comment")
+		}
+
 		err := k.groupMemberTable.Create(ctx, &GroupMember{
 			Group:  groupID,
 			Member: m.Address,
@@ -189,6 +212,16 @@ func (k Keeper) UpdateGroupComment(ctx orm.HasKVStore, groupID GroupID, newComme
 	}
 	obj.Comment = newComment
 	return k.groupTable.Save(ctx, rowID, &obj)
+}
+
+func (k Keeper) getParams(ctx sdk.Context) Params {
+	var p Params
+	k.paramSpace.GetParamSet(ctx, &p)
+	return p
+}
+
+func (k Keeper) setParams(ctx sdk.Context, params Params) {
+	k.paramSpace.SetParamSet(ctx, &params)
 }
 
 //func (k Keeper) CreateGroupAccount(ctx orm.HasKVStore, admin sdk.AccAddress, groupID GroupID, policy DecisionPolicy, comment string) (sdk.AccAddress, error) {

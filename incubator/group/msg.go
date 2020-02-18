@@ -31,11 +31,6 @@ func (m MsgCreateGroup) ValidateBasic() error {
 	if m.Admin.Empty() {
 		return sdkerrors.Wrap(ErrEmpty, "admin")
 	}
-	// TODO: @aaronc can we ensure that the group is never empty? That would simplify authZ logic later as we do not have
-	// to protect against this case
-	if len(m.Members) == 0 {
-		return sdkerrors.Wrap(ErrEmpty, "members")
-	}
 	index := make(map[string]struct{}, len(m.Members))
 	for i := range m.Members {
 		member := m.Members[i]
@@ -51,6 +46,8 @@ func (m MsgCreateGroup) ValidateBasic() error {
 		}
 	}
 	// todo: test
+	// empty members list allowed
+	// max members list allowed???
 	// duplicate member address
 	// member address empty
 	// Power -1, 0
