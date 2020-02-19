@@ -175,8 +175,11 @@ message GroupMetadata {
 
 message GroupMember {
     uint64 group = 1 [(gogoproto.casttype) = "GroupID"];
+    // todo: @aaronc field has different name in `Member.address`. Can we unify this?
     bytes member = 2 [(gogoproto.casttype) = "github.com/cosmos/cosmos-sdk/types.AccAddress"];
+    // todo: @aaronc it is `Member.power`. Can we unify this?
     string weight = 3 [(gogoproto.customtype) = "github.com/cosmos/cosmos-sdk/types.Dec", (gogoproto.nullable) = false];
+    string comment = 4; // TODO: @aaronc was comment missing by intention?
 }
 
 // GroupAccountMetadataBase is the base message that app's should use to specify group account metadata based on the
