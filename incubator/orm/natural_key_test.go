@@ -16,7 +16,7 @@ func TestNaturalKeyTablePrefixScan(t *testing.T) {
 		testTablePrefix = iota
 	)
 
-	tb := NewNaturalKeyTableBuilder(testTablePrefix, storeKey, &testdata.GroupMember{},Max255DynamicLengthIndexKeyCodec{}).
+	tb := NewNaturalKeyTableBuilder(testTablePrefix, storeKey, &testdata.GroupMember{}, Max255DynamicLengthIndexKeyCodec{}).
 		Build()
 
 	ctx := NewMockContext()

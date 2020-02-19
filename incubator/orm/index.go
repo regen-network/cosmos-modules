@@ -27,11 +27,11 @@ type MultiKeyIndex struct {
 }
 
 // NewIndex builds a MultiKeyIndex
-func NewIndex(builder Indexable, prefix byte, indexer IndexerFunc) *MultiKeyIndex {
+func NewIndex(builder Indexable, prefix byte, indexer IndexerFunc) MultiKeyIndex {
 	return newIndex(builder, prefix, NewIndexer(indexer, builder.IndexKeyCodec()))
 }
 
-func newIndex(builder Indexable, prefix byte, indexer *Indexer) *MultiKeyIndex {
+func newIndex(builder Indexable, prefix byte, indexer *Indexer) MultiKeyIndex {
 	codec := builder.IndexKeyCodec()
 	if codec == nil {
 		panic("IndexKeyCodec must not be nil")
@@ -54,7 +54,7 @@ func newIndex(builder Indexable, prefix byte, indexer *Indexer) *MultiKeyIndex {
 	}
 	builder.AddAfterSaveInterceptor(idx.onSave)
 	builder.AddAfterDeleteInterceptor(idx.onDelete)
-	return &idx
+	return idx
 }
 
 // Has checks if a key exists. Panics on nil key.
@@ -133,9 +133,9 @@ type UniqueIndex struct {
 }
 
 // NewUniqueIndex create a new Index object where duplicate keys are prohibited.
-func NewUniqueIndex(builder Indexable, prefix byte, uniqueIndexerFunc UniqueIndexerFunc) *UniqueIndex {
-	return &UniqueIndex{
-		MultiKeyIndex: *newIndex(builder, prefix, NewUniqueIndexer(uniqueIndexerFunc, builder.IndexKeyCodec())),
+func NewUniqueIndex(builder Indexable, prefix byte, uniqueIndexerFunc UniqueIndexerFunc) UniqueIndex {
+	return UniqueIndex{
+		MultiKeyIndex: newIndex(builder, prefix, NewUniqueIndexer(uniqueIndexerFunc, builder.IndexKeyCodec())),
 	}
 }
 

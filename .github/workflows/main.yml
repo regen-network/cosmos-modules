@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - master
+      - orm_develop
   pull_request:
     branches:
       - '*'
