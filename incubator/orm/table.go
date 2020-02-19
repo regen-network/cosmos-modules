@@ -78,6 +78,8 @@ func (a *TableBuilder) AddAfterDeleteInterceptor(interceptor AfterDeleteIntercep
 	a.afterDelete = append(a.afterDelete, interceptor)
 }
 
+var _ TableExportable = &Table{}
+
 // Table is the high level object to storage mapper functionality. Persistent entities are stored by an unique identifier
 // called `RowID`.
 // The Table struct does not enforce uniqueness of the `RowID` but expects this to be satisfied by the callers and conditions
@@ -229,6 +231,10 @@ func (a Table) ReversePrefixScan(ctx HasKVStore, start, end RowID) (Iterator, er
 		rowGetter: NewTypeSafeRowGetter(a.storeKey, a.prefix, a.model),
 		it:        store.ReverseIterator(start, end),
 	}, nil
+}
+
+func (a Table) Table() Table {
+	return a
 }
 
 // typeSafeIterator is initialized with a type safe RowGetter only.

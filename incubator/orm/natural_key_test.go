@@ -212,3 +212,71 @@ func TestNaturalKeyTablePrefixScan(t *testing.T) {
 		})
 	}
 }
+
+func TestContains(t *testing.T) {
+	storeKey := sdk.NewKVStoreKey("test")
+	const testTablePrefix = iota
+
+	tb := NewNaturalKeyTableBuilder(testTablePrefix, storeKey, &testdata.GroupMember{}, Max255DynamicLengthIndexKeyCodec{}).
+		Build()
+
+	ctx := NewMockContext()
+
+	myPersistentObj := testdata.GroupMember{
+		Group:  []byte("group-a"),
+		Member: []byte("member-one"),
+		Weight: 1,
+	}
+	err := tb.Create(ctx, &myPersistentObj)
+	require.NoError(t, err)
+
+	specs := map[string]struct {
+		src NaturalKeyed
+		exp bool
+	}{
+
+		"same object": {src: &myPersistentObj, exp: true},
+		"clone": {
+			src: &testdata.GroupMember{
+				Group:  []byte("group-a"),
+				Member: []byte("member-one"),
+				Weight: 1,
+			},
+			exp: true,
+		},
+		"different natural key": {
+			src: &testdata.GroupMember{
+				Group:  []byte("another group"),
+				Member: []byte("member-one"),
+				Weight: 1,
+			},
+			exp: false,
+		},
+		"different type same key": {
+			src: mockNaturalKeyed{myPersistentObj.NaturalKey()},
+			exp: false,
+		},
+	}
+	for msg, spec := range specs {
+		t.Run(msg, func(t *testing.T) {
+			got := tb.Contains(ctx, spec.src)
+			assert.Equal(t, spec.exp, got)
+		})
+	}
+}
+
+type mockNaturalKeyed struct {
+	naturalKey []byte
+}
+
+func (m mockNaturalKeyed) NaturalKey() []byte {
+	return m.naturalKey
+}
+
+func (m mockNaturalKeyed) Marshal() ([]byte, error) {
+	panic("implement me")
+}
+
+func (m mockNaturalKeyed) Unmarshal([]byte) error {
+	panic("implement me")
+}
