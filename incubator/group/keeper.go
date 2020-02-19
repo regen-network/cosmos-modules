@@ -164,7 +164,7 @@ func (k Keeper) CreateGroup(ctx sdk.Context, admin sdk.AccAddress, members []Mem
 		Group:   groupID,
 		Admin:   admin,
 		Comment: comment,
-		Version: 0,
+		Version: 1,
 	})
 	if err != nil {
 		return 0, errors.Wrap(err, "could not create group")
@@ -177,9 +177,10 @@ func (k Keeper) CreateGroup(ctx sdk.Context, admin sdk.AccAddress, members []Mem
 		}
 
 		err := k.groupMemberTable.Create(ctx, &GroupMember{
-			Group:  groupID,
-			Member: m.Address,
-			Weight: m.Power,
+			Group:   groupID,
+			Member:  m.Address,
+			Weight:  m.Power,
+			Comment: m.Comment,
 		})
 		if err != nil {
 			return 0, errors.Wrapf(err, "could not store member %d", i)
@@ -188,30 +189,14 @@ func (k Keeper) CreateGroup(ctx sdk.Context, admin sdk.AccAddress, members []Mem
 	return groupID, nil
 }
 
-func (k Keeper) UpdateGroupMembers(ctx orm.HasKVStore, groupID GroupID, membersUpdates []Member) error {
-	panic("implement me")
+func (k Keeper) GetGroup(ctx sdk.Context, id GroupID) (GroupMetadata, error) {
+	var obj GroupMetadata
+	return obj, k.groupTable.GetOne(ctx, id.Byte(), &obj)
 }
 
-func (k Keeper) UpdateGroupAdmin(ctx orm.HasKVStore, groupID GroupID, newAdmin sdk.AccAddress) error {
-	var obj GroupMetadata
-	rowID := orm.EncodeSequence(uint64(groupID))
-	err := k.groupTable.GetOne(ctx, rowID, &obj)
-	if err != nil {
-		return err
-	}
-	obj.Admin = newAdmin
-	return k.groupTable.Save(ctx, rowID, &obj)
-}
-
-func (k Keeper) UpdateGroupComment(ctx orm.HasKVStore, groupID GroupID, newComment string) error {
-	var obj GroupMetadata
-	rowID := orm.EncodeSequence(uint64(groupID))
-	err := k.groupTable.GetOne(ctx, rowID, &obj)
-	if err != nil {
-		return err
-	}
-	obj.Comment = newComment
-	return k.groupTable.Save(ctx, rowID, &obj)
+func (k Keeper) UpdateGroup(ctx sdk.Context, g *GroupMetadata) error {
+	g.Version++
+	return k.groupTable.Save(ctx, g.Group.Byte(), g)
 }
 
 func (k Keeper) getParams(ctx sdk.Context) Params {
