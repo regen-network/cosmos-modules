@@ -24,7 +24,7 @@ func NewSequence(storeKey sdk.StoreKey, prefix byte) Sequence {
 	}
 }
 
-// NextVal increments the counter by one and returns the value.
+// NextVal increments and persists the counter by one and returns the value.
 func (s Sequence) NextVal(ctx HasKVStore) uint64 {
 	store := prefix.NewStore(ctx.KVStore(s.storeKey), []byte{s.prefix})
 	v := store.Get(sequenceStorageKey)
@@ -34,11 +34,18 @@ func (s Sequence) NextVal(ctx HasKVStore) uint64 {
 	return seq
 }
 
-// CurVal returns the last value used. 0Nex if none.
+// CurVal returns the last value used. 0 if none.
 func (s Sequence) CurVal(ctx HasKVStore) uint64 {
 	store := prefix.NewStore(ctx.KVStore(s.storeKey), []byte{s.prefix})
 	v := store.Get(sequenceStorageKey)
 	return DecodeSequence(v)
+}
+
+// PeekNextVal returns the CurVal + increment step. Not persistent.
+func (s Sequence) PeekNextVal(ctx HasKVStore) uint64 {
+	store := prefix.NewStore(ctx.KVStore(s.storeKey), []byte{s.prefix})
+	v := store.Get(sequenceStorageKey)
+	return DecodeSequence(v) + 1
 }
 
 // InitVal sets the start value for the sequence. It must be called only once on an empty DB.
