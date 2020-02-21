@@ -71,13 +71,13 @@ message MsgCreateGroupAccountBase {
 // create their own create account msg that supports custom DecisionPolicy's using MsgCreateGroupAccountBase as
 // starting point
 message MsgCreateGroupAccountStd {
-    MsgCreateGroupAccountBase base = 1;
-    StdDecisionPolicy decision_policy = 2;
+    MsgCreateGroupAccountBase base = 1 [(gogoproto.nullable) = false];
+    StdDecisionPolicy decision_policy = 2 [(gogoproto.nullable) = false];
 }
 
 message MsgUpdateGroupAccountAdmin {
     bytes admin = 1 [(gogoproto.casttype) = "github.com/cosmos/cosmos-sdk/types.AccAddress"];
-    bytes group_acount = 2 [(gogoproto.casttype) = "github.com/cosmos/cosmos-sdk/types.AccAddress"];
+    bytes group_account = 2 [(gogoproto.casttype) = "github.com/cosmos/cosmos-sdk/types.AccAddress"];
     bytes new_admin = 3 [(gogoproto.casttype) = "github.com/cosmos/cosmos-sdk/types.AccAddress"];
 }
 
@@ -89,13 +89,13 @@ message MsgUpdateGroupAccountBase {
 // MsgCreateGroupAccountStd allows a group account decision policy to be updated to a member of StdDecisionPolicy, can
 // be overridden to support custom DecisionPolicy's by apps.
 message MsgUpdateGroupAccountDecisionPolicyStd {
-    MsgUpdateGroupAccountBase base = 1;
-    StdDecisionPolicy decision_policy = 3;
+    MsgUpdateGroupAccountBase base = 1 [(gogoproto.nullable) = false];
+    StdDecisionPolicy decision_policy = 2 [(gogoproto.nullable) = false];
 }
 
 message MsgUpdateGroupAccountComment {
     bytes admin = 1 [(gogoproto.casttype) = "github.com/cosmos/cosmos-sdk/types.AccAddress"];
-    bytes group_acount = 2 [(gogoproto.casttype) = "github.com/cosmos/cosmos-sdk/types.AccAddress"];
+    bytes group_account = 2 [(gogoproto.casttype) = "github.com/cosmos/cosmos-sdk/types.AccAddress"];
     string comment = 3;
 }
 
@@ -111,7 +111,7 @@ message StdDecisionPolicy {
 }
 
 message ThresholdDecisionPolicy {
-    string threshold = 1 [(gogoproto.customtype) = "github.com/cosmos/cosmos-sdk/types.Dec"];
+    string threshold = 1 [(gogoproto.customtype) = "github.com/cosmos/cosmos-sdk/types.Dec", (gogoproto.nullable) = false];
     google.protobuf.Duration min_voting_window = 2;
     google.protobuf.Duration max_voting_window = 3;
 }
@@ -202,8 +202,8 @@ message GroupAccountMetadataBase {
 // StdGroupAccountMetadata is a default group account metadata type to be used by apps which do not implement custom
 // DecisionPolicy's.
 message StdGroupAccountMetadata {
-    GroupAccountMetadataBase base = 1;
-    StdDecisionPolicy decision_policy = 2;
+    GroupAccountMetadataBase base = 1 [(gogoproto.nullable) = false];
+    StdDecisionPolicy decision_policy = 2 [(gogoproto.nullable) = false];
 }
 
 // ProposalBase is the base proposal type that app should use to implement a Proposal type based
@@ -218,17 +218,17 @@ message ProposalBase {
     bytes group_account = 1 [(gogoproto.casttype) = "github.com/cosmos/cosmos-sdk/types.AccAddress"];
     string comment = 2;
     repeated bytes proposers = 3 [(gogoproto.casttype) = "github.com/cosmos/cosmos-sdk/types.AccAddress"];
-    google.protobuf.Timestamp submitted_at = 4;
+    google.protobuf.Timestamp submitted_at = 4 [(gogoproto.nullable) = false];
     // GroupVersion tracks the version of the group that this proposal corresponds to. When group membership is changed
     // existing proposals for prior group versions will become invalid.
     uint64 group_version = 5;
 }
 
 message Tally {
-    string yes_count = 1 [(gogoproto.customtype) = "github.com/cosmos/cosmos-sdk/types.Dec"];
-    string no_count = 2 [(gogoproto.customtype) = "github.com/cosmos/cosmos-sdk/types.Dec"];
-    string abstain_count = 3 [(gogoproto.customtype) = "github.com/cosmos/cosmos-sdk/types.Dec"];
-    string veto_count = 4 [(gogoproto.customtype) = "github.com/cosmos/cosmos-sdk/types.Dec"];
+    string yes_count = 1 [(gogoproto.customtype) = "github.com/cosmos/cosmos-sdk/types.Dec", (gogoproto.nullable) = false];
+    string no_count = 2 [(gogoproto.customtype) = "github.com/cosmos/cosmos-sdk/types.Dec", (gogoproto.nullable) = false];
+    string abstain_count = 3 [(gogoproto.customtype) = "github.com/cosmos/cosmos-sdk/types.Dec", (gogoproto.nullable) = false];
+    string veto_count = 4 [(gogoproto.customtype) = "github.com/cosmos/cosmos-sdk/types.Dec", (gogoproto.nullable) = false];
 }
 
 message Vote {
@@ -236,13 +236,12 @@ message Vote {
     bytes voter = 2 [(gogoproto.casttype) = "github.com/cosmos/cosmos-sdk/types.AccAddress"];
     Choice choice = 3;
     string comment = 4;
-    google.protobuf.Timestamp submitted_at = 5;
+    google.protobuf.Timestamp submitted_at = 5 [(gogoproto.nullable) = false];
 }
-
 
 // Params defines the set of configurable parameters.
 message Params {
-    option (gogoproto.equal)            = true;
+    option (gogoproto.equal) = true;
     option (gogoproto.goproto_stringer) = false;
     uint32 max_comment_length = 1 [(gogoproto.moretags) = "yaml:\"max_comment_length\""];
 }

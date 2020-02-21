@@ -52,11 +52,6 @@ type Keeper struct {
 	groupAccountByGroupIndex orm.UInt64Index
 	groupAccountByAdminIndex orm.Index
 
-	// ProposalBase Table
-	ProposalBaseTable               orm.AutoUInt64Table
-	ProposalBaseByGroupAccountIndex orm.Index
-	ProposalBaseByProposerIndex     orm.Index
-
 	// Vote Table
 	voteTable               orm.NaturalKeyTable
 	voteByProposalBaseIndex orm.UInt64Index
@@ -101,35 +96,16 @@ func NewGroupKeeper(storeKey sdk.StoreKey, paramSpace params.Subspace) Keeper {
 	//
 	// Group Account Table
 	//
-	groupAccountTableBuilder := orm.NewNaturalKeyTableBuilder(GroupAccountTablePrefix, storeKey, &GroupAccountMetadataBase{}, orm.Max255DynamicLengthIndexKeyCodec{})
+	groupAccountTableBuilder := orm.NewNaturalKeyTableBuilder(GroupAccountTablePrefix, storeKey, &StdGroupAccountMetadata{}, orm.Max255DynamicLengthIndexKeyCodec{})
 	k.groupAccountByGroupIndex = orm.NewUInt64Index(groupAccountTableBuilder, GroupAccountByGroupIndexPrefix, func(value interface{}) ([]uint64, error) {
-		group := value.(*GroupAccountMetadataBase).Group
+		group := value.(*StdGroupAccountMetadata).Base.Group
 		return []uint64{uint64(group)}, nil
 	})
 	k.groupAccountByAdminIndex = orm.NewIndex(groupAccountTableBuilder, GroupAccountByAdminIndexPrefix, func(value interface{}) ([]orm.RowID, error) {
-		admin := value.(*GroupAccountMetadataBase).Admin
+		admin := value.(*StdGroupAccountMetadata).Base.Admin
 		return []orm.RowID{admin.Bytes()}, nil
 	})
 	k.groupAccountTable = groupAccountTableBuilder.Build()
-
-	//
-	// ProposalBase Table
-	//
-	ProposalBaseTableBuilder := orm.NewAutoUInt64TableBuilder(ProposalBaseTablePrefix, ProposalBaseTableSeqPrefix, storeKey, &ProposalBase{})
-	k.ProposalBaseByGroupAccountIndex = orm.NewIndex(ProposalBaseTableBuilder, ProposalBaseByGroupAccountIndexPrefix, func(value interface{}) ([]orm.RowID, error) {
-		account := value.(*ProposalBase).GroupAccount
-		return []orm.RowID{account.Bytes()}, nil
-
-	})
-	k.ProposalBaseByProposerIndex = orm.NewIndex(ProposalBaseTableBuilder, ProposalBaseByProposerIndexPrefix, func(value interface{}) ([]orm.RowID, error) {
-		proposers := value.(*ProposalBase).Proposers
-		r := make([]orm.RowID, len(proposers))
-		for i := range proposers {
-			r[i] = proposers[i].Bytes()
-		}
-		return r, nil
-	})
-	k.ProposalBaseTable = ProposalBaseTableBuilder.Build()
 
 	//
 	// Vote Table
@@ -194,6 +170,10 @@ func (k Keeper) GetGroup(ctx sdk.Context, id GroupID) (GroupMetadata, error) {
 	return obj, k.groupTable.GetOne(ctx, id.Byte(), &obj)
 }
 
+func (k Keeper) HasGroup(ctx sdk.Context, rowID orm.RowID) bool {
+	return k.groupTable.Has(ctx, rowID)
+}
+
 func (k Keeper) UpdateGroup(ctx sdk.Context, g *GroupMetadata) error {
 	g.Version++
 	return k.groupTable.Save(ctx, g.Group.Byte(), g)
@@ -209,9 +189,46 @@ func (k Keeper) setParams(ctx sdk.Context, params Params) {
 	k.paramSpace.SetParamSet(ctx, &params)
 }
 
-//func (k Keeper) CreateGroupAccount(ctx orm.HasKVStore, admin sdk.AccAddress, groupID GroupID, policy DecisionPolicy, comment string) (sdk.AccAddress, error) {
-//	panic("implement me")
-//}
+// CreateGroupAccount creates and persists a `StdGroupAccountMetadata`
+//func (k Keeper) CreateGroupAccount(ctx sdk.Context, admin sdk.AccAddress, groupID GroupID, policy DecisionPolicy, comment string) (sdk.AccAddress, error) {
+func (k Keeper) CreateGroupAccount(ctx sdk.Context, admin sdk.AccAddress, groupID GroupID, policy ThresholdDecisionPolicy, comment string) (sdk.AccAddress, error) {
+	maxCommentSize := k.MaxCommentSize(ctx)
+	if len(comment) > maxCommentSize {
+		return nil, errors.Wrap(ErrMaxLimit, "group account comment")
+	}
+
+	// todo: other validations
+	// todo: where to store decision policy?
+	//var accountAddr sdk.AccAddress   // todo: how do we generate deterministic address??? as in weave with conditions?
+
+	accountAddr := make([]byte, sdk.AddrLen)
+	groupAccount := StdGroupAccountMetadata{
+		Base: GroupAccountMetadataBase{
+			GroupAccount: accountAddr,
+			Group:        groupID,
+			Admin:        admin,
+			Comment:      comment,
+		},
+		DecisionPolicy: StdDecisionPolicy{Sum: &StdDecisionPolicy_Threshold{&policy}},
+	}
+	if err := k.groupAccountTable.Create(ctx, &groupAccount); err != nil {
+		return nil, errors.Wrap(err, "could not create group account")
+	}
+	return accountAddr, nil
+}
+
+func (k Keeper) GetGroupByGroupAccount(ctx sdk.Context, address sdk.AccAddress) (GroupMetadata, error) {
+	var obj GroupAccountMetadataBase
+	if err := k.groupAccountTable.GetOne(ctx, address.Bytes(), &obj); err != nil {
+		return GroupMetadata{}, errors.Wrap(err, "load group account")
+	}
+	return k.GetGroup(ctx, obj.Group)
+}
+
+func (k Keeper) HasGroupAccount(ctx sdk.Context, address sdk.AccAddress) bool {
+	return k.groupAccountTable.Has(ctx, address.Bytes())
+}
+
 //
 //func (k Keeper) UpdateGroupAccountAdmin(ctx orm.HasKVStore, groupAcc sdk.AccAddress, newAdmin sdk.AccAddress) error {
 //	panic("implement me")

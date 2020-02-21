@@ -9,10 +9,14 @@ import (
 var _ sdk.Msg = &MsgCreateGroup{}
 
 const (
-	msgTypeCreateGroup         = "create_group"
-	msgTypeCUpdateGroupAdmin   = "update_group_admin"
-	msgTypeCUpdateGroupComment = "update_group_comment"
-	msgTypeCUpdateGroupMembers = "update_group_members"
+	msgTypeCreateGroup           = "create_group"
+	msgTypeUpdateGroupAdmin      = "update_group_admin"
+	msgTypeUpdateGroupComment    = "update_group_comment"
+	msgTypeUpdateGroupMembers    = "update_group_members"
+	msgTypeCreateGroupAccountStd = "create_group_account"
+	//msgTypeProposeBase           = "create_proposal"
+	msgTypeVote         = "vote"
+	msgTypeExecProposal = "exec_proposal"
 )
 
 func (m MsgCreateGroup) Route() string { return ModuleName }
@@ -61,7 +65,7 @@ func (m MsgCreateGroup) ValidateBasic() error {
 var _ sdk.Msg = &MsgUpdateGroupAdmin{}
 
 func (m MsgUpdateGroupAdmin) Route() string { return ModuleName }
-func (m MsgUpdateGroupAdmin) Type() string  { return msgTypeCUpdateGroupAdmin }
+func (m MsgUpdateGroupAdmin) Type() string  { return msgTypeUpdateGroupAdmin }
 
 // GetSigners returns the addresses that must sign over msg.GetSignBytes()
 func (m MsgUpdateGroupAdmin) GetSigners() []sdk.AccAddress {
@@ -95,7 +99,7 @@ func (m MsgUpdateGroupAdmin) ValidateBasic() error {
 var _ sdk.Msg = &MsgUpdateGroupComment{}
 
 func (m MsgUpdateGroupComment) Route() string { return ModuleName }
-func (m MsgUpdateGroupComment) Type() string  { return msgTypeCUpdateGroupComment }
+func (m MsgUpdateGroupComment) Type() string  { return msgTypeUpdateGroupComment }
 
 // GetSigners returns the addresses that must sign over msg.GetSignBytes()
 func (m MsgUpdateGroupComment) GetSigners() []sdk.AccAddress {
@@ -122,7 +126,7 @@ func (m MsgUpdateGroupComment) ValidateBasic() error {
 var _ sdk.Msg = &MsgUpdateGroupMembers{}
 
 func (m MsgUpdateGroupMembers) Route() string { return ModuleName }
-func (m MsgUpdateGroupMembers) Type() string  { return msgTypeCUpdateGroupMembers }
+func (m MsgUpdateGroupMembers) Type() string  { return msgTypeUpdateGroupMembers }
 
 // GetSigners returns the addresses that must sign over msg.GetSignBytes()
 func (m MsgUpdateGroupMembers) GetSigners() []sdk.AccAddress {
@@ -159,6 +163,89 @@ func (m MsgUpdateGroupMembers) ValidateBasic() error {
 		if _, exists := index[addr]; exists {
 			return errors.Wrapf(ErrDuplicate, "address: %s", addr)
 		}
+	}
+	return nil
+}
+
+func (m *MsgCreateGroupAccountBase) ValidateBasic() error {
+	if m.Group == 0 {
+		return sdkerrors.Wrap(ErrEmpty, "group")
+
+	}
+	if len(m.Admin) != sdk.AddrLen {
+		return sdkerrors.Wrap(ErrInvalid, "admin")
+	}
+	return nil
+}
+
+func (m *MsgProposeBase) ValidateBasic() error {
+	if len(m.GroupAccount) != sdk.AddrLen {
+		return sdkerrors.Wrap(ErrInvalid, "group account")
+	}
+	if len(m.Proposers) == 0 {
+		return sdkerrors.Wrap(ErrEmpty, "proposers")
+	}
+	for i := range m.Proposers {
+		if len(m.Proposers[i]) != sdk.AddrLen {
+			return sdkerrors.Wrap(ErrInvalid, "proposer account")
+		}
+	}
+	return nil
+}
+
+var _ sdk.Msg = &MsgCreateGroupAccountStd{}
+
+func (m MsgCreateGroupAccountStd) Route() string { return ModuleName }
+func (m MsgCreateGroupAccountStd) Type() string  { return msgTypeCreateGroupAccountStd }
+
+// GetSigners returns the addresses that must sign over msg.GetSignBytes()
+func (m MsgCreateGroupAccountStd) GetSigners() []sdk.AccAddress {
+	return []sdk.AccAddress{m.Base.Admin}
+}
+
+// GetSignBytes returns the bytes for the message signer to sign on
+func (m MsgCreateGroupAccountStd) GetSignBytes() []byte {
+	return sdk.MustSortJSON(ModuleCdc.MustMarshalJSON(m))
+}
+
+// ValidateBasic does a sanity check on the provided data
+func (m MsgCreateGroupAccountStd) ValidateBasic() error {
+	if err := m.Base.ValidateBasic(); err != nil {
+		return nil
+	}
+	return nil
+}
+
+var _ sdk.Msg = &MsgVote{}
+
+func (m MsgVote) Route() string { return ModuleName }
+func (m MsgVote) Type() string  { return msgTypeVote }
+
+// GetSigners returns the addresses that must sign over msg.GetSignBytes()
+func (m MsgVote) GetSigners() []sdk.AccAddress {
+	return m.Voters
+}
+
+// GetSignBytes returns the bytes for the message signer to sign on
+func (m MsgVote) GetSignBytes() []byte {
+	return sdk.MustSortJSON(ModuleCdc.MustMarshalJSON(m))
+}
+
+// ValidateBasic does a sanity check on the provided data
+func (m MsgVote) ValidateBasic() error {
+	if len(m.Voters) == 0 {
+		return errors.Wrap(ErrEmpty, "voters")
+	}
+	for i := range m.Voters {
+		if err := sdk.VerifyAddressFormat(m.Voters[i]); err != nil {
+			return errors.Wrap(ErrInvalid, "voter")
+		}
+	}
+	if m.Proposal == 0 {
+		return errors.Wrap(ErrEmpty, "proposal")
+	}
+	if m.Choice == Choice_UNKNOWN {
+		return errors.Wrap(ErrEmpty, "choice")
 	}
 	return nil
 }

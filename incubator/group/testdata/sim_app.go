@@ -1,4 +1,4 @@
-package group
+package testdata
 
 import (
 	"encoding/json"
@@ -27,6 +27,7 @@ import (
 	"github.com/cosmos/cosmos-sdk/x/supply"
 	"github.com/cosmos/cosmos-sdk/x/upgrade"
 	upgradeclient "github.com/cosmos/cosmos-sdk/x/upgrade/client"
+	"github.com/cosmos/modules/incubator/group"
 	abci "github.com/tendermint/tendermint/abci/types"
 	"github.com/tendermint/tendermint/libs/log"
 	tmos "github.com/tendermint/tendermint/libs/os"
@@ -56,6 +57,7 @@ var (
 		slashing.AppModuleBasic{},
 		upgrade.AppModuleBasic{},
 		evidence.AppModuleBasic{},
+		group.AppModule{},
 		AppModule{},
 	)
 
@@ -109,7 +111,8 @@ type SimApp struct {
 	UpgradeKeeper  upgrade.Keeper
 	ParamsKeeper   params.Keeper
 	EvidenceKeeper evidence.Keeper
-	GroupKeeper    Keeper
+	GroupKeeper    group.Keeper
+	TestdataKeeper Keeper
 
 	// the module manager
 	mm *module.Manager
@@ -141,7 +144,7 @@ func NewSimApp(
 		bam.MainStoreKey, auth.StoreKey, bank.StoreKey, staking.StoreKey,
 		supply.StoreKey, mint.StoreKey, distr.StoreKey, slashing.StoreKey,
 		gov.StoreKey, params.StoreKey, upgrade.StoreKey, evidence.StoreKey,
-		StoreKeyName,
+		group.StoreKeyName, ModuleName,
 	)
 	tkeys := sdk.NewTransientStoreKeys(params.TStoreKey)
 
@@ -165,7 +168,8 @@ func NewSimApp(
 	app.subspaces[gov.ModuleName] = app.ParamsKeeper.Subspace(gov.DefaultParamspace).WithKeyTable(gov.ParamKeyTable())
 	app.subspaces[crisis.ModuleName] = app.ParamsKeeper.Subspace(crisis.DefaultParamspace)
 	app.subspaces[evidence.ModuleName] = app.ParamsKeeper.Subspace(evidence.DefaultParamspace)
-	app.subspaces[ModuleName] = app.ParamsKeeper.Subspace(DefaultParamspace)
+	app.subspaces[group.ModuleName] = app.ParamsKeeper.Subspace(group.DefaultParamspace)
+	app.subspaces[ModuleName] = app.ParamsKeeper.Subspace(ModuleName)
 
 	// add keepers
 	app.AccountKeeper = auth.NewAccountKeeper(
@@ -200,8 +204,8 @@ func NewSimApp(
 	evidenceKeeper := evidence.NewKeeper(
 		app.cdc, keys[evidence.StoreKey], app.subspaces[evidence.ModuleName], &app.StakingKeeper, app.SlashingKeeper,
 	)
-	app.GroupKeeper = NewGroupKeeper(keys[StoreKeyName], app.subspaces[ModuleName])
-
+	app.GroupKeeper = group.NewGroupKeeper(keys[group.StoreKeyName], app.subspaces[group.ModuleName])
+	app.TestdataKeeper = NewTestdataKeeper(keys[ModuleName], app.GroupKeeper)
 	evidenceRouter := evidence.NewRouter()
 	// TODO: Register evidence routes.
 	evidenceKeeper.SetRouter(evidenceRouter)
@@ -239,14 +243,15 @@ func NewSimApp(
 		staking.NewAppModule(app.StakingKeeper, app.AccountKeeper, app.BankKeeper, app.SupplyKeeper),
 		upgrade.NewAppModule(app.UpgradeKeeper),
 		evidence.NewAppModule(app.EvidenceKeeper),
-		NewAppModule(app.GroupKeeper),
+		group.NewAppModule(app.GroupKeeper),
+		NewAppModule(app.TestdataKeeper),
 	)
 
 	// During begin block slashing happens after distr.BeginBlocker so that
 	// there is nothing left over in the validator fee pool, so as to keep the
 	// CanWithdrawInvariant invariant.
-	app.mm.SetOrderBeginBlockers(upgrade.ModuleName, mint.ModuleName, distr.ModuleName, slashing.ModuleName, evidence.ModuleName, ModuleName)
-	app.mm.SetOrderEndBlockers(crisis.ModuleName, gov.ModuleName, staking.ModuleName, ModuleName)
+	app.mm.SetOrderBeginBlockers(upgrade.ModuleName, mint.ModuleName, distr.ModuleName, slashing.ModuleName, evidence.ModuleName, group.ModuleName)
+	app.mm.SetOrderEndBlockers(crisis.ModuleName, gov.ModuleName, staking.ModuleName, group.ModuleName)
 
 	// NOTE: The genutils moodule must occur after staking so that pools are
 	// properly initialized with tokens from genesis accounts.
@@ -254,7 +259,7 @@ func NewSimApp(
 		auth.ModuleName, distr.ModuleName, staking.ModuleName, bank.ModuleName,
 		slashing.ModuleName, gov.ModuleName, mint.ModuleName, supply.ModuleName,
 		crisis.ModuleName, genutil.ModuleName, evidence.ModuleName,
-		ModuleName,
+		group.ModuleName,
 	)
 
 	app.mm.RegisterInvariants(&app.CrisisKeeper)
