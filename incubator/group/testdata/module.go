@@ -1,8 +1,7 @@
-package group
+package testdata
 
 import (
 	"encoding/json"
-	"fmt"
 
 	"github.com/cosmos/cosmos-sdk/client/context"
 	"github.com/cosmos/cosmos-sdk/codec"
@@ -12,21 +11,7 @@ import (
 	abci "github.com/tendermint/tendermint/abci/types"
 )
 
-const (
-	// ModuleName is the module name constant used in many places
-	ModuleName = "group"
-
-	// StoreKey defines the primary module store key
-	StoreKeyName = ModuleName
-
-	// RouterKey defines the module's message routing key
-	RouterKey = ModuleName
-
-	// QuerierRoute defines the module's query routing key
-	QuerierRoute = ModuleName
-
-	DefaultParamspace = ModuleName
-)
+const ModuleName = "testdata"
 
 type AppModule struct {
 	keeper Keeper
@@ -47,55 +32,38 @@ func (a AppModule) RegisterCodec(cdc *codec.Codec) {
 }
 
 func (a AppModule) DefaultGenesis() json.RawMessage {
-	return ModuleCdc.MustMarshalJSON(NewGenesisState())
+	return nil
 }
 
 func (a AppModule) ValidateGenesis(bz json.RawMessage) error {
-	var data GenesisState
-	if err := ModuleCdc.UnmarshalJSON(bz, &data); err != nil {
-		return err
-	}
-	return data.Validate()
+	return nil
 }
 
 func (a AppModule) RegisterRESTRoutes(ctx context.CLIContext, r *mux.Router) {
-	//rest.RegisterRoutes(ctx, r, ModuleCdc, RouterKey)
-	// todo: what client functions do we want to support?
 	panic("implement me")
 }
 
 func (a AppModule) GetTxCmd(*codec.Codec) *cobra.Command {
-	//return cli.GetTxCmd(StoreKey, cdc)
 	panic("implement me")
 }
 
 func (a AppModule) GetQueryCmd(*codec.Codec) *cobra.Command {
-	//return cli.GetQueryCmd(StoreKey, cdc)
 	panic("implement me")
 }
 
 func (a AppModule) InitGenesis(ctx sdk.Context, data json.RawMessage) []abci.ValidatorUpdate {
-	var genesisState GenesisState
-	ModuleCdc.MustUnmarshalJSON(data, &genesisState)
-	if err := genesisState.Validate(); err != nil {
-		panic(fmt.Sprintf("failed to validate %s genesis state: %s", ModuleName, err))
-	}
-	a.keeper.setParams(ctx, genesisState.Params)
-	return []abci.ValidatorUpdate{}
-
+	return nil
 }
 
 func (a AppModule) ExportGenesis(ctx sdk.Context) json.RawMessage {
-	gs := ExportGenesis(ctx, a.keeper)
-	return ModuleCdc.MustMarshalJSON(gs)
+	return nil
 }
 
 func (a AppModule) RegisterInvariants(sdk.InvariantRegistry) {
-	// todo: anything to check?
 }
 
 func (a AppModule) Route() string {
-	return RouterKey
+	return ModuleName
 }
 
 func (a AppModule) NewHandler() sdk.Handler {
@@ -103,13 +71,14 @@ func (a AppModule) NewHandler() sdk.Handler {
 }
 
 func (a AppModule) QuerierRoute() string {
-	return QuerierRoute
+	return ModuleName
 }
 
 func (a AppModule) NewQuerierHandler() sdk.Querier {
-	return NewQuerier(a.keeper)
+	return func(ctx sdk.Context, path []string, req abci.RequestQuery) ([]byte, error) {
+		panic("not implemented")
+	}
 }
-
 func (a AppModule) BeginBlock(sdk.Context, abci.RequestBeginBlock) {}
 
 func (a AppModule) EndBlock(sdk.Context, abci.RequestEndBlock) []abci.ValidatorUpdate {

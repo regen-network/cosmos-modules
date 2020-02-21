@@ -8,6 +8,7 @@ import (
 	"github.com/pkg/errors"
 )
 
+// NewHandler creates a new message handler.
 func NewHandler(k Keeper) sdk.Handler {
 	return func(ctx sdk.Context, msg sdk.Msg) (*sdk.Result, error) {
 		ctx = ctx.WithEventManager(sdk.NewEventManager())
@@ -20,89 +21,39 @@ func NewHandler(k Keeper) sdk.Handler {
 			return handleMsgUpdateGroupComment(ctx, k, msg)
 		case MsgUpdateGroupMembers:
 			return handleMsgUpdateGroupMembers(ctx, k, msg)
+
+		// todo: @aaronc is this message type supposed to be handled or for extensions only?
+		//case MsgCreateGroupAccountBase:
+		//case MsgProposeBase:
+
+		case MsgCreateGroupAccountStd:
+			return handleMsgCreateGroupAccountStd(ctx, k, msg)
+		case MsgVote:
+			return handleMsgVote(ctx, k, msg)
+
+		//case MsgExec:
+
 		default:
 			return nil, sdkerrors.Wrapf(sdkerrors.ErrUnknownRequest, "unrecognized group message type: %T", msg)
 		}
 	}
 }
 
-func handleMsgCreateGroup(ctx sdk.Context, k Keeper, msg MsgCreateGroup) (*sdk.Result, error) {
-	id, err := k.CreateGroup(ctx, msg.Admin, msg.Members, msg.Comment)
+func handleMsgVote(ctx sdk.Context, k Keeper, msg MsgVote) (*sdk.Result, error) {
+	return nil, nil
+}
+
+// TODO: Do we want to introduce any new events?
+
+func handleMsgCreateGroupAccountStd(ctx sdk.Context, k Keeper, msg MsgCreateGroupAccountStd) (*sdk.Result, error) {
+	acc, err := k.CreateGroupAccount(ctx, msg.Base.Admin, msg.Base.Group, *msg.DecisionPolicy.GetThreshold(), msg.Base.Comment)
 	if err != nil {
-		return nil, errors.Wrap(err, "create group")
+		return nil, errors.Wrap(err, "create group account")
 	}
-	return buildGroupResult(ctx, msg.Admin, id, "created")
+	return buildGroupAccountResult(ctx, msg.Base.Admin, acc, "created")
 }
 
-func handleMsgUpdateGroupAdmin(ctx sdk.Context, k Keeper, msg MsgUpdateGroupAdmin) (*sdk.Result, error) {
-	action := func(m *GroupMetadata) error {
-		m.Admin = msg.NewAdmin
-		return k.UpdateGroup(ctx, m)
-	}
-	return doAuthenticated(k, ctx, &msg, action, "admin updated")
-}
-
-func handleMsgUpdateGroupComment(ctx sdk.Context, k Keeper, msg MsgUpdateGroupComment) (*sdk.Result, error) {
-	action := func(m *GroupMetadata) error {
-		m.Comment = msg.Comment
-		return k.UpdateGroup(ctx, m)
-	}
-	return doAuthenticated(k, ctx, &msg, action, "comment updated")
-}
-
-func handleMsgUpdateGroupMembers(ctx sdk.Context, k Keeper, msg MsgUpdateGroupMembers) (*sdk.Result, error) {
-	action := func(m *GroupMetadata) error {
-		for i := range msg.MemberUpdates {
-			member := GroupMember{Group: msg.Group,
-				Member:  msg.MemberUpdates[i].Address,
-				Weight:  msg.MemberUpdates[i].Power,
-				Comment: msg.MemberUpdates[i].Comment,
-			}
-			if member.Weight.Equal(sdk.ZeroDec()) {
-				if err := k.groupMemberTable.Delete(ctx, &member); err != nil {
-					return errors.Wrap(err, "delete member")
-				}
-				continue
-			}
-
-			// todo: a PUT would be nicer in this scenario to save the extra cost for the additional Has operation
-			// todo: revisit `Has` syntax: groupMemberTable.Has(ctx, member) ?
-			if k.groupMemberTable.Has(ctx, member.NaturalKey()) {
-				if err := k.groupMemberTable.Save(ctx, &member); err != nil {
-					return errors.Wrap(err, "add member")
-				}
-			} else {
-				if err := k.groupMemberTable.Create(ctx, &member); err != nil {
-					return errors.Wrap(err, "add member")
-				}
-			}
-		}
-		return k.UpdateGroup(ctx, m)
-	}
-	return doAuthenticated(k, ctx, &msg, action, "members updated")
-
-}
-
-type authNGroupMsg interface {
-	GetGroup() GroupID
-	GetAdmin() sdk.AccAddress // equal GetSigners()
-}
-
-func doAuthenticated(k Keeper, ctx sdk.Context, msg authNGroupMsg, action func(*GroupMetadata) error, note string) (*sdk.Result, error) {
-	group, err := k.GetGroup(ctx, msg.GetGroup())
-	if err != nil {
-		return nil, err
-	}
-	if !group.Admin.Equals(msg.GetAdmin()) {
-		return nil, errors.Wrap(ErrUnauthorized, "not group admin")
-	}
-	if err := action(&group); err != nil {
-		return nil, errors.Wrap(err, note)
-	}
-	return buildGroupResult(ctx, msg.GetAdmin(), msg.GetGroup(), note)
-}
-
-func buildGroupResult(ctx sdk.Context, admin sdk.AccAddress, group GroupID, note string) (*sdk.Result, error) {
+func buildGroupAccountResult(ctx sdk.Context, admin sdk.AccAddress, acc sdk.AccAddress, note string) (*sdk.Result, error) {
 	ctx.EventManager().EmitEvent(
 		sdk.NewEvent(
 			sdk.EventTypeMessage,
@@ -111,8 +62,8 @@ func buildGroupResult(ctx sdk.Context, admin sdk.AccAddress, group GroupID, note
 		),
 	)
 	return &sdk.Result{
-		Data:   group.Byte(),
-		Log:    fmt.Sprintf("Group %d %s", group, note),
+		Data:   acc.Bytes(),
+		Log:    fmt.Sprintf("Group account %s %s", acc.String(), note),
 		Events: ctx.EventManager().Events(),
 	}, nil
 }

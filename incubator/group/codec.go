@@ -25,6 +25,15 @@ func RegisterCodec(cdc *codec.Codec) {
 	cdc.RegisterConcrete(MsgUpdateGroupMembers{}, "cosmos-sdk/MsgUpdateGroupMembers", nil)
 	cdc.RegisterConcrete(MsgUpdateGroupAdmin{}, "cosmos-sdk/MsgUpdateGroupAdmin", nil)
 	cdc.RegisterConcrete(MsgUpdateGroupComment{}, "cosmos-sdk/MsgUpdateGroupComment", nil)
+	cdc.RegisterConcrete(MsgCreateGroupAccountStd{}, "cosmos-sdk/MsgCreateGroupAccountStd", nil)
+	cdc.RegisterConcrete(MsgVote{}, "cosmos-sdk/MsgVote", nil)
+	cdc.RegisterConcrete(MsgExec{}, "cosmos-sdk/MsgExec", nil)
+
+	// oh man... this is for amino
+	cdc.RegisterConcrete(StdDecisionPolicy{}, "cosmos-sdk/StdDecisionPolicy", nil)
+	cdc.RegisterConcrete(&StdDecisionPolicy_Threshold{}, "cosmos-sdk/StdDecisionPolicy_Threshold", nil)
+	cdc.RegisterConcrete(ThresholdDecisionPolicy{}, "cosmos-sdk/ThresholdDecisionPolicy", nil)
+	cdc.RegisterInterface((*isStdDecisionPolicy_Sum)(nil), nil)
 }
 
 // generic sealed codec to be used throughout module

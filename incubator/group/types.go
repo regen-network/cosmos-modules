@@ -38,6 +38,10 @@ func (g GroupAccountMetadataBase) NaturalKey() []byte {
 	return g.GroupAccount
 }
 
+func (g StdGroupAccountMetadata) NaturalKey() []byte {
+	return g.Base.NaturalKey()
+}
+
 func (v Vote) NaturalKey() []byte {
 	result := make([]byte, 0, 8+len(v.Voter))
 	copy(result[0:8], orm.EncodeSequence(uint64(v.Proposal)))

@@ -1,0 +1,21 @@
+syntax = "proto3";
+
+package cosmos_modules.incubator.group.v1_alpha.testdata;
+option go_package = "github.com/cosmos/modules/incubator/group/testdata";
+
+import "gogoproto/gogo.proto";
+import "group/types.proto";
+
+message MyAppMsg {
+    string comment = 3;
+}
+
+message MyAppProposal {
+    cosmos_modules.incubator.group.v1_alpha.ProposalBase base = 1 [(gogoproto.nullable) = false];
+    repeated MyAppMsg msgs = 2;
+}
+
+message MsgPropose {
+    cosmos_modules.incubator.group.v1_alpha.MsgProposeBase base = 1 [(gogoproto.nullable) = false];
+    repeated MyAppMsg msgs = 2;
+}
