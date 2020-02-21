@@ -10,6 +10,63 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func TestMsgCreateGroup(t *testing.T) {
+	myAdmin := []byte("admin-address")
+
+	specs := map[string]struct {
+		src        MsgCreateGroup
+		expErr     *errors.Error
+		expGroup   GroupMetadata
+		expMembers []GroupMember
+	}{
+		"happy path": {
+			src: MsgCreateGroup{
+				Admin:   myAdmin,
+				Comment: "test",
+				Members: []Member{{
+					Address: sdk.AccAddress([]byte("member-address")),
+					Power:   sdk.NewDec(1),
+					Comment: "first",
+				}},
+			},
+			expGroup: GroupMetadata{
+				Group:   1,
+				Admin:   myAdmin,
+				Comment: "test",
+				Version: 1,
+			},
+			expMembers: []GroupMember{
+				{
+					Member:  sdk.AccAddress([]byte("member-address")),
+					Group:   1,
+					Weight:  sdk.NewDec(1),
+					Comment: "first",
+				},
+			},
+		},
+	}
+	for msg, spec := range specs {
+		t.Run(msg, func(t *testing.T) {
+			k, ctx := createGroupKeeper()
+			res, err := NewHandler(k)(ctx, spec.src)
+			require.True(t, spec.expErr.Is(err), err)
+			// then
+			groupID := orm.DecodeSequence(res.Data)
+			loaded, err := k.GetGroup(ctx, GroupID(groupID))
+			require.NoError(t, err)
+			assert.Equal(t, spec.expGroup, loaded)
+
+			// and members persisted
+			it, err := k.groupMemberByGroupIndex.Get(ctx, groupID)
+			require.NoError(t, err)
+			var loadedMembers []GroupMember
+			_, err = orm.ReadAll(it, &loadedMembers)
+			require.NoError(t, err)
+			assert.Equal(t, spec.expMembers, loadedMembers)
+		})
+	}
+}
+
 func TestMsgUpdateGroupAdmin(t *testing.T) {
 	k, pCtx := createGroupKeeper()
 
@@ -165,7 +222,7 @@ func TestMsgUpdateGroupMembers(t *testing.T) {
 		Comment: "first",
 	}}
 
-	myAdmin := []byte("old-admin-address")
+	myAdmin := []byte("admin-address")
 	groupID, err := k.CreateGroup(pCtx, myAdmin, members, "test")
 	require.NoError(t, err)
 
@@ -256,6 +313,35 @@ func TestMsgUpdateGroupMembers(t *testing.T) {
 				},
 			},
 		},
+		"replace member": {
+			src: MsgUpdateGroupMembers{
+				Group: groupID,
+				Admin: myAdmin,
+				MemberUpdates: []Member{{
+					Address: sdk.AccAddress([]byte("member-address")),
+					Power:   sdk.NewDec(0),
+					Comment: "good bye",
+				},
+					{
+						Address: sdk.AccAddress([]byte("new-member-address")),
+						Power:   sdk.NewDec(1),
+						Comment: "welcome",
+					}},
+			},
+			expGroup: GroupMetadata{
+				Group:   groupID,
+				Admin:   myAdmin,
+				Comment: "test",
+				Version: 2,
+			},
+			expMembers: []GroupMember{{
+				Member:  sdk.AccAddress([]byte("new-member-address")),
+				Group:   groupID,
+				Weight:  sdk.NewDec(1),
+				Comment: "welcome",
+			}},
+		},
+
 		"remove existing member": {
 			src: MsgUpdateGroupMembers{
 				Group: groupID,
@@ -356,8 +442,8 @@ func TestMsgUpdateGroupMembers(t *testing.T) {
 			loaded, err := k.GetGroup(ctx, groupID)
 			require.NoError(t, err)
 			assert.Equal(t, spec.expGroup, loaded)
-			// and members persisted
 
+			// and members persisted
 			it, err := k.groupMemberByGroupIndex.Get(ctx, uint64(groupID))
 			require.NoError(t, err)
 			var loadedMembers []GroupMember
