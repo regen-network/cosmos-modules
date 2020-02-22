@@ -21,6 +21,8 @@ func NewHandler(k Keeper) sdk.Handler {
 }
 
 func handleMsgPropose(ctx sdk.Context, k Keeper, msg MsgPropose) (*sdk.Result, error) {
+	// todo: vaidate
+	// check execNow
 	id, err := k.CreateProposal(ctx, msg.Base.GroupAccount, msg.Base.Proposers, msg.Base.Comment)
 	if err != nil {
 		return nil, err

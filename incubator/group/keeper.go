@@ -5,6 +5,7 @@ import (
 	"github.com/cosmos/cosmos-sdk/types/errors"
 	"github.com/cosmos/cosmos-sdk/x/params"
 	"github.com/cosmos/modules/incubator/orm"
+	"github.com/gogo/protobuf/types"
 )
 
 const (
@@ -218,15 +219,60 @@ func (k Keeper) CreateGroupAccount(ctx sdk.Context, admin sdk.AccAddress, groupI
 }
 
 func (k Keeper) GetGroupByGroupAccount(ctx sdk.Context, address sdk.AccAddress) (GroupMetadata, error) {
-	var obj GroupAccountMetadataBase
+	var obj StdGroupAccountMetadata
 	if err := k.groupAccountTable.GetOne(ctx, address.Bytes(), &obj); err != nil {
 		return GroupMetadata{}, errors.Wrap(err, "load group account")
 	}
-	return k.GetGroup(ctx, obj.Group)
+	return k.GetGroup(ctx, obj.Base.Group)
 }
 
 func (k Keeper) HasGroupAccount(ctx sdk.Context, address sdk.AccAddress) bool {
 	return k.groupAccountTable.Has(ctx, address.Bytes())
+}
+
+func (k Keeper) Vote(ctx sdk.Context, id ProposalID, voters []sdk.AccAddress, choice Choice, comment string) error {
+	// todo: ensure proposal exists
+	// voters !=0
+	// choice not invalid
+	// comment within range
+	// within voting period
+	// we could check for proposal still valid (=group version) but would cost additional gas
+	blockTime, err := types.TimestampProto(ctx.BlockTime())
+	if err != nil {
+		return err
+	}
+	for _, v := range voters {
+		newVote := Vote{
+			Proposal:    id,
+			Voter:       v,
+			Choice:      choice,
+			Comment:     comment,
+			SubmittedAt: *blockTime,
+		}
+
+		var oldVote *Vote
+		err = k.voteTable.GetOne(ctx, newVote.NaturalKey(), oldVote)
+		switch {
+		case orm.ErrNotFound.Is(err):
+		case err != nil:
+			return errors.Wrap(err, "load old vote")
+		default:
+			// todo: substract from tally
+		}
+
+		// todo: here a put would be nicer again
+		if oldVote == nil {
+			if err := k.voteTable.Create(ctx, &newVote); err != nil {
+				return errors.Wrap(err, "create vote")
+			}
+		} else {
+			if err := k.voteTable.Save(ctx, &newVote); err != nil {
+				return errors.Wrap(err, "update vote")
+			}
+		}
+		// todo: add to tally result
+	}
+	return nil
 }
 
 //

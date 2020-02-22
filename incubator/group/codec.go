@@ -26,8 +26,8 @@ func RegisterCodec(cdc *codec.Codec) {
 	cdc.RegisterConcrete(MsgUpdateGroupAdmin{}, "cosmos-sdk/MsgUpdateGroupAdmin", nil)
 	cdc.RegisterConcrete(MsgUpdateGroupComment{}, "cosmos-sdk/MsgUpdateGroupComment", nil)
 	cdc.RegisterConcrete(MsgCreateGroupAccountStd{}, "cosmos-sdk/MsgCreateGroupAccountStd", nil)
-	cdc.RegisterConcrete(MsgVote{}, "cosmos-sdk/MsgVote", nil)
-	cdc.RegisterConcrete(MsgExec{}, "cosmos-sdk/MsgExec", nil)
+	cdc.RegisterConcrete(MsgVote{}, "cosmos-sdk/group/MsgVote", nil)
+	cdc.RegisterConcrete(MsgExec{}, "cosmos-sdk/group/MsgExec", nil)
 
 	// oh man... this is for amino
 	cdc.RegisterConcrete(StdDecisionPolicy{}, "cosmos-sdk/StdDecisionPolicy", nil)
