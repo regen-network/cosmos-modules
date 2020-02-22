@@ -72,7 +72,7 @@ func TestCreateGroupScenario(t *testing.T) {
 	assert.True(t, app.GroupKeeper.HasGroup(ctx, resp.Data))
 }
 
-func TestCreateProposal(t *testing.T) {
+func TestFullProposalWorkflowl(t *testing.T) {
 	app, ctx := createTestApp(false)
 
 	// setup account
@@ -119,10 +119,10 @@ func TestCreateProposal(t *testing.T) {
 		},
 		// vote
 		group.MsgVote{
-			Proposal: 0,
+			Proposal: 1,
 			Voters:   []sdk.AccAddress{myAddr},
 			Choice:   group.Choice_YES,
-			Comment:  "all in",
+			Comment:  "makes sense",
 		},
 		// execute
 	}

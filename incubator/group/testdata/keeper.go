@@ -5,6 +5,7 @@ import (
 	"github.com/cosmos/modules/incubator/group"
 	"github.com/cosmos/modules/incubator/orm"
 	"github.com/gogo/protobuf/types"
+	"github.com/pkg/errors"
 )
 
 const (
@@ -16,7 +17,7 @@ const (
 )
 
 type Keeper struct {
-	group.Keeper
+	groupKeeper group.Keeper
 	key sdk.StoreKey
 
 	// ProposalBase Table
@@ -27,18 +28,18 @@ type Keeper struct {
 
 func NewTestdataKeeper(storeKey sdk.StoreKey, groupKeeper group.Keeper) Keeper {
 	k := Keeper{
-		Keeper: groupKeeper,
+		groupKeeper: groupKeeper,
 		key:    storeKey,
 	}
 
 	proposalTableBuilder := orm.NewAutoUInt64TableBuilder(ProposalBaseTablePrefix, ProposalBaseTableSeqPrefix, storeKey, &MyAppProposal{})
 	k.ProposalGroupAccountIndex = orm.NewIndex(proposalTableBuilder, ProposalBaseByGroupAccountIndexPrefix, func(value interface{}) ([]orm.RowID, error) {
-		account := value.(*group.ProposalBase).GroupAccount
+		account := value.(*MyAppProposal).Base.GroupAccount
 		return []orm.RowID{account.Bytes()}, nil
 
 	})
 	k.ProposalByProposerIndex = orm.NewIndex(proposalTableBuilder, ProposalBaseByProposerIndexPrefix, func(value interface{}) ([]orm.RowID, error) {
-		proposers := value.(*group.ProposalBase).Proposers
+		proposers := value.(*MyAppProposal).Base.Proposers
 		r := make([]orm.RowID, len(proposers))
 		for i := range proposers {
 			r[i] = proposers[i].Bytes()
@@ -50,15 +51,17 @@ func NewTestdataKeeper(storeKey sdk.StoreKey, groupKeeper group.Keeper) Keeper {
 }
 
 func (k Keeper) CreateProposal(ctx sdk.Context, account sdk.AccAddress, proposers []sdk.AccAddress, comment string) (uint64, error) {
-	g, err := k.GetGroupByGroupAccount(ctx, account)
+	// todo: validate
+
+	g, err := k.groupKeeper.GetGroupByGroupAccount(ctx, account)
 	if err != nil {
-		return 0, nil
+		return 0, errors.Wrap(err, "get group by account")
 	}
 	blockTime, err := types.TimestampProto(ctx.BlockTime())
 	if err != nil {
-		return 0, nil
+		return 0, errors.Wrap(err, "block time conversion")
 	}
-	return k.myProposalTable.Create(ctx, &MyAppProposal{
+	id, err := k.myProposalTable.Create(ctx, &MyAppProposal{
 		Base: group.ProposalBase{
 			GroupAccount: account,
 			Comment:      comment,
@@ -68,4 +71,8 @@ func (k Keeper) CreateProposal(ctx sdk.Context, account sdk.AccAddress, proposer
 		},
 		Msgs: nil,
 	})
+	if err != nil {
+		return 0, errors.Wrap(err, "create proposal")
+	}
+	return id, nil
 }

@@ -40,7 +40,15 @@ func NewHandler(k Keeper) sdk.Handler {
 }
 
 func handleMsgVote(ctx sdk.Context, k Keeper, msg MsgVote) (*sdk.Result, error) {
-	return nil, nil
+	if err := k.Vote(ctx, msg.Proposal, msg.Voters, msg.Choice, msg.Comment); err != nil {
+		return nil, err
+	}
+	// todo: event?
+	return &sdk.Result{
+		Log:    fmt.Sprintf("Voted for proposal: %d", msg.Proposal),
+		Events: ctx.EventManager().Events(),
+	}, nil
+
 }
 
 // TODO: Do we want to introduce any new events?

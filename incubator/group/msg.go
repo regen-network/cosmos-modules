@@ -241,6 +241,8 @@ func (m MsgVote) ValidateBasic() error {
 			return errors.Wrap(ErrInvalid, "voter")
 		}
 	}
+	// todo: prevent duplicates in votes, ignore or normalize later?
+
 	if m.Proposal == 0 {
 		return errors.Wrap(ErrEmpty, "proposal")
 	}
