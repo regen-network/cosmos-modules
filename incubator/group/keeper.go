@@ -1,6 +1,8 @@
 package group
 
 import (
+	"reflect"
+
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/types/errors"
 	"github.com/cosmos/cosmos-sdk/x/params"
@@ -36,14 +38,19 @@ const (
 	VoteByVoterIndexPrefix        byte = 0x42
 )
 
-type ProposalSource interface {
-	WithProposal(ctx sdk.Context, id ProposalID, f func(b *ProposalBase) error) error
+type ProposalI interface {
+	GetBase() ProposalBase
+	SetBase(ProposalBase)
+}
+
+type ProposalModel interface {
+	orm.Persistent
+	GetProposalI() ProposalI
 }
 
 type Keeper struct {
-	key sdk.StoreKey
-
-	ProposalSource ProposalSource
+	key               sdk.StoreKey
+	proposalModelType reflect.Type
 
 	// Group Table
 	groupTable        orm.Table
@@ -59,6 +66,11 @@ type Keeper struct {
 	groupAccountByGroupIndex orm.UInt64Index
 	groupAccountByAdminIndex orm.Index
 
+	// ProposalBase Table
+	proposalTable             orm.AutoUInt64Table
+	ProposalGroupAccountIndex orm.Index
+	ProposalByProposerIndex   orm.Index
+
 	// Vote Table
 	voteTable               orm.NaturalKeyTable
 	voteByProposalBaseIndex orm.UInt64Index
@@ -68,13 +80,24 @@ type Keeper struct {
 	paramSpace params.Subspace
 }
 
-func NewGroupKeeper(storeKey sdk.StoreKey, paramSpace params.Subspace) Keeper {
+func NewGroupKeeper(storeKey sdk.StoreKey, paramSpace params.Subspace, proposalModel ProposalModel) Keeper {
 	// set KeyTable if it has not already been set
 	if !paramSpace.HasKeyTable() {
 		paramSpace = paramSpace.WithKeyTable(params.NewKeyTable().RegisterParamSet(&Params{}))
 	}
+	if storeKey == nil {
+		panic("storeKey must not be nil")
+	}
 
-	k := Keeper{key: storeKey, paramSpace: paramSpace}
+	if proposalModel == nil {
+		panic("proposalModel must not be nil")
+	}
+	tp := reflect.TypeOf(proposalModel)
+	if tp.Kind() == reflect.Ptr {
+		tp = tp.Elem()
+	}
+
+	k := Keeper{key: storeKey, paramSpace: paramSpace, proposalModelType: tp}
 
 	//
 	// Group Table
@@ -113,6 +136,23 @@ func NewGroupKeeper(storeKey sdk.StoreKey, paramSpace params.Subspace) Keeper {
 		return []orm.RowID{admin.Bytes()}, nil
 	})
 	k.groupAccountTable = groupAccountTableBuilder.Build()
+
+	// Proposal Table
+	proposalTableBuilder := orm.NewAutoUInt64TableBuilder(ProposalBaseTablePrefix, ProposalBaseTableSeqPrefix, storeKey, proposalModel)
+	k.ProposalGroupAccountIndex = orm.NewIndex(proposalTableBuilder, ProposalBaseByGroupAccountIndexPrefix, func(value interface{}) ([]orm.RowID, error) {
+		account := value.(ProposalModel).GetProposalI().GetBase().GroupAccount
+		return []orm.RowID{account.Bytes()}, nil
+
+	})
+	k.ProposalByProposerIndex = orm.NewIndex(proposalTableBuilder, ProposalBaseByProposerIndexPrefix, func(value interface{}) ([]orm.RowID, error) {
+		proposers := value.(ProposalModel).GetProposalI().GetBase().Proposers
+		r := make([]orm.RowID, len(proposers))
+		for i := range proposers {
+			r[i] = proposers[i].Bytes()
+		}
+		return r, nil
+	})
+	k.proposalTable = proposalTableBuilder.Build()
 
 	//
 	// Vote Table
@@ -259,131 +299,163 @@ func (k Keeper) Vote(ctx sdk.Context, id ProposalID, voters []sdk.AccAddress, ch
 	if err != nil {
 		return err
 	}
-	return k.ProposalSource.WithProposal(ctx, id, func(proposal *ProposalBase) error {
-		if proposal.Status != ProposalBase_Submitted {
-			return errors.Wrap(ErrInvalid, "proposal not open")
+	proposalModel, err := k.getProposalModel(ctx, id)
+	if err != nil {
+		return err
+	}
+	proposal := proposalModel.GetProposalI().GetBase()
+	if proposal.Status != ProposalBase_Submitted {
+		return errors.Wrap(ErrInvalid, "proposal not open")
+	}
+	votingPeriodEnd, err := types.TimestampFromProto(&proposal.VotingEndTime)
+	if err != nil {
+		return err
+	}
+	end := votingPeriodEnd.UTC()
+	if end.Before(ctx.BlockTime()) || end.Equal(ctx.BlockTime()) {
+		return errors.Wrap(ErrExpired, "voting period has ended already")
+	}
+	electorate, err := k.GetGroupByGroupAccount(ctx, proposal.GroupAccount)
+	if err != nil {
+		return err
+	}
+	if electorate.Version != proposal.GroupVersion {
+		// todo: this is not the voters fault.
+		return errors.Wrap(ErrModified, "group was modified")
+	}
+	for _, v := range voters {
+		newVote := Vote{
+			Proposal:    id,
+			Voter:       v,
+			Choice:      choice,
+			Comment:     comment,
+			SubmittedAt: *blockTime,
 		}
-		votingPeriodEnd, err := types.TimestampFromProto(&proposal.VotingEndTime)
-		if err != nil {
-			return err
+		member := GroupMember{
+			Group:  electorate.Group,
+			Member: v,
 		}
-		end := votingPeriodEnd.UTC()
-		if end.Before(ctx.BlockTime()) || end.Equal(ctx.BlockTime()) {
-			return errors.Wrap(ErrExpired, "voting period has ended already")
-		}
-		electorate, err := k.GetGroupByGroupAccount(ctx, proposal.GroupAccount)
-		if err != nil {
-			return err
-		}
-		if electorate.Version != proposal.GroupVersion {
-			// todo: this is not the voters fault.
-			return errors.Wrap(ErrModified, "group was modified")
-		}
-		for _, v := range voters {
-			newVote := Vote{
-				Proposal:    id,
-				Voter:       v,
-				Choice:      choice,
-				Comment:     comment,
-				SubmittedAt: *blockTime,
-			}
-			member := GroupMember{
-				Group:  electorate.Group,
-				Member: v,
-			}
 
-			if err := k.groupMemberTable.GetOne(ctx, member.NaturalKey(), &member); err != nil {
-				return errors.Wrapf(err, "get member by group and address")
-			}
+		if err := k.groupMemberTable.GetOne(ctx, member.NaturalKey(), &member); err != nil {
+			return errors.Wrapf(err, "get member by group and address")
+		}
 
-			var oldVote *Vote
-			err = k.voteTable.GetOne(ctx, newVote.NaturalKey(), oldVote)
-			switch {
-			case orm.ErrNotFound.Is(err):
-			case err != nil:
-				return errors.Wrap(err, "load old vote")
-			default:
-				if err := proposal.VoteState.Sub(*oldVote, member.Weight); err != nil {
-					return errors.Wrap(err, "previous vote")
-				}
-			}
-			if err := proposal.VoteState.Add(newVote, member.Weight); err != nil {
-				return errors.Wrap(err, "new vote")
-			}
-
-			// todo: here a put would be nicer again
-			if oldVote == nil {
-				if err := k.voteTable.Create(ctx, &newVote); err != nil {
-					return errors.Wrap(err, "create vote")
-				}
-			} else {
-				if err := k.voteTable.Save(ctx, &newVote); err != nil {
-					return errors.Wrap(err, "update vote")
-				}
+		var oldVote *Vote
+		err = k.voteTable.GetOne(ctx, newVote.NaturalKey(), oldVote)
+		switch {
+		case orm.ErrNotFound.Is(err):
+		case err != nil:
+			return errors.Wrap(err, "load old vote")
+		default:
+			if err := proposal.VoteState.Sub(*oldVote, member.Weight); err != nil {
+				return errors.Wrap(err, "previous vote")
 			}
 		}
-		return nil
-	})
+		if err := proposal.VoteState.Add(newVote, member.Weight); err != nil {
+			return errors.Wrap(err, "new vote")
+		}
+
+		// todo: here a put would be nicer again
+		if oldVote == nil {
+			if err := k.voteTable.Create(ctx, &newVote); err != nil {
+				return errors.Wrap(err, "create vote")
+			}
+		} else {
+			if err := k.voteTable.Save(ctx, &newVote); err != nil {
+				return errors.Wrap(err, "update vote")
+			}
+		}
+	}
+	proposalModel.GetProposalI().SetBase(proposal)
+	return k.proposalTable.Save(ctx, id.Uint64(), proposalModel)
 }
 
 func (k Keeper) ExecProposal(ctx sdk.Context, id ProposalID) error {
-	return k.ProposalSource.WithProposal(ctx, id, func(proposal *ProposalBase) error {
-		if proposal.Status != ProposalBase_Submitted {
-			return errors.Wrap(ErrInvalid, "proposal not open")
-		}
+	proposalModel, err := k.getProposalModel(ctx, id)
+	if err != nil {
+		return err
+	}
+	proposal := proposalModel.GetProposalI().GetBase()
 
-		var accountMetadata StdGroupAccountMetadata
-		if err := k.groupAccountTable.GetOne(ctx, proposal.GroupAccount.Bytes(), &accountMetadata); err != nil {
-			return errors.Wrap(err, "load group account")
-		}
+	if proposal.Status != ProposalBase_Submitted {
+		return errors.Wrap(ErrInvalid, "proposal not open")
+	}
 
-		electorate, err := k.GetGroupByGroupAccount(ctx, proposal.GroupAccount)
-		if err != nil {
-			return err
-		}
+	var accountMetadata StdGroupAccountMetadata
+	if err := k.groupAccountTable.GetOne(ctx, proposal.GroupAccount.Bytes(), &accountMetadata); err != nil {
+		return errors.Wrap(err, "load group account")
+	}
 
-		if electorate.Version != proposal.GroupVersion {
-			proposal.Status = ProposalBase_Aborted
-			return nil
-			// todo: or error?
-			//return errors.Wrap(ErrModified, "group was modified")
-		}
-		// todo: validate
-		height := ctx.BlockHeight()
-		_ = height
+	electorate, err := k.GetGroupByGroupAccount(ctx, proposal.GroupAccount)
+	if err != nil {
+		return err
+	}
 
-		votingPeriodEnd, err := types.TimestampFromProto(&proposal.VotingEndTime)
-		if err != nil {
-			return err
-		}
-		end := votingPeriodEnd.UTC()
-		block := ctx.BlockTime()
-		if block.Before(end) {
-			return errors.Wrap(ErrExpired, "voting period not ended yet")
-		}
-
-		proposal.Status = ProposalBase_Closed
-
-		// run decision policy
-		policy := accountMetadata.DecisionPolicy.GetThreshold()
-		if policy == nil {
-			return errors.Wrap(ErrInvalid, "unknown decision policy")
-		}
-
-		submittedAt, err := types.TimestampFromProto(&proposal.SubmittedAt)
-		if err != nil {
-			return errors.Wrap(err, "from proto time")
-		}
-		switch accepted, err := policy.Allow(proposal.VoteState, electorate.TotalWeight, ctx.BlockTime().Sub(submittedAt)); {
-		case err != nil:
-			return errors.Wrap(err, "policy execution")
-		case accepted:
-			proposal.Result = ProposalBase_Accepted
-		default:
-			proposal.Result = ProposalBase_Rejected
-		}
+	if electorate.Version != proposal.GroupVersion {
+		proposal.Status = ProposalBase_Aborted
 		return nil
-	})
+		// todo: or error?
+		//return errors.Wrap(ErrModified, "group was modified")
+	}
+	// todo: validate
+	height := ctx.BlockHeight()
+	_ = height
+
+	votingPeriodEnd, err := types.TimestampFromProto(&proposal.VotingEndTime)
+	if err != nil {
+		return err
+	}
+	end := votingPeriodEnd.UTC()
+	block := ctx.BlockTime()
+	if block.Before(end) {
+		return errors.Wrap(ErrExpired, "voting period not ended yet")
+	}
+
+	proposal.Status = ProposalBase_Closed
+
+	// run decision policy
+	policy := accountMetadata.DecisionPolicy.GetThreshold()
+	if policy == nil {
+		return errors.Wrap(ErrInvalid, "unknown decision policy")
+	}
+
+	submittedAt, err := types.TimestampFromProto(&proposal.SubmittedAt)
+	if err != nil {
+		return errors.Wrap(err, "from proto time")
+	}
+	switch accepted, err := policy.Allow(proposal.VoteState, electorate.TotalWeight, ctx.BlockTime().Sub(submittedAt)); {
+	case err != nil:
+		return errors.Wrap(err, "policy execution")
+	case accepted:
+		proposal.Result = ProposalBase_Accepted
+	default:
+		proposal.Result = ProposalBase_Rejected
+	}
+	proposalModel.GetProposalI().SetBase(proposal)
+	return k.proposalTable.Save(ctx, id.Uint64(), proposalModel)
+}
+
+func (k Keeper) getProposalModel(ctx sdk.Context, id ProposalID) (ProposalModel, error) {
+	loaded := reflect.New(k.proposalModelType).Interface().(ProposalModel)
+	if _, err := k.proposalTable.GetOne(ctx, id.Uint64(), loaded); err != nil {
+		return nil, errors.Wrap(err, "load proposal source")
+	}
+	return loaded, nil
+}
+func (k Keeper) GetProposal(ctx sdk.Context, id ProposalID) (ProposalI, error) {
+	s, err := k.getProposalModel(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	return s.GetProposalI(), nil
+}
+
+func (k Keeper) CreateProposal(ctx sdk.Context, p ProposalModel) (ProposalID, error) {
+	id, err := k.proposalTable.Create(ctx, p)
+	if err != nil {
+		return 0, errors.Wrap(err, "create proposal")
+	}
+	return ProposalID(id), nil
 }
 
 //

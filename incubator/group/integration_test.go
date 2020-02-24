@@ -152,4 +152,12 @@ func TestFullProposalWorkflow(t *testing.T) {
 
 	resp = app.DeliverTx(abci.RequestDeliverTx{Tx: app.Codec().MustMarshalBinaryLengthPrefixed(tx)})
 	require.Equal(t, uint32(0), resp.Code, resp.Log)
+
+	// then verify proposal got accepted
+	proposal, err := app.GroupKeeper.GetProposal(ctx, 1)
+	require.NoError(t, err)
+	assert.Equal(t, group.ProposalBase_Accepted, proposal.GetBase().Result, proposal.GetBase().Result.String())
+	assert.Equal(t, group.ProposalBase_Closed, proposal.GetBase().Status, proposal.GetBase().Status.String())
+	expTally := group.Tally{YesCount: sdk.OneDec(), NoCount: sdk.ZeroDec(), AbstainCount: sdk.ZeroDec(), VetoCount: sdk.ZeroDec()}
+	assert.Equal(t, expTally, proposal.GetBase().VoteState)
 }

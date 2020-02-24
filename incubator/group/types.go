@@ -43,7 +43,7 @@ func (p ThresholdDecisionPolicy) Allow(tally Tally, totalPower sdk.Dec, votingDu
 	//	if p.MinVotingWindow > votingDuration {
 	//		return false, errors.Wrap(ErrInvalid, "min voting period not")
 	//	}
-	return p.Threshold.GTE(tally.YesCount), nil
+	return tally.YesCount.GTE(p.Threshold), nil
 }
 
 func (g GroupMember) NaturalKey() []byte {
