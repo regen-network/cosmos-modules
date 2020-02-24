@@ -36,8 +36,14 @@ const (
 	VoteByVoterIndexPrefix        byte = 0x42
 )
 
+type ProposalSource interface {
+	WithProposal(ctx sdk.Context, id ProposalID, f func(b *ProposalBase) error) error
+}
+
 type Keeper struct {
 	key sdk.StoreKey
+
+	ProposalSource ProposalSource
 
 	// Group Table
 	groupTable        orm.Table
@@ -131,17 +137,30 @@ func (k Keeper) MaxCommentSize(ctx sdk.Context) int {
 }
 
 func (k Keeper) CreateGroup(ctx sdk.Context, admin sdk.AccAddress, members []Member, comment string) (GroupID, error) {
+	// todo: validate
+	// deduplicate
 	maxCommentSize := k.MaxCommentSize(ctx)
 	if len(comment) > maxCommentSize {
 		return 0, errors.Wrap(ErrMaxLimit, "group comment")
 	}
+
+	totalWeight := sdk.ZeroDec()
+	for i := range members {
+		m := members[i]
+		if len(m.Comment) > maxCommentSize {
+			return 0, errors.Wrap(ErrMaxLimit, "group comment")
+		}
+		totalWeight = totalWeight.Add(m.Power)
+	}
+
 	id := k.groupSeq.NextVal(ctx)
 	var groupID = GroupID(id)
 	err := k.groupTable.Create(ctx, orm.EncodeSequence(id), &GroupMetadata{
-		Group:   groupID,
-		Admin:   admin,
-		Comment: comment,
-		Version: 1,
+		Group:       groupID,
+		Admin:       admin,
+		Comment:     comment,
+		Version:     1,
+		TotalWeight: totalWeight,
 	})
 	if err != nil {
 		return 0, errors.Wrap(err, "could not create group")
@@ -149,10 +168,6 @@ func (k Keeper) CreateGroup(ctx sdk.Context, admin sdk.AccAddress, members []Mem
 
 	for i := range members {
 		m := members[i]
-		if len(m.Comment) > maxCommentSize {
-			return 0, errors.Wrap(ErrMaxLimit, "group comment")
-		}
-
 		err := k.groupMemberTable.Create(ctx, &GroupMember{
 			Group:   groupID,
 			Member:  m.Address,
@@ -209,6 +224,7 @@ func (k Keeper) CreateGroupAccount(ctx sdk.Context, admin sdk.AccAddress, groupI
 			Group:        groupID,
 			Admin:        admin,
 			Comment:      comment,
+			Version:      1,
 		},
 		DecisionPolicy: StdDecisionPolicy{Sum: &StdDecisionPolicy_Threshold{&policy}},
 	}
@@ -218,61 +234,156 @@ func (k Keeper) CreateGroupAccount(ctx sdk.Context, admin sdk.AccAddress, groupI
 	return accountAddr, nil
 }
 
-func (k Keeper) GetGroupByGroupAccount(ctx sdk.Context, address sdk.AccAddress) (GroupMetadata, error) {
+func (k Keeper) HasGroupAccount(ctx sdk.Context, address sdk.AccAddress) bool {
+	return k.groupAccountTable.Has(ctx, address.Bytes())
+}
+
+func (k Keeper) GetGroupAccount(ctx sdk.Context, accountAddress sdk.AccAddress) (StdGroupAccountMetadata, error) {
 	var obj StdGroupAccountMetadata
-	if err := k.groupAccountTable.GetOne(ctx, address.Bytes(), &obj); err != nil {
+	return obj, k.groupAccountTable.GetOne(ctx, accountAddress.Bytes(), &obj)
+}
+
+func (k Keeper) GetGroupByGroupAccount(ctx sdk.Context, accountAddress sdk.AccAddress) (GroupMetadata, error) {
+	obj, err := k.GetGroupAccount(ctx, accountAddress)
+	if err != nil {
 		return GroupMetadata{}, errors.Wrap(err, "load group account")
 	}
 	return k.GetGroup(ctx, obj.Base.Group)
 }
 
-func (k Keeper) HasGroupAccount(ctx sdk.Context, address sdk.AccAddress) bool {
-	return k.groupAccountTable.Has(ctx, address.Bytes())
-}
-
 func (k Keeper) Vote(ctx sdk.Context, id ProposalID, voters []sdk.AccAddress, choice Choice, comment string) error {
-	// todo: ensure proposal exists
 	// voters !=0
-	// choice not invalid
 	// comment within range
 	// within voting period
-	// we could check for proposal still valid (=group version) but would cost additional gas
 	blockTime, err := types.TimestampProto(ctx.BlockTime())
 	if err != nil {
 		return err
 	}
-	for _, v := range voters {
-		newVote := Vote{
-			Proposal:    id,
-			Voter:       v,
-			Choice:      choice,
-			Comment:     comment,
-			SubmittedAt: *blockTime,
+	return k.ProposalSource.WithProposal(ctx, id, func(proposal *ProposalBase) error {
+		if proposal.Status != ProposalBase_Submitted {
+			return errors.Wrap(ErrInvalid, "proposal not open")
+		}
+		votingPeriodEnd, err := types.TimestampFromProto(&proposal.VotingEndTime)
+		if err != nil {
+			return err
+		}
+		end := votingPeriodEnd.UTC()
+		if end.Before(ctx.BlockTime()) || end.Equal(ctx.BlockTime()) {
+			return errors.Wrap(ErrExpired, "voting period has ended already")
+		}
+		electorate, err := k.GetGroupByGroupAccount(ctx, proposal.GroupAccount)
+		if err != nil {
+			return err
+		}
+		if electorate.Version != proposal.GroupVersion {
+			// todo: this is not the voters fault.
+			return errors.Wrap(ErrModified, "group was modified")
+		}
+		for _, v := range voters {
+			newVote := Vote{
+				Proposal:    id,
+				Voter:       v,
+				Choice:      choice,
+				Comment:     comment,
+				SubmittedAt: *blockTime,
+			}
+			member := GroupMember{
+				Group:  electorate.Group,
+				Member: v,
+			}
+
+			if err := k.groupMemberTable.GetOne(ctx, member.NaturalKey(), &member); err != nil {
+				return errors.Wrapf(err, "get member by group and address")
+			}
+
+			var oldVote *Vote
+			err = k.voteTable.GetOne(ctx, newVote.NaturalKey(), oldVote)
+			switch {
+			case orm.ErrNotFound.Is(err):
+			case err != nil:
+				return errors.Wrap(err, "load old vote")
+			default:
+				if err := proposal.VoteState.Sub(*oldVote, member.Weight); err != nil {
+					return errors.Wrap(err, "previous vote")
+				}
+			}
+			if err := proposal.VoteState.Add(newVote, member.Weight); err != nil {
+				return errors.Wrap(err, "new vote")
+			}
+
+			// todo: here a put would be nicer again
+			if oldVote == nil {
+				if err := k.voteTable.Create(ctx, &newVote); err != nil {
+					return errors.Wrap(err, "create vote")
+				}
+			} else {
+				if err := k.voteTable.Save(ctx, &newVote); err != nil {
+					return errors.Wrap(err, "update vote")
+				}
+			}
+		}
+		return nil
+	})
+}
+
+func (k Keeper) ExecProposal(ctx sdk.Context, id ProposalID) error {
+	return k.ProposalSource.WithProposal(ctx, id, func(proposal *ProposalBase) error {
+		if proposal.Status != ProposalBase_Submitted {
+			return errors.Wrap(ErrInvalid, "proposal not open")
 		}
 
-		var oldVote *Vote
-		err = k.voteTable.GetOne(ctx, newVote.NaturalKey(), oldVote)
-		switch {
-		case orm.ErrNotFound.Is(err):
+		var accountMetadata StdGroupAccountMetadata
+		if err := k.groupAccountTable.GetOne(ctx, proposal.GroupAccount.Bytes(), &accountMetadata); err != nil {
+			return errors.Wrap(err, "load group account")
+		}
+
+		electorate, err := k.GetGroupByGroupAccount(ctx, proposal.GroupAccount)
+		if err != nil {
+			return err
+		}
+
+		if electorate.Version != proposal.GroupVersion {
+			proposal.Status = ProposalBase_Aborted
+			return nil
+			// todo: or error?
+			//return errors.Wrap(ErrModified, "group was modified")
+		}
+		// todo: validate
+		height := ctx.BlockHeight()
+		_ = height
+
+		votingPeriodEnd, err := types.TimestampFromProto(&proposal.VotingEndTime)
+		if err != nil {
+			return err
+		}
+		end := votingPeriodEnd.UTC()
+		block := ctx.BlockTime()
+		if block.Before(end) {
+			return errors.Wrap(ErrExpired, "voting period not ended yet")
+		}
+
+		proposal.Status = ProposalBase_Closed
+
+		// run decision policy
+		policy := accountMetadata.DecisionPolicy.GetThreshold()
+		if policy == nil {
+			return errors.Wrap(ErrInvalid, "unknown decision policy")
+		}
+
+		submittedAt, err := types.TimestampFromProto(&proposal.SubmittedAt)
+		if err != nil {
+			return errors.Wrap(err, "from proto time")
+		}
+		switch accepted, err := policy.Allow(proposal.VoteState, electorate.TotalWeight, ctx.BlockTime().Sub(submittedAt)); {
 		case err != nil:
-			return errors.Wrap(err, "load old vote")
+			return errors.Wrap(err, "policy execution")
+		case accepted:
+			proposal.Result = ProposalBase_Accepted
 		default:
-			// todo: substract from tally
+			proposal.Result = ProposalBase_Rejected
 		}
-
-		// todo: here a put would be nicer again
-		if oldVote == nil {
-			if err := k.voteTable.Create(ctx, &newVote); err != nil {
-				return errors.Wrap(err, "create vote")
-			}
-		} else {
-			if err := k.voteTable.Save(ctx, &newVote); err != nil {
-				return errors.Wrap(err, "update vote")
-			}
-		}
-		// todo: add to tally result
-	}
-	return nil
+		return nil
+	})
 }
 
 //

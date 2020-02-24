@@ -92,6 +92,7 @@ func (a AppModule) ExportGenesis(ctx sdk.Context) json.RawMessage {
 
 func (a AppModule) RegisterInvariants(sdk.InvariantRegistry) {
 	// todo: anything to check?
+	// todo: check that tally sums must never have less than block before ?
 }
 
 func (a AppModule) Route() string {
