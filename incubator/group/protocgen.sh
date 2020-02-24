@@ -5,6 +5,7 @@ set -eo pipefail
 protoc \
 -I=. \
 -I=$(go list -f "{{ .Dir }}" -m github.com/gogo/protobuf) \
+-I=$(go list -f "{{ .Dir }}" -m github.com/cosmos/cosmos-sdk) \
 --gocosmos_out=\
 Mgoogle/protobuf/any.proto=github.com/gogo/protobuf/types,\
 Mgoogle/protobuf/duration.proto=github.com/gogo/protobuf/types,\
@@ -19,6 +20,7 @@ types.proto
 protoc \
 -I=.. \
 -I=. \
+-I=$(go list -f "{{ .Dir }}" -m github.com/cosmos/cosmos-sdk) \
 -I=$(go list -f "{{ .Dir }}" -m github.com/gogo/protobuf) \
 --gocosmos_out=\
 Mgoogle/protobuf/any.proto=github.com/gogo/protobuf/types,\

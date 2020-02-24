@@ -100,6 +100,7 @@ github.com/golang/mock v1.3.1-0.20190508161146-9fa652df1129/go.mod h1:sBzyDLLjw3
 github.com/golang/protobuf v1.2.0/go.mod h1:6lQm79b+lXiMfvg/cZm0SGofjICqVBUtrP5yJMmIC1U=
 github.com/golang/protobuf v1.3.0/go.mod h1:Qd/q+1AKNOZr9uGQzbzCmRO6sUih6GTPZv6a1/R87v0=
 github.com/golang/protobuf v1.3.1/go.mod h1:6lQm79b+lXiMfvg/cZm0SGofjICqVBUtrP5yJMmIC1U=
+github.com/golang/protobuf v1.3.2 h1:6nsPYzhq5kReh6QImI3k5qWzO4PEbvbIW2cwSfR/6xs=
 github.com/golang/protobuf v1.3.2/go.mod h1:6lQm79b+lXiMfvg/cZm0SGofjICqVBUtrP5yJMmIC1U=
 github.com/golang/protobuf v1.3.3 h1:gyjaxf+svBWX08ZjK86iN9geUJF0H6gp2IRKX6Nf6/I=
 github.com/golang/protobuf v1.3.3/go.mod h1:vzj43D7+SQXF/4pzW/hwtAqwc6iTitCiVSaWz5lYuqw=
@@ -210,6 +211,8 @@ github.com/rcrowley/go-metrics v0.0.0-20180503174638-e2704e165165 h1:nkcn14uNmFE
 github.com/rcrowley/go-metrics v0.0.0-20180503174638-e2704e165165/go.mod h1:bCqnVzQkZxMG4s8nGwiZ5l3QUCyqpo9Y+/ZMZ9VjZe4=
 github.com/regen-network/cosmos-proto v0.1.0 h1:gsV+YO2kMvY430zQn8ioPXRxEJgb/ms0iMPeWo3VEyY=
 github.com/regen-network/cosmos-proto v0.1.0/go.mod h1:+r7jN10xXCypD4yBgzKOa+vgLz0riqYMHeDcKekxPvA=
+github.com/regen-network/cosmos-proto v0.1.1-0.20200213154359-02baa11ea7c2 h1:jQK1YoH972Aptd22YKgtNu5jM2X2xMGkyIENOAc71to=
+github.com/regen-network/cosmos-proto v0.1.1-0.20200213154359-02baa11ea7c2/go.mod h1:+r7jN10xXCypD4yBgzKOa+vgLz0riqYMHeDcKekxPvA=
 github.com/regen-network/protobuf v1.3.2-alpha.regen.1 h1:YdeZbBS0lG1D13COb7b57+nM/RGgIs8WF9DwitU6EBM=
 github.com/regen-network/protobuf v1.3.2-alpha.regen.1/go.mod h1:lye6mqhOn/GCw1zRl3uPD5VP8rC+LPMyTyPAyQV872U=
 github.com/rogpeppe/fastuuid v0.0.0-20150106093220-6724a57986af/go.mod h1:XWv6SoW27p1b0cqNHllgS5HIMJraePCO15w5zCzIWYg=

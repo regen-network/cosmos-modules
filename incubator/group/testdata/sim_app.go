@@ -204,10 +204,8 @@ func NewSimApp(
 	evidenceKeeper := evidence.NewKeeper(
 		app.cdc, keys[evidence.StoreKey], app.subspaces[evidence.ModuleName], &app.StakingKeeper, app.SlashingKeeper,
 	)
-	app.GroupKeeper = group.NewGroupKeeper(keys[group.StoreKeyName], app.subspaces[group.ModuleName])
+	app.GroupKeeper = group.NewGroupKeeper(keys[group.StoreKeyName], app.subspaces[group.ModuleName], &MyAppProposal{})
 	app.TestdataKeeper = NewTestdataKeeper(keys[ModuleName], app.GroupKeeper)
-	// todo: this is a hack to get access to my custom proposal type from group keeper
-	app.GroupKeeper.ProposalSource = app.TestdataKeeper
 	evidenceRouter := evidence.NewRouter()
 	// TODO: Register evidence routes.
 	evidenceKeeper.SetRouter(evidenceRouter)

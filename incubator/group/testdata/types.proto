@@ -3,14 +3,25 @@ syntax = "proto3";
 package cosmos_modules.incubator.group.v1_alpha.testdata;
 option go_package = "github.com/cosmos/modules/incubator/group/testdata";
 
+import "third_party/proto/cosmos-proto/cosmos.proto";
 import "gogoproto/gogo.proto";
 import "group/types.proto";
+
+
+
+message MyAppProposal {
+    option (cosmos_proto.interface_type) = "*github.com/cosmos/modules/incubator/group.ProposalI";
+    oneof sum {
+        AMyAppProposal A = 1;
+    }
+}
+
 
 message MyAppMsg {
     string comment = 3;
 }
 
-message MyAppProposal {
+message AMyAppProposal {
     cosmos_modules.incubator.group.v1_alpha.ProposalBase base = 1 [(gogoproto.nullable) = false];
     repeated MyAppMsg msgs = 2;
 }

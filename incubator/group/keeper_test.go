@@ -16,7 +16,7 @@ func TestCreateGroup(t *testing.T) {
 	paramSpace := subspace.NewSubspace(ModuleCdc.amino, pKey, pTKey, DefaultParamspace)
 
 	groupKey := sdk.NewKVStoreKey(StoreKeyName)
-	k := NewGroupKeeper(groupKey, paramSpace)
+	k := NewGroupKeeper(groupKey, paramSpace, &MockProposalModel{})
 	ctx := NewContext(pKey, pTKey, groupKey)
 	k.setParams(ctx, DefaultParams())
 
@@ -61,7 +61,7 @@ func TestLoadParam(t *testing.T) {
 	paramSpace := subspace.NewSubspace(ModuleCdc.amino, pKey, pTKey, DefaultParamspace)
 
 	groupKey := sdk.NewKVStoreKey(StoreKeyName)
-	k := NewGroupKeeper(groupKey, paramSpace)
+	k := NewGroupKeeper(groupKey, paramSpace, &MockProposalModel{})
 
 	ctx := NewContext(pKey, pTKey, groupKey)
 

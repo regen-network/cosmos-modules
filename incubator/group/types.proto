@@ -223,13 +223,6 @@ message StdGroupAccountMetadata {
 //   ProposalBase base = 1;
 //   repeated MyAppMsg msgs = 2;
 // }
-// todo: @aaronc there are some issues with this approach.
-// - all proposals share the same global id space as vote has a natural key with proposalID included
-// - which keeper is responsible for loading the correct proposal when there are multiple proposal types
-// - group keeper needs access to the ProposalBase for validations on vote for example
-// - exec msg triggers some action that is customized and can not live in the group package
-//
-// on the other hand there is only 1 vote or exec defined which can not be routed by multiple modules
 message ProposalBase {
     bytes group_account = 1 [(gogoproto.casttype) = "github.com/cosmos/cosmos-sdk/types.AccAddress"];
     string comment = 2;

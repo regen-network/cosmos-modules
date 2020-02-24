@@ -29,8 +29,24 @@ func createGroupKeeper() (Keeper, sdk.Context) {
 	paramSpace := subspace.NewSubspace(ModuleCdc.amino, pKey, pTKey, DefaultParamspace)
 
 	groupKey := sdk.NewKVStoreKey(StoreKeyName)
-	k := NewGroupKeeper(groupKey, paramSpace)
+	k := NewGroupKeeper(groupKey, paramSpace, &MockProposalModel{})
 	ctx := NewContext(pKey, pTKey, groupKey)
 	k.setParams(ctx, DefaultParams())
 	return k, ctx
+}
+
+type MockProposalModel struct {
+	Proposal ProposalI
+}
+
+func (f MockProposalModel) Marshal() ([]byte, error) {
+	panic("implement me")
+}
+
+func (f MockProposalModel) Unmarshal([]byte) error {
+	panic("implement me")
+}
+
+func (f MockProposalModel) GetProposalI() ProposalI {
+	return f.Proposal
 }

@@ -5,9 +5,11 @@ package testdata
 
 import (
 	fmt "fmt"
+	github_com_cosmos_modules_incubator_group "github.com/cosmos/modules/incubator/group"
 	group "github.com/cosmos/modules/incubator/group"
 	_ "github.com/gogo/protobuf/gogoproto"
 	proto "github.com/gogo/protobuf/proto"
+	_ "github.com/regen-network/cosmos-proto"
 	io "io"
 	math "math"
 	math_bits "math/bits"
@@ -24,6 +26,78 @@ var _ = math.Inf
 // proto package needs to be updated.
 const _ = proto.GoGoProtoPackageIsVersion3 // please upgrade the proto package
 
+type MyAppProposal struct {
+	// Types that are valid to be assigned to Sum:
+	//	*MyAppProposal_A
+	Sum isMyAppProposal_Sum `protobuf_oneof:"sum"`
+}
+
+func (m *MyAppProposal) Reset()         { *m = MyAppProposal{} }
+func (m *MyAppProposal) String() string { return proto.CompactTextString(m) }
+func (*MyAppProposal) ProtoMessage()    {}
+func (*MyAppProposal) Descriptor() ([]byte, []int) {
+	return fileDescriptor_2447ab8d7bf628b8, []int{0}
+}
+func (m *MyAppProposal) XXX_Unmarshal(b []byte) error {
+	return m.Unmarshal(b)
+}
+func (m *MyAppProposal) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	if deterministic {
+		return xxx_messageInfo_MyAppProposal.Marshal(b, m, deterministic)
+	} else {
+		b = b[:cap(b)]
+		n, err := m.MarshalToSizedBuffer(b)
+		if err != nil {
+			return nil, err
+		}
+		return b[:n], nil
+	}
+}
+func (m *MyAppProposal) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_MyAppProposal.Merge(m, src)
+}
+func (m *MyAppProposal) XXX_Size() int {
+	return m.Size()
+}
+func (m *MyAppProposal) XXX_DiscardUnknown() {
+	xxx_messageInfo_MyAppProposal.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_MyAppProposal proto.InternalMessageInfo
+
+type isMyAppProposal_Sum interface {
+	isMyAppProposal_Sum()
+	MarshalTo([]byte) (int, error)
+	Size() int
+}
+
+type MyAppProposal_A struct {
+	A *AMyAppProposal `protobuf:"bytes,1,opt,name=A,proto3,oneof" json:"A,omitempty"`
+}
+
+func (*MyAppProposal_A) isMyAppProposal_Sum() {}
+
+func (m *MyAppProposal) GetSum() isMyAppProposal_Sum {
+	if m != nil {
+		return m.Sum
+	}
+	return nil
+}
+
+func (m *MyAppProposal) GetA() *AMyAppProposal {
+	if x, ok := m.GetSum().(*MyAppProposal_A); ok {
+		return x.A
+	}
+	return nil
+}
+
+// XXX_OneofWrappers is for the internal use of the proto package.
+func (*MyAppProposal) XXX_OneofWrappers() []interface{} {
+	return []interface{}{
+		(*MyAppProposal_A)(nil),
+	}
+}
+
 type MyAppMsg struct {
 	Comment string `protobuf:"bytes,3,opt,name=comment,proto3" json:"comment,omitempty"`
 }
@@ -32,7 +106,7 @@ func (m *MyAppMsg) Reset()         { *m = MyAppMsg{} }
 func (m *MyAppMsg) String() string { return proto.CompactTextString(m) }
 func (*MyAppMsg) ProtoMessage()    {}
 func (*MyAppMsg) Descriptor() ([]byte, []int) {
-	return fileDescriptor_2447ab8d7bf628b8, []int{0}
+	return fileDescriptor_2447ab8d7bf628b8, []int{1}
 }
 func (m *MyAppMsg) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -68,23 +142,23 @@ func (m *MyAppMsg) GetComment() string {
 	return ""
 }
 
-type MyAppProposal struct {
+type AMyAppProposal struct {
 	Base group.ProposalBase `protobuf:"bytes,1,opt,name=base,proto3" json:"base"`
 	Msgs []*MyAppMsg        `protobuf:"bytes,2,rep,name=msgs,proto3" json:"msgs,omitempty"`
 }
 
-func (m *MyAppProposal) Reset()         { *m = MyAppProposal{} }
-func (m *MyAppProposal) String() string { return proto.CompactTextString(m) }
-func (*MyAppProposal) ProtoMessage()    {}
-func (*MyAppProposal) Descriptor() ([]byte, []int) {
-	return fileDescriptor_2447ab8d7bf628b8, []int{1}
+func (m *AMyAppProposal) Reset()         { *m = AMyAppProposal{} }
+func (m *AMyAppProposal) String() string { return proto.CompactTextString(m) }
+func (*AMyAppProposal) ProtoMessage()    {}
+func (*AMyAppProposal) Descriptor() ([]byte, []int) {
+	return fileDescriptor_2447ab8d7bf628b8, []int{2}
 }
-func (m *MyAppProposal) XXX_Unmarshal(b []byte) error {
+func (m *AMyAppProposal) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
 }
-func (m *MyAppProposal) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+func (m *AMyAppProposal) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	if deterministic {
-		return xxx_messageInfo_MyAppProposal.Marshal(b, m, deterministic)
+		return xxx_messageInfo_AMyAppProposal.Marshal(b, m, deterministic)
 	} else {
 		b = b[:cap(b)]
 		n, err := m.MarshalToSizedBuffer(b)
@@ -94,26 +168,26 @@ func (m *MyAppProposal) XXX_Marshal(b []byte, deterministic bool) ([]byte, error
 		return b[:n], nil
 	}
 }
-func (m *MyAppProposal) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_MyAppProposal.Merge(m, src)
+func (m *AMyAppProposal) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_AMyAppProposal.Merge(m, src)
 }
-func (m *MyAppProposal) XXX_Size() int {
+func (m *AMyAppProposal) XXX_Size() int {
 	return m.Size()
 }
-func (m *MyAppProposal) XXX_DiscardUnknown() {
-	xxx_messageInfo_MyAppProposal.DiscardUnknown(m)
+func (m *AMyAppProposal) XXX_DiscardUnknown() {
+	xxx_messageInfo_AMyAppProposal.DiscardUnknown(m)
 }
 
-var xxx_messageInfo_MyAppProposal proto.InternalMessageInfo
+var xxx_messageInfo_AMyAppProposal proto.InternalMessageInfo
 
-func (m *MyAppProposal) GetBase() group.ProposalBase {
+func (m *AMyAppProposal) GetBase() group.ProposalBase {
 	if m != nil {
 		return m.Base
 	}
 	return group.ProposalBase{}
 }
 
-func (m *MyAppProposal) GetMsgs() []*MyAppMsg {
+func (m *AMyAppProposal) GetMsgs() []*MyAppMsg {
 	if m != nil {
 		return m.Msgs
 	}
@@ -129,7 +203,7 @@ func (m *MsgPropose) Reset()         { *m = MsgPropose{} }
 func (m *MsgPropose) String() string { return proto.CompactTextString(m) }
 func (*MsgPropose) ProtoMessage()    {}
 func (*MsgPropose) Descriptor() ([]byte, []int) {
-	return fileDescriptor_2447ab8d7bf628b8, []int{2}
+	return fileDescriptor_2447ab8d7bf628b8, []int{3}
 }
 func (m *MsgPropose) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -173,36 +247,114 @@ func (m *MsgPropose) GetMsgs() []*MyAppMsg {
 }
 
 func init() {
-	proto.RegisterType((*MyAppMsg)(nil), "cosmos_modules.incubator.group.v1_alpha.testdata.MyAppMsg")
 	proto.RegisterType((*MyAppProposal)(nil), "cosmos_modules.incubator.group.v1_alpha.testdata.MyAppProposal")
+	proto.RegisterType((*MyAppMsg)(nil), "cosmos_modules.incubator.group.v1_alpha.testdata.MyAppMsg")
+	proto.RegisterType((*AMyAppProposal)(nil), "cosmos_modules.incubator.group.v1_alpha.testdata.AMyAppProposal")
 	proto.RegisterType((*MsgPropose)(nil), "cosmos_modules.incubator.group.v1_alpha.testdata.MsgPropose")
 }
 
 func init() { proto.RegisterFile("testdata/types.proto", fileDescriptor_2447ab8d7bf628b8) }
 
 var fileDescriptor_2447ab8d7bf628b8 = []byte{
-	// 301 bytes of a gzipped FileDescriptorProto
-	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xe2, 0x12, 0x29, 0x49, 0x2d, 0x2e,
-	0x49, 0x49, 0x2c, 0x49, 0xd4, 0x2f, 0xa9, 0x2c, 0x48, 0x2d, 0xd6, 0x2b, 0x28, 0xca, 0x2f, 0xc9,
-	0x17, 0x32, 0x48, 0xce, 0x2f, 0xce, 0xcd, 0x2f, 0x8e, 0xcf, 0xcd, 0x4f, 0x29, 0xcd, 0x49, 0x2d,
-	0xd6, 0xcb, 0xcc, 0x4b, 0x2e, 0x4d, 0x4a, 0x2c, 0xc9, 0x2f, 0xd2, 0x4b, 0x2f, 0xca, 0x2f, 0x2d,
-	0xd0, 0x2b, 0x33, 0x8c, 0x4f, 0xcc, 0x29, 0xc8, 0x48, 0xd4, 0x83, 0xe9, 0x96, 0x12, 0x49, 0xcf,
-	0x4f, 0xcf, 0x07, 0x6b, 0xd6, 0x07, 0xb1, 0x20, 0xe6, 0x48, 0x09, 0x82, 0x95, 0x23, 0x1b, 0xad,
-	0xa4, 0xc2, 0xc5, 0xe1, 0x5b, 0xe9, 0x58, 0x50, 0xe0, 0x5b, 0x9c, 0x2e, 0x24, 0xc1, 0xc5, 0x9e,
-	0x9c, 0x9f, 0x9b, 0x9b, 0x9a, 0x57, 0x22, 0xc1, 0xac, 0xc0, 0xa8, 0xc1, 0x19, 0x04, 0xe3, 0x2a,
-	0x6d, 0x60, 0xe4, 0xe2, 0x05, 0x2b, 0x0b, 0x28, 0xca, 0x2f, 0xc8, 0x2f, 0x4e, 0xcc, 0x11, 0xf2,
-	0xe7, 0x62, 0x49, 0x4a, 0x2c, 0x4e, 0x95, 0x60, 0x54, 0x60, 0xd4, 0xe0, 0x36, 0x32, 0xd5, 0x23,
-	0xd6, 0x85, 0x30, 0x03, 0x9c, 0x12, 0x8b, 0x53, 0x9d, 0x58, 0x4e, 0xdc, 0x93, 0x67, 0x08, 0x02,
-	0x1b, 0x24, 0xe4, 0xc7, 0xc5, 0x92, 0x5b, 0x9c, 0x5e, 0x2c, 0xc1, 0xa4, 0xc0, 0xac, 0xc1, 0x6d,
-	0x64, 0xa5, 0x47, 0xaa, 0x97, 0xf5, 0x60, 0xde, 0x08, 0x02, 0x9b, 0xa3, 0xb4, 0x9e, 0x91, 0x8b,
-	0xcb, 0xb7, 0x38, 0x1d, 0x62, 0x5f, 0xaa, 0x50, 0x20, 0x8a, 0x7b, 0xcd, 0x89, 0x36, 0x1e, 0x61,
-	0x04, 0xad, 0x5d, 0xec, 0xe4, 0x73, 0xe2, 0x91, 0x1c, 0xe3, 0x85, 0x47, 0x72, 0x8c, 0x0f, 0x1e,
-	0xc9, 0x31, 0x4e, 0x78, 0x2c, 0xc7, 0x70, 0xe1, 0xb1, 0x1c, 0xc3, 0x8d, 0xc7, 0x72, 0x0c, 0x51,
-	0x46, 0xe9, 0x99, 0x25, 0x19, 0xa5, 0x49, 0x7a, 0xc9, 0xf9, 0xb9, 0xfa, 0x10, 0x5b, 0xf4, 0xa1,
-	0xb6, 0xe8, 0xc3, 0x6d, 0xd1, 0x87, 0xc6, 0x2d, 0xd4, 0xf0, 0x24, 0x36, 0x70, 0xfc, 0x1a, 0x03,
-	0x02, 0x00, 0x00, 0xff, 0xff, 0x41, 0x0d, 0xf5, 0x26, 0x52, 0x02, 0x00, 0x00,
+	// 367 bytes of a gzipped FileDescriptorProto
+	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xb4, 0xd2, 0xcb, 0x4a, 0xf3, 0x40,
+	0x14, 0x07, 0xf0, 0xcc, 0xd7, 0x7e, 0x5e, 0xa6, 0x28, 0x18, 0xba, 0x08, 0x5d, 0xc4, 0x12, 0x5c,
+	0x14, 0xa5, 0x33, 0x5a, 0x15, 0xa5, 0x2b, 0x93, 0x95, 0x82, 0xd5, 0x9a, 0xa5, 0x9b, 0x32, 0x49,
+	0x87, 0x69, 0xa1, 0xd3, 0x19, 0x32, 0x13, 0xa1, 0x6f, 0xe1, 0x33, 0xf8, 0x02, 0x22, 0xf8, 0x10,
+	0xc5, 0x55, 0x97, 0xae, 0x44, 0xda, 0x17, 0x11, 0x73, 0xd1, 0x76, 0xd7, 0x2e, 0xdc, 0xe5, 0x1c,
+	0x38, 0xbf, 0xf3, 0x3f, 0x49, 0x60, 0x59, 0x53, 0xa5, 0xbb, 0x44, 0x13, 0xac, 0x47, 0x92, 0x2a,
+	0x24, 0x23, 0xa1, 0x85, 0x79, 0x18, 0x0a, 0xc5, 0x85, 0xea, 0x70, 0xd1, 0x8d, 0x07, 0x54, 0xa1,
+	0xfe, 0x30, 0x8c, 0x03, 0xa2, 0x45, 0x84, 0x58, 0x24, 0x62, 0x89, 0x1e, 0x8e, 0x3a, 0x64, 0x20,
+	0x7b, 0x04, 0xe5, 0xd3, 0x95, 0x03, 0xdd, 0xeb, 0x47, 0xdd, 0x8e, 0x24, 0x91, 0x1e, 0xe1, 0x04,
+	0xc1, 0xa9, 0x51, 0x9f, 0x2f, 0x52, 0xbe, 0x52, 0x66, 0x82, 0x89, 0xb4, 0xff, 0xfd, 0x94, 0x75,
+	0x77, 0x12, 0x7b, 0x3e, 0x87, 0xf3, 0x04, 0xe0, 0x56, 0x6b, 0xe4, 0x4a, 0xd9, 0x8e, 0x84, 0x14,
+	0x8a, 0x0c, 0xcc, 0x36, 0x04, 0xae, 0x05, 0xaa, 0xa0, 0x56, 0x6a, 0x5c, 0xa0, 0x55, 0x53, 0x22,
+	0x77, 0x01, 0xbb, 0x34, 0x7c, 0xe0, 0x36, 0xcf, 0xdf, 0x5e, 0xeb, 0x27, 0xfb, 0xac, 0xaf, 0x7b,
+	0x71, 0x80, 0x42, 0xc1, 0xb3, 0xa8, 0x38, 0x53, 0xf1, 0x8f, 0x8a, 0x53, 0x35, 0x9f, 0xbe, 0xf2,
+	0xfe, 0xc3, 0x82, 0x8a, 0xb9, 0xb3, 0x07, 0x37, 0x12, 0xb6, 0xa5, 0x98, 0x69, 0xc1, 0xf5, 0x50,
+	0x70, 0x4e, 0x87, 0xda, 0x2a, 0x54, 0x41, 0x6d, 0xd3, 0xcf, 0x4b, 0xe7, 0x05, 0xc0, 0xed, 0xc5,
+	0xf5, 0xe6, 0x2d, 0x2c, 0x06, 0x44, 0xd1, 0xec, 0x9c, 0xd3, 0xa5, 0xcf, 0xc9, 0x01, 0x8f, 0x28,
+	0xea, 0x15, 0xc7, 0x1f, 0xbb, 0x86, 0x9f, 0x40, 0xe6, 0x0d, 0x2c, 0x72, 0xc5, 0x94, 0xf5, 0xaf,
+	0x5a, 0xa8, 0x95, 0x1a, 0xcd, 0xd5, 0xdf, 0x4f, 0x7e, 0x87, 0x9f, 0x38, 0xce, 0x33, 0x80, 0xb0,
+	0xa5, 0x58, 0xba, 0x8f, 0x9a, 0x77, 0x0b, 0x79, 0xcf, 0x96, 0xe6, 0x7f, 0x89, 0xbf, 0x4e, 0xec,
+	0x5d, 0x8f, 0xa7, 0x36, 0x98, 0x4c, 0x6d, 0xf0, 0x39, 0xb5, 0xc1, 0xe3, 0xcc, 0x36, 0x26, 0x33,
+	0xdb, 0x78, 0x9f, 0xd9, 0xc6, 0x7d, 0x63, 0xe9, 0x2f, 0x8c, 0x73, 0x3c, 0x58, 0x4b, 0xfe, 0xc2,
+	0xe3, 0xaf, 0x00, 0x00, 0x00, 0xff, 0xff, 0xae, 0x09, 0x88, 0xfe, 0x25, 0x03, 0x00, 0x00,
 }
 
+func (this *MyAppProposal) GetProposalI() github_com_cosmos_modules_incubator_group.ProposalI {
+	if x := this.GetA(); x != nil {
+		return x
+	}
+	return nil
+}
+
+func (this *MyAppProposal) SetProposalI(value github_com_cosmos_modules_incubator_group.ProposalI) error {
+	if value == nil {
+		this.Sum = nil
+		return nil
+	}
+	switch vt := value.(type) {
+	case *AMyAppProposal:
+		this.Sum = &MyAppProposal_A{vt}
+		return nil
+	}
+	return fmt.Errorf("can't encode value of type %T as message MyAppProposal", value)
+}
+
+func (m *MyAppProposal) Marshal() (dAtA []byte, err error) {
+	size := m.Size()
+	dAtA = make([]byte, size)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
+	if err != nil {
+		return nil, err
+	}
+	return dAtA[:n], nil
+}
+
+func (m *MyAppProposal) MarshalTo(dAtA []byte) (int, error) {
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *MyAppProposal) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
+	_ = i
+	var l int
+	_ = l
+	if m.Sum != nil {
+		{
+			size := m.Sum.Size()
+			i -= size
+			if _, err := m.Sum.MarshalTo(dAtA[i:]); err != nil {
+				return 0, err
+			}
+		}
+	}
+	return len(dAtA) - i, nil
+}
+
+func (m *MyAppProposal_A) MarshalTo(dAtA []byte) (int, error) {
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *MyAppProposal_A) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
+	if m.A != nil {
+		{
+			size, err := m.A.MarshalToSizedBuffer(dAtA[:i])
+			if err != nil {
+				return 0, err
+			}
+			i -= size
+			i = encodeVarintTypes(dAtA, i, uint64(size))
+		}
+		i--
+		dAtA[i] = 0xa
+	}
+	return len(dAtA) - i, nil
+}
 func (m *MyAppMsg) Marshal() (dAtA []byte, err error) {
 	size := m.Size()
 	dAtA = make([]byte, size)
@@ -233,7 +385,7 @@ func (m *MyAppMsg) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 	return len(dAtA) - i, nil
 }
 
-func (m *MyAppProposal) Marshal() (dAtA []byte, err error) {
+func (m *AMyAppProposal) Marshal() (dAtA []byte, err error) {
 	size := m.Size()
 	dAtA = make([]byte, size)
 	n, err := m.MarshalToSizedBuffer(dAtA[:size])
@@ -243,12 +395,12 @@ func (m *MyAppProposal) Marshal() (dAtA []byte, err error) {
 	return dAtA[:n], nil
 }
 
-func (m *MyAppProposal) MarshalTo(dAtA []byte) (int, error) {
+func (m *AMyAppProposal) MarshalTo(dAtA []byte) (int, error) {
 	size := m.Size()
 	return m.MarshalToSizedBuffer(dAtA[:size])
 }
 
-func (m *MyAppProposal) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+func (m *AMyAppProposal) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 	i := len(dAtA)
 	_ = i
 	var l int
@@ -338,6 +490,30 @@ func encodeVarintTypes(dAtA []byte, offset int, v uint64) int {
 	dAtA[offset] = uint8(v)
 	return base
 }
+func (m *MyAppProposal) Size() (n int) {
+	if m == nil {
+		return 0
+	}
+	var l int
+	_ = l
+	if m.Sum != nil {
+		n += m.Sum.Size()
+	}
+	return n
+}
+
+func (m *MyAppProposal_A) Size() (n int) {
+	if m == nil {
+		return 0
+	}
+	var l int
+	_ = l
+	if m.A != nil {
+		l = m.A.Size()
+		n += 1 + l + sovTypes(uint64(l))
+	}
+	return n
+}
 func (m *MyAppMsg) Size() (n int) {
 	if m == nil {
 		return 0
@@ -351,7 +527,7 @@ func (m *MyAppMsg) Size() (n int) {
 	return n
 }
 
-func (m *MyAppProposal) Size() (n int) {
+func (m *AMyAppProposal) Size() (n int) {
 	if m == nil {
 		return 0
 	}
@@ -390,6 +566,94 @@ func sovTypes(x uint64) (n int) {
 }
 func sozTypes(x uint64) (n int) {
 	return sovTypes(uint64((x << 1) ^ uint64((int64(x) >> 63))))
+}
+func (m *MyAppProposal) Unmarshal(dAtA []byte) error {
+	l := len(dAtA)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return ErrIntOverflowTypes
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := dAtA[iNdEx]
+			iNdEx++
+			wire |= uint64(b&0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: MyAppProposal: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: MyAppProposal: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		case 1:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field A", wireType)
+			}
+			var msglen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowTypes
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				msglen |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if msglen < 0 {
+				return ErrInvalidLengthTypes
+			}
+			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLengthTypes
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			v := &AMyAppProposal{}
+			if err := v.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
+				return err
+			}
+			m.Sum = &MyAppProposal_A{v}
+			iNdEx = postIndex
+		default:
+			iNdEx = preIndex
+			skippy, err := skipTypes(dAtA[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if skippy < 0 {
+				return ErrInvalidLengthTypes
+			}
+			if (iNdEx + skippy) < 0 {
+				return ErrInvalidLengthTypes
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
 }
 func (m *MyAppMsg) Unmarshal(dAtA []byte) error {
 	l := len(dAtA)
@@ -476,7 +740,7 @@ func (m *MyAppMsg) Unmarshal(dAtA []byte) error {
 	}
 	return nil
 }
-func (m *MyAppProposal) Unmarshal(dAtA []byte) error {
+func (m *AMyAppProposal) Unmarshal(dAtA []byte) error {
 	l := len(dAtA)
 	iNdEx := 0
 	for iNdEx < l {
@@ -499,10 +763,10 @@ func (m *MyAppProposal) Unmarshal(dAtA []byte) error {
 		fieldNum := int32(wire >> 3)
 		wireType := int(wire & 0x7)
 		if wireType == 4 {
-			return fmt.Errorf("proto: MyAppProposal: wiretype end group for non-group")
+			return fmt.Errorf("proto: AMyAppProposal: wiretype end group for non-group")
 		}
 		if fieldNum <= 0 {
-			return fmt.Errorf("proto: MyAppProposal: illegal tag %d (wire type %d)", fieldNum, wire)
+			return fmt.Errorf("proto: AMyAppProposal: illegal tag %d (wire type %d)", fieldNum, wire)
 		}
 		switch fieldNum {
 		case 1:
