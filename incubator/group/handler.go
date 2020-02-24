@@ -30,14 +30,15 @@ func NewHandler(k Keeper) sdk.Handler {
 			return handleMsgCreateGroupAccountStd(ctx, k, msg)
 		case MsgVote:
 			return handleMsgVote(ctx, k, msg)
-
-		//case MsgExec:
-
+		case MsgExec:
+			return handleMsgExec(ctx, k, msg)
 		default:
 			return nil, sdkerrors.Wrapf(sdkerrors.ErrUnknownRequest, "unrecognized group message type: %T", msg)
 		}
 	}
 }
+
+// TODO: Do we want to introduce any new event types?
 
 func handleMsgVote(ctx sdk.Context, k Keeper, msg MsgVote) (*sdk.Result, error) {
 	if err := k.Vote(ctx, msg.Proposal, msg.Voters, msg.Choice, msg.Comment); err != nil {
@@ -48,10 +49,18 @@ func handleMsgVote(ctx sdk.Context, k Keeper, msg MsgVote) (*sdk.Result, error) 
 		Log:    fmt.Sprintf("Voted for proposal: %d", msg.Proposal),
 		Events: ctx.EventManager().Events(),
 	}, nil
-
 }
 
-// TODO: Do we want to introduce any new events?
+func handleMsgExec(ctx sdk.Context, k Keeper, msg MsgExec) (*sdk.Result, error) {
+	if err := k.ExecProposal(ctx, msg.Proposal); err != nil {
+		return nil, err
+	}
+	// todo: event?
+	return &sdk.Result{
+		Log:    fmt.Sprintf("Executed proposal: %d", msg.Proposal),
+		Events: ctx.EventManager().Events(),
+	}, nil
+}
 
 func handleMsgCreateGroupAccountStd(ctx sdk.Context, k Keeper, msg MsgCreateGroupAccountStd) (*sdk.Result, error) {
 	acc, err := k.CreateGroupAccount(ctx, msg.Base.Admin, msg.Base.Group, *msg.DecisionPolicy.GetThreshold(), msg.Base.Comment)

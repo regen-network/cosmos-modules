@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	"github.com/cosmos/modules/incubator/orm"
 	"github.com/pkg/errors"
 )
 
@@ -33,22 +34,38 @@ func handleMsgUpdateGroupComment(ctx sdk.Context, k Keeper, msg MsgUpdateGroupCo
 
 func handleMsgUpdateGroupMembers(ctx sdk.Context, k Keeper, msg MsgUpdateGroupMembers) (*sdk.Result, error) {
 	action := func(m *GroupMetadata) error {
+
 		for i := range msg.MemberUpdates {
 			member := GroupMember{Group: msg.Group,
 				Member:  msg.MemberUpdates[i].Address,
 				Weight:  msg.MemberUpdates[i].Power,
 				Comment: msg.MemberUpdates[i].Comment,
 			}
+			var found bool
+			var previousMemberStatus GroupMember
+			switch err := k.groupMemberTable.GetOne(ctx, member.NaturalKey(), &previousMemberStatus); {
+			case err == nil:
+				found = true
+			case orm.ErrNotFound.Is(err):
+				found = false
+			default:
+				return errors.Wrap(err, "get group member")
+			}
+
+			// handle delete
 			if member.Weight.Equal(sdk.ZeroDec()) {
+				if !found {
+					return errors.Wrap(orm.ErrNotFound, "unknown member")
+				}
+				m.TotalWeight = m.TotalWeight.Sub(previousMemberStatus.Weight)
 				if err := k.groupMemberTable.Delete(ctx, &member); err != nil {
 					return errors.Wrap(err, "delete member")
 				}
 				continue
 			}
-
-			// todo: a PUT would be nicer in this scenario to save the extra cost for the additional Has operation
-			// todo: revisit `Has` syntax: groupMemberTable.Has(ctx, member) ?
-			if k.groupMemberTable.Has(ctx, member.NaturalKey()) {
+			// handle add + update
+			if found {
+				m.TotalWeight = m.TotalWeight.Sub(previousMemberStatus.Weight)
 				if err := k.groupMemberTable.Save(ctx, &member); err != nil {
 					return errors.Wrap(err, "add member")
 				}
@@ -57,11 +74,11 @@ func handleMsgUpdateGroupMembers(ctx sdk.Context, k Keeper, msg MsgUpdateGroupMe
 					return errors.Wrap(err, "add member")
 				}
 			}
+			m.TotalWeight = m.TotalWeight.Add(member.Weight)
 		}
 		return k.UpdateGroup(ctx, m)
 	}
 	return doAuthenticated(k, ctx, &msg, action, "members updated")
-
 }
 
 type authNGroupMsg interface {

@@ -2,6 +2,7 @@ package group_test
 
 import (
 	"testing"
+	"time"
 
 	"github.com/cosmos/cosmos-sdk/codec"
 	sdk "github.com/cosmos/cosmos-sdk/types"
@@ -9,6 +10,7 @@ import (
 	"github.com/cosmos/modules/incubator/group"
 	"github.com/cosmos/modules/incubator/group/testdata"
 	"github.com/cosmos/modules/incubator/orm"
+	proto "github.com/gogo/protobuf/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	abci "github.com/tendermint/tendermint/abci/types"
@@ -34,7 +36,8 @@ func createTestApp(isCheckTx bool) (*testdata.SimApp, sdk.Context) {
 		},
 	)
 	app.Commit()
-	header := abci.Header{Height: app.LastBlockHeight() + 1}
+
+	header := abci.Header{Height: app.LastBlockHeight() + 1, Time: time.Now()}
 	app.BeginBlock(abci.RequestBeginBlock{Header: header})
 
 	ctx := app.NewContext(isCheckTx, header)
@@ -72,7 +75,7 @@ func TestCreateGroupScenario(t *testing.T) {
 	assert.True(t, app.GroupKeeper.HasGroup(ctx, resp.Data))
 }
 
-func TestFullProposalWorkflowl(t *testing.T) {
+func TestFullProposalWorkflow(t *testing.T) {
 	app, ctx := createTestApp(false)
 
 	// setup account
@@ -104,7 +107,8 @@ func TestFullProposalWorkflowl(t *testing.T) {
 			DecisionPolicy: group.StdDecisionPolicy{
 				Sum: &group.StdDecisionPolicy_Threshold{
 					Threshold: &group.ThresholdDecisionPolicy{
-						Threshold: sdk.ZeroDec(),
+						Threshold:       sdk.ZeroDec(),
+						MaxVotingWindow: *proto.DurationProto(time.Nanosecond),
 					},
 				},
 			},
@@ -124,34 +128,28 @@ func TestFullProposalWorkflowl(t *testing.T) {
 			Choice:   group.Choice_YES,
 			Comment:  "makes sense",
 		},
-		// execute
 	}
-	fee := types.NewTestStdFee()
+
+	fee := types.NewStdFee(200000, sdk.NewCoins(sdk.NewInt64Coin("atom", 150)))
 	privs, accNums, seqs := []crypto.PrivKey{myKey}, myAccount.GetAccountNumber(), myAccount.GetSequence()
 	tx := types.NewTestTx(ctx, msgs, privs, []uint64{accNums}, []uint64{seqs}, fee)
 
 	resp := app.DeliverTx(abci.RequestDeliverTx{Tx: app.Codec().MustMarshalBinaryLengthPrefixed(tx)})
 	require.Equal(t, uint32(0), resp.Code, resp.Log)
 
-	// and then register a group account
+	// execute can not be in the same block so start new one
+	app.BeginBlock(abci.RequestBeginBlock{Header: abci.Header{Height: app.LastBlockHeight() + 1, Time: time.Now()}})
+	// execute
+	msgs = []sdk.Msg{
+		group.MsgExec{
+			Proposal: 1,
+			Signer:   myAddr,
+		},
+	}
+	myAccount = app.AccountKeeper.GetAccount(ctx, myAddr)
+	privs, accNums, seqs = []crypto.PrivKey{myKey}, myAccount.GetAccountNumber(), myAccount.GetSequence()
+	tx = types.NewTestTx(ctx, msgs, privs, []uint64{accNums}, []uint64{seqs}, fee)
 
-	// and then create proposal
-
-	//	msgs = []sdk.Msg{P{
-	//		Admin: myAddr,
-	//		Members: []group.Member{{
-	//			Address: myAddr,
-	//			Power:   sdk.NewDec(1),
-	//			Comment: "me",
-	//		}},
-	//		Comment: "integration test",
-	//	}}
-	//	fee := types.NewTestStdFee()
-	//	privs, accNums, seqs := []crypto.PrivKey{myKey}, myAccount.GetAccountNumber(), myAccount.GetSequence()
-	//	tx := types.NewTestTx(ctx, msgs, privs, []uint64{accNums}, []uint64{seqs}, fee)
-	//
-	//	resp := app.DeliverTx(abci.RequestDeliverTx{Tx: app.Codec().MustMarshalBinaryLengthPrefixed(tx)})
-	//	require.Equal(t, uint32(0), resp.Code, resp.Log)
-	//
-	//
+	resp = app.DeliverTx(abci.RequestDeliverTx{Tx: app.Codec().MustMarshalBinaryLengthPrefixed(tx)})
+	require.Equal(t, uint32(0), resp.Code, resp.Log)
 }

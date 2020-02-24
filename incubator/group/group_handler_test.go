@@ -30,10 +30,11 @@ func TestMsgCreateGroup(t *testing.T) {
 				}},
 			},
 			expGroup: GroupMetadata{
-				Group:   1,
-				Admin:   myAdmin,
-				Comment: "test",
-				Version: 1,
+				Group:       1,
+				Admin:       myAdmin,
+				Comment:     "test",
+				Version:     1,
+				TotalWeight: sdk.OneDec(),
 			},
 			expMembers: []GroupMember{
 				{
@@ -91,10 +92,11 @@ func TestMsgUpdateGroupAdmin(t *testing.T) {
 				NewAdmin: []byte("new-admin-address"),
 			},
 			expStored: GroupMetadata{
-				Group:   groupID,
-				Admin:   []byte("new-admin-address"),
-				Comment: "test",
-				Version: 2,
+				Group:       groupID,
+				Admin:       []byte("new-admin-address"),
+				Comment:     "test",
+				TotalWeight: sdk.NewDec(1),
+				Version:     2,
 			},
 		},
 		"with wrong admin": {
@@ -105,10 +107,11 @@ func TestMsgUpdateGroupAdmin(t *testing.T) {
 			},
 			expErr: ErrUnauthorized,
 			expStored: GroupMetadata{
-				Group:   groupID,
-				Admin:   oldAdmin,
-				Comment: "test",
-				Version: 1,
+				Group:       groupID,
+				Admin:       oldAdmin,
+				Comment:     "test",
+				TotalWeight: sdk.NewDec(1),
+				Version:     1,
 			},
 		},
 		"with unknown groupID": {
@@ -119,10 +122,11 @@ func TestMsgUpdateGroupAdmin(t *testing.T) {
 			},
 			expErr: orm.ErrNotFound,
 			expStored: GroupMetadata{
-				Group:   groupID,
-				Admin:   oldAdmin,
-				Comment: "test",
-				Version: 1,
+				Group:       groupID,
+				Admin:       oldAdmin,
+				Comment:     "test",
+				TotalWeight: sdk.NewDec(1),
+				Version:     1,
 			},
 		},
 	}
@@ -165,10 +169,11 @@ func TestMsgUpdateGroupComment(t *testing.T) {
 				Comment: "new comment",
 			},
 			expStored: GroupMetadata{
-				Group:   groupID,
-				Admin:   oldAdmin,
-				Comment: "new comment",
-				Version: 2,
+				Group:       groupID,
+				Admin:       oldAdmin,
+				Comment:     "new comment",
+				TotalWeight: sdk.NewDec(1),
+				Version:     2,
 			},
 		},
 		"with wrong admin": {
@@ -179,10 +184,11 @@ func TestMsgUpdateGroupComment(t *testing.T) {
 			},
 			expErr: ErrUnauthorized,
 			expStored: GroupMetadata{
-				Group:   groupID,
-				Admin:   oldAdmin,
-				Comment: "test",
-				Version: 1,
+				Group:       groupID,
+				Admin:       oldAdmin,
+				Comment:     "test",
+				TotalWeight: sdk.NewDec(1),
+				Version:     1,
 			},
 		},
 		"with unknown groupid": {
@@ -193,10 +199,11 @@ func TestMsgUpdateGroupComment(t *testing.T) {
 			},
 			expErr: orm.ErrNotFound,
 			expStored: GroupMetadata{
-				Group:   groupID,
-				Admin:   oldAdmin,
-				Comment: "test",
-				Version: 1,
+				Group:       groupID,
+				Admin:       oldAdmin,
+				Comment:     "test",
+				TotalWeight: sdk.NewDec(1),
+				Version:     1,
 			},
 		},
 	}
@@ -243,10 +250,11 @@ func TestMsgUpdateGroupMembers(t *testing.T) {
 				}},
 			},
 			expGroup: GroupMetadata{
-				Group:   groupID,
-				Admin:   myAdmin,
-				Comment: "test",
-				Version: 2,
+				Group:       groupID,
+				Admin:       myAdmin,
+				Comment:     "test",
+				TotalWeight: sdk.NewDec(3),
+				Version:     2,
 			},
 			expMembers: []GroupMember{
 				{
@@ -274,10 +282,11 @@ func TestMsgUpdateGroupMembers(t *testing.T) {
 				}},
 			},
 			expGroup: GroupMetadata{
-				Group:   groupID,
-				Admin:   myAdmin,
-				Comment: "test",
-				Version: 2,
+				Group:       groupID,
+				Admin:       myAdmin,
+				Comment:     "test",
+				TotalWeight: sdk.NewDec(2),
+				Version:     2,
 			},
 			expMembers: []GroupMember{
 				{
@@ -299,10 +308,11 @@ func TestMsgUpdateGroupMembers(t *testing.T) {
 				}},
 			},
 			expGroup: GroupMetadata{
-				Group:   groupID,
-				Admin:   myAdmin,
-				Comment: "test",
-				Version: 2,
+				Group:       groupID,
+				Admin:       myAdmin,
+				Comment:     "test",
+				TotalWeight: sdk.NewDec(1),
+				Version:     2,
 			},
 			expMembers: []GroupMember{
 				{
@@ -329,10 +339,11 @@ func TestMsgUpdateGroupMembers(t *testing.T) {
 					}},
 			},
 			expGroup: GroupMetadata{
-				Group:   groupID,
-				Admin:   myAdmin,
-				Comment: "test",
-				Version: 2,
+				Group:       groupID,
+				Admin:       myAdmin,
+				Comment:     "test",
+				TotalWeight: sdk.NewDec(1),
+				Version:     2,
 			},
 			expMembers: []GroupMember{{
 				Member:  sdk.AccAddress([]byte("new-member-address")),
@@ -341,7 +352,6 @@ func TestMsgUpdateGroupMembers(t *testing.T) {
 				Comment: "welcome",
 			}},
 		},
-
 		"remove existing member": {
 			src: MsgUpdateGroupMembers{
 				Group: groupID,
@@ -353,10 +363,11 @@ func TestMsgUpdateGroupMembers(t *testing.T) {
 				}},
 			},
 			expGroup: GroupMetadata{
-				Group:   groupID,
-				Admin:   myAdmin,
-				Comment: "test",
-				Version: 2,
+				Group:       groupID,
+				Admin:       myAdmin,
+				Comment:     "test",
+				TotalWeight: sdk.NewDec(0),
+				Version:     2,
 			},
 			expMembers: []GroupMember{},
 		},
@@ -372,10 +383,11 @@ func TestMsgUpdateGroupMembers(t *testing.T) {
 			},
 			expErr: orm.ErrNotFound,
 			expGroup: GroupMetadata{
-				Group:   groupID,
-				Admin:   myAdmin,
-				Comment: "test",
-				Version: 1,
+				Group:       groupID,
+				Admin:       myAdmin,
+				Comment:     "test",
+				TotalWeight: sdk.NewDec(1),
+				Version:     1,
 			},
 			expMembers: []GroupMember{{
 				Member:  sdk.AccAddress([]byte("member-address")),
@@ -396,10 +408,11 @@ func TestMsgUpdateGroupMembers(t *testing.T) {
 			},
 			expErr: ErrUnauthorized,
 			expGroup: GroupMetadata{
-				Group:   groupID,
-				Admin:   myAdmin,
-				Comment: "test",
-				Version: 1,
+				Group:       groupID,
+				Admin:       myAdmin,
+				Comment:     "test",
+				TotalWeight: sdk.NewDec(1),
+				Version:     1,
 			},
 			expMembers: []GroupMember{{
 				Member:  sdk.AccAddress([]byte("member-address")),
@@ -420,10 +433,11 @@ func TestMsgUpdateGroupMembers(t *testing.T) {
 			},
 			expErr: orm.ErrNotFound,
 			expGroup: GroupMetadata{
-				Group:   groupID,
-				Admin:   myAdmin,
-				Comment: "test",
-				Version: 1,
+				Group:       groupID,
+				Admin:       myAdmin,
+				Comment:     "test",
+				TotalWeight: sdk.NewDec(1),
+				Version:     1,
 			},
 			expMembers: []GroupMember{{
 				Member:  sdk.AccAddress([]byte("member-address")),

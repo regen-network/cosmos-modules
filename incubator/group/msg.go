@@ -251,3 +251,29 @@ func (m MsgVote) ValidateBasic() error {
 	}
 	return nil
 }
+
+var _ sdk.Msg = &MsgExec{}
+
+func (m MsgExec) Route() string { return ModuleName }
+func (m MsgExec) Type() string  { return msgTypeExecProposal }
+
+// GetSigners returns the addresses that must sign over msg.GetSignBytes()
+func (m MsgExec) GetSigners() []sdk.AccAddress {
+	return []sdk.AccAddress{m.Signer}
+}
+
+// GetSignBytes returns the bytes for the message signer to sign on
+func (m MsgExec) GetSignBytes() []byte {
+	return sdk.MustSortJSON(ModuleCdc.MustMarshalJSON(m))
+}
+
+// ValidateBasic does a sanity check on the provided data
+func (m MsgExec) ValidateBasic() error {
+	if err := sdk.VerifyAddressFormat(m.Signer); err != nil {
+		return errors.Wrap(ErrInvalid, "voter")
+	}
+	if m.Proposal == 0 {
+		return errors.Wrap(ErrEmpty, "proposal")
+	}
+	return nil
+}

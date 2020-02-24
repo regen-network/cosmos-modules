@@ -109,11 +109,16 @@ message StdDecisionPolicy {
         ThresholdDecisionPolicy threshold = 1;
     }
 }
-
+// todo: we need to ensure that ThresholdDecisionPolicy can not be modified during a running proposal
 message ThresholdDecisionPolicy {
+    // threshold is a fix weight value that must be exceeded for a proposal to succeed.
     string threshold = 1 [(gogoproto.customtype) = "github.com/cosmos/cosmos-sdk/types.Dec", (gogoproto.nullable) = false];
-    google.protobuf.Duration min_voting_window = 2;
-    google.protobuf.Duration max_voting_window = 3;
+
+    // TODO: why do we need min/max? when people can change their vote there is no way we can
+    // close a proposal early. Even if everybody has voted already. I would propose a single value instead so that
+    // we can calculate the end of the voting period.
+    google.protobuf.Duration min_voting_window = 2 [(gogoproto.nullable) = false];
+    google.protobuf.Duration max_voting_window = 3 [(gogoproto.nullable) = false];
 }
 
 //
@@ -171,6 +176,7 @@ message GroupMetadata {
     // or any member is added or removed this version is incremented and will
     // cause proposals based on older versions of this group to fail
     uint64 version = 4;
+    string totalWeight = 5 [(gogoproto.customtype) = "github.com/cosmos/cosmos-sdk/types.Dec", (gogoproto.nullable) = false];
 }
 
 message GroupMember {
@@ -197,6 +203,9 @@ message GroupAccountMetadataBase {
     uint64 group = 2 [(gogoproto.casttype) = "GroupID"];
     bytes admin = 3 [(gogoproto.casttype) = "github.com/cosmos/cosmos-sdk/types.AccAddress"];
     string comment = 4;
+    // version is used to track changes to a group's GroupAccountMetadataBase structure that
+    // would create a different result on a running proposal.
+    uint64 version = 5;
 }
 
 // StdGroupAccountMetadata is a default group account metadata type to be used by apps which do not implement custom
@@ -214,6 +223,13 @@ message StdGroupAccountMetadata {
 //   ProposalBase base = 1;
 //   repeated MyAppMsg msgs = 2;
 // }
+// todo: @aaronc there are some issues with this approach.
+// - all proposals share the same global id space as vote has a natural key with proposalID included
+// - which keeper is responsible for loading the correct proposal when there are multiple proposal types
+// - group keeper needs access to the ProposalBase for validations on vote for example
+// - exec msg triggers some action that is customized and can not live in the group package
+//
+// on the other hand there is only 1 vote or exec defined which can not be routed by multiple modules
 message ProposalBase {
     bytes group_account = 1 [(gogoproto.casttype) = "github.com/cosmos/cosmos-sdk/types.AccAddress"];
     string comment = 2;
@@ -222,6 +238,45 @@ message ProposalBase {
     // GroupVersion tracks the version of the group that this proposal corresponds to. When group membership is changed
     // existing proposals for prior group versions will become invalid.
     uint64 group_version = 5;
+    // GroupAccountVersion tracks the version of the group account that this proposal corresponds to. When a decision policy is changed
+    // an existing proposals for prior policy versions will become invalid.
+    uint64 group_account_version = 6;
+
+    enum Status {
+        // An empty value is invalid and not allowed
+        PROPOSAL_STATUS_INVALID = 0;
+        // Initial status of a proposal when persisted.
+        PROPOSAL_STATUS_SUBMITTED = 1 [(gogoproto.enumvalue_customname) = "Submitted"];
+        // Final status of a proposal when the final tally was executed
+        PROPOSAL_STATUS_CLOSED = 2 [(gogoproto.enumvalue_customname) = "Closed"];
+        // Final status of a proposal when the group was modified before the final tally.
+        PROPOSAL_STATUS_ABORTED = 3 [(gogoproto.enumvalue_customname) = "Aborted"];
+
+        // TODO: do we want to support a withdrawn operation?
+        // A proposal can be deleted before the voting start time by the owner. When this happens the final status
+        // is Withdrawn.
+        //        PROPOSAL_STATUS_WITHDRAWN = 4 [(gogoproto.enumvalue_customname) = "Withdrawn"];
+    }
+    // Status represents the high level position in the life cycle of the proposal. Initial value is Submitted.
+    Status status = 7;
+    enum Result {
+        // An empty value is invalid and not allowed
+        PROPOSAL_RESULT_INVALID = 0;
+        // Until a final tally has happened the status is undefined
+        PROPOSAL_RESULT_UNDEFINED = 1 [(gogoproto.enumvalue_customname) = "Undefined"];
+        // Final result of the tally
+        PROPOSAL_RESULT_ACCEPTED = 2 [(gogoproto.enumvalue_customname) = "Accepted"];
+        // Final result of the tally
+        PROPOSAL_RESULT_REJECTED = 3 [(gogoproto.enumvalue_customname) = "Rejected"];
+    }
+    // Result is the final result based on the votes and election rule. Initial value is Undefined.
+    // The result is persisted so that clients can always rely on this state and not have to replicate the logic.
+    Result result = 8;
+    Tally vote_state = 9 [(gogoproto.nullable) = false];
+
+    // Timestamp of the block where the voting period ends. Header times of the votes must be before this end time
+    // to be included in the election.
+    google.protobuf.Timestamp voting_end_time = 10 [(gogoproto.nullable) = false];
 }
 
 message Tally {
