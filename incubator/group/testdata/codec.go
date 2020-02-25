@@ -21,7 +21,8 @@ func NewCodec(amino *codec.Codec) *Codec {
 // RegisterCodec registers all the necessary crisis module concrete types and
 // interfaces with the provided codec reference.
 func RegisterCodec(cdc *codec.Codec) {
-	cdc.RegisterConcrete(MsgPropose{}, "testdata/MsgPropose", nil)
+	cdc.RegisterConcrete(MsgProposeA{}, "testdata/MsgProposeA", nil)
+	cdc.RegisterConcrete(MsgProposeB{}, "testdata/MsgProposeB", nil)
 }
 
 // generic sealed codec to be used throughout module

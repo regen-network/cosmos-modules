@@ -114,11 +114,18 @@ func TestFullProposalWorkflow(t *testing.T) {
 			},
 		},
 		// submit proposal
-		testdata.MsgPropose{
+		testdata.MsgProposeA{
 			Base: group.MsgProposeBase{
-				GroupAccount: make([]byte, sdk.AddrLen), // todo: see comment in keeper.CreateGroupAccount
+				GroupAccount: make([]byte, sdk.AddrLen),
 				Proposers:    []sdk.AccAddress{myAddr},
 				Comment:      "ok",
+			},
+		},
+		testdata.MsgProposeB{
+			Base: group.MsgProposeBase{
+				GroupAccount: make([]byte, sdk.AddrLen),
+				Proposers:    []sdk.AccAddress{myAddr},
+				Comment:      "other proposal",
 			},
 		},
 		// vote
@@ -127,6 +134,12 @@ func TestFullProposalWorkflow(t *testing.T) {
 			Voters:   []sdk.AccAddress{myAddr},
 			Choice:   group.Choice_YES,
 			Comment:  "makes sense",
+		},
+		group.MsgVote{
+			Proposal: 2,
+			Voters:   []sdk.AccAddress{myAddr},
+			Choice:   group.Choice_VETO,
+			Comment:  "no way",
 		},
 	}
 
@@ -145,6 +158,10 @@ func TestFullProposalWorkflow(t *testing.T) {
 			Proposal: 1,
 			Signer:   myAddr,
 		},
+		group.MsgExec{
+			Proposal: 2,
+			Signer:   myAddr,
+		},
 	}
 	myAccount = app.AccountKeeper.GetAccount(ctx, myAddr)
 	privs, accNums, seqs = []crypto.PrivKey{myKey}, myAccount.GetAccountNumber(), myAccount.GetSequence()
@@ -159,5 +176,13 @@ func TestFullProposalWorkflow(t *testing.T) {
 	assert.Equal(t, group.ProposalBase_Accepted, proposal.GetBase().Result, proposal.GetBase().Result.String())
 	assert.Equal(t, group.ProposalBase_Closed, proposal.GetBase().Status, proposal.GetBase().Status.String())
 	expTally := group.Tally{YesCount: sdk.OneDec(), NoCount: sdk.ZeroDec(), AbstainCount: sdk.ZeroDec(), VetoCount: sdk.ZeroDec()}
+	assert.Equal(t, expTally, proposal.GetBase().VoteState)
+
+	// verify other proposal
+	proposal, err = app.GroupKeeper.GetProposal(ctx, 2)
+	require.NoError(t, err)
+	assert.Equal(t, group.ProposalBase_Rejected, proposal.GetBase().Result, proposal.GetBase().Result.String())
+	assert.Equal(t, group.ProposalBase_Closed, proposal.GetBase().Status, proposal.GetBase().Status.String())
+	expTally = group.Tally{YesCount: sdk.ZeroDec(), NoCount: sdk.ZeroDec(), AbstainCount: sdk.ZeroDec(), VetoCount: sdk.OneDec()}
 	assert.Equal(t, expTally, proposal.GetBase().VoteState)
 }

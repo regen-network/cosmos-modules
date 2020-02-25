@@ -14,9 +14,8 @@ const (
 	msgTypeUpdateGroupComment    = "update_group_comment"
 	msgTypeUpdateGroupMembers    = "update_group_members"
 	msgTypeCreateGroupAccountStd = "create_group_account"
-	//msgTypeProposeBase           = "create_proposal"
-	msgTypeVote         = "vote"
-	msgTypeExecProposal = "exec_proposal"
+	msgTypeVote                  = "vote"
+	msgTypeExecProposal          = "exec_proposal"
 )
 
 func (m MsgCreateGroup) Route() string { return ModuleName }

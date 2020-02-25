@@ -43,12 +43,12 @@ func (p ThresholdDecisionPolicy) Allow(tally Tally, totalPower sdk.Dec, votingDu
 	//	if p.MinVotingWindow > votingDuration {
 	//		return false, errors.Wrap(ErrInvalid, "min voting period not")
 	//	}
-	return tally.YesCount.GTE(p.Threshold), nil
+	return tally.YesCount.GT(p.Threshold), nil
 }
 
 func (g GroupMember) NaturalKey() []byte {
-	result := make([]byte, 0, 8+len(g.Member))
-	copy(result[0:8], orm.EncodeSequence(uint64(g.Group)))
+	result := make([]byte, 8, 8+len(g.Member))
+	copy(result[0:8], g.Group.Byte())
 	result = append(result, g.Member...)
 	return result
 }
@@ -62,8 +62,8 @@ func (g StdGroupAccountMetadata) NaturalKey() []byte {
 }
 
 func (v Vote) NaturalKey() []byte {
-	result := make([]byte, 0, 8+len(v.Voter))
-	copy(result[0:8], orm.EncodeSequence(uint64(v.Proposal)))
+	result := make([]byte, 8, 8+len(v.Voter))
+	copy(result[0:8], v.Proposal.Byte())
 	result = append(result, v.Voter...)
 	return result
 }
