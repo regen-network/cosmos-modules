@@ -398,8 +398,6 @@ func (k Keeper) ExecProposal(ctx sdk.Context, id ProposalID) error {
 		//return errors.Wrap(ErrModified, "group was modified")
 	}
 	// todo: validate
-	height := ctx.BlockHeight()
-	_ = height
 
 	votingPeriodEnd, err := types.TimestampFromProto(&proposal.VotingEndTime)
 	if err != nil {

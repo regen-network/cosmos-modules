@@ -7,21 +7,24 @@ import (
 	"github.com/gogo/protobuf/jsonpb"
 )
 
-var _ sdk.Msg = &MsgPropose{}
+const (
+	msgTypeCreateProposalA = "create_proposal_a"
+	msgTypeCreateProposalB = "create_proposal_B"
+)
 
-func (m MsgPropose) Route() string { return ModuleName }
+var _ sdk.Msg = &MsgProposeA{}
 
-const msgTypePropose = "propose"
+func (m MsgProposeA) Route() string { return ModuleName }
 
-func (m MsgPropose) Type() string { return msgTypePropose }
+func (m MsgProposeA) Type() string { return msgTypeCreateProposalA }
 
 // GetSigners returns the addresses that must sign over msg.GetSignBytes()
-func (m MsgPropose) GetSigners() []sdk.AccAddress {
+func (m MsgProposeA) GetSigners() []sdk.AccAddress {
 	return m.Base.Proposers
 }
 
 // GetSignBytes returns the bytes for the message signer to sign on
-func (m MsgPropose) GetSignBytes() []byte {
+func (m MsgProposeA) GetSignBytes() []byte {
 	var buf bytes.Buffer
 	enc := jsonpb.Marshaler{}
 	if err := enc.Marshal(&buf, &m); err != nil {
@@ -31,6 +34,32 @@ func (m MsgPropose) GetSignBytes() []byte {
 }
 
 // ValidateBasic does a sanity check on the provided data
-func (m MsgPropose) ValidateBasic() error {
+func (m MsgProposeA) ValidateBasic() error {
+	return m.Base.ValidateBasic()
+}
+
+var _ sdk.Msg = &MsgProposeB{}
+
+func (m MsgProposeB) Route() string { return ModuleName }
+
+func (m MsgProposeB) Type() string { return msgTypeCreateProposalB }
+
+// GetSigners returns the addresses that must sign over msg.GetSignBytes()
+func (m MsgProposeB) GetSigners() []sdk.AccAddress {
+	return m.Base.Proposers
+}
+
+// GetSignBytes returns the bytes for the message signer to sign on
+func (m MsgProposeB) GetSignBytes() []byte {
+	var buf bytes.Buffer
+	enc := jsonpb.Marshaler{}
+	if err := enc.Marshal(&buf, &m); err != nil {
+		panic(err)
+	}
+	return sdk.MustSortJSON(buf.Bytes())
+}
+
+// ValidateBasic does a sanity check on the provided data
+func (m MsgProposeB) ValidateBasic() error {
 	return m.Base.ValidateBasic()
 }

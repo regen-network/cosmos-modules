@@ -13,20 +13,21 @@ message MyAppProposal {
     option (cosmos_proto.interface_type) = "*github.com/cosmos/modules/incubator/group.ProposalI";
     oneof sum {
         AMyAppProposal A = 1;
+        BMyAppProposal B = 2;
     }
-}
-
-
-message MyAppMsg {
-    string comment = 3;
 }
 
 message AMyAppProposal {
     cosmos_modules.incubator.group.v1_alpha.ProposalBase base = 1 [(gogoproto.nullable) = false];
-    repeated MyAppMsg msgs = 2;
 }
 
-message MsgPropose {
+message BMyAppProposal {
+    cosmos_modules.incubator.group.v1_alpha.ProposalBase base = 1 [(gogoproto.nullable) = false];
+}
+
+message MsgProposeA {
     cosmos_modules.incubator.group.v1_alpha.MsgProposeBase base = 1 [(gogoproto.nullable) = false];
-    repeated MyAppMsg msgs = 2;
+}
+message MsgProposeB {
+    cosmos_modules.incubator.group.v1_alpha.MsgProposeBase base = 1 [(gogoproto.nullable) = false];
 }
