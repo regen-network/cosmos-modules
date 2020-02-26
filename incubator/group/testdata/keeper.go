@@ -1,6 +1,8 @@
 package testdata
 
 import (
+	"fmt"
+
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/modules/incubator/group"
 	"github.com/gogo/protobuf/types"
@@ -17,6 +19,9 @@ func NewTestdataKeeper(storeKey sdk.StoreKey, groupKeeper group.Keeper) Keeper {
 		groupKeeper: groupKeeper,
 		key:         storeKey,
 	}
+	// register all proposals with an executor
+	groupKeeper.ExecRouter.Add(&AMyAppProposal{}, ProposalAExecutor(k))
+	groupKeeper.ExecRouter.Add(&BMyAppProposal{}, k.ProposalExecutor)
 	return k
 }
 
@@ -61,6 +66,7 @@ func CreateProposalA(k Keeper, ctx sdk.Context, accountAddress sdk.AccAddress, c
 				GroupAccountVersion: account.Base.Version,
 				Result:              group.ProposalBase_Undefined,
 				Status:              group.ProposalBase_Submitted,
+				ExecutorResult:      group.ProposalBase_NotRun,
 				VotingEndTime:       *endTime,
 			},
 		},
@@ -110,6 +116,7 @@ func (k Keeper) CreateProposalB(ctx sdk.Context, accountAddress sdk.AccAddress, 
 				GroupAccountVersion: account.Base.Version,
 				Result:              group.ProposalBase_Undefined,
 				Status:              group.ProposalBase_Submitted,
+				ExecutorResult:      group.ProposalBase_NotRun,
 				VotingEndTime:       *endTime,
 			},
 		},
@@ -120,4 +127,35 @@ func (k Keeper) CreateProposalB(ctx sdk.Context, accountAddress sdk.AccAddress, 
 		return 0, errors.Wrap(err, "create proposal")
 	}
 	return id.Uint64(), nil
+}
+
+// within a keeper
+func (k Keeper) ProposalExecutor(ctx sdk.Context, proposalI group.ProposalI) error {
+	logger := ctx.Logger().With("module", fmt.Sprintf("x/%s", ModuleName))
+
+	switch proposalI.(type) {
+	case *AMyAppProposal:
+		logger.Info("executing AMyAppProposal")
+		return nil
+	case *BMyAppProposal:
+		logger.Info("executing BMyAppProposal")
+		return errors.New("exec should fail by intention")
+	default:
+		return errors.Wrapf(group.ErrType, "%T", proposalI)
+	}
+}
+
+// or as standalone function
+func ProposalAExecutor(k Keeper) func(ctx sdk.Context, proposalI group.ProposalI) error {
+	return func(ctx sdk.Context, proposalI group.ProposalI) error {
+		logger := ctx.Logger().With("module", fmt.Sprintf("x/%s", ModuleName))
+		switch p := proposalI.(type) {
+		case *AMyAppProposal:
+			_ = p
+		default:
+			return errors.Wrapf(group.ErrType, "got %T", proposalI)
+		}
+		logger.Info("executing AMyAppProposal")
+		return nil
+	}
 }
