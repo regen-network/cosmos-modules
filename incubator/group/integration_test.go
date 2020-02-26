@@ -1,6 +1,7 @@
 package group_test
 
 import (
+	"os"
 	"testing"
 	"time"
 
@@ -21,7 +22,7 @@ import (
 
 func createTestApp(isCheckTx bool) (*testdata.SimApp, sdk.Context) {
 	db := dbm.NewMemDB()
-	app := testdata.NewSimApp(log.NewNopLogger(), db, nil, true, map[int64]bool{}, 0)
+	app := testdata.NewSimApp(log.NewTMJSONLogger(log.NewSyncWriter(os.Stdout)), db, nil, true, map[int64]bool{}, 0)
 	genesisState := testdata.ModuleBasics.DefaultGenesis()
 	stateBytes, err := codec.MarshalJSONIndent(app.Codec(), genesisState)
 	if err != nil {

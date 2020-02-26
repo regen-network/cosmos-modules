@@ -265,11 +265,25 @@ message ProposalBase {
     // Result is the final result based on the votes and election rule. Initial value is Undefined.
     // The result is persisted so that clients can always rely on this state and not have to replicate the logic.
     Result result = 8;
-    Tally vote_state = 9 [(gogoproto.nullable) = false];
+
+    enum ExecutorResult {
+        // An empty value is not allowed
+        PROPOSAL_EXECUTOR_RESULT_INVALID = 0;
+        // We have not yet run the executor
+        PROPOSAL_EXECUTOR_RESULT_NOT_RUN = 1 [(gogoproto.enumvalue_customname) = "NotRun"];
+        // The executor was successful and proposed action updated state
+        PROPOSAL_EXECUTOR_RESULT_SUCCESS = 2 [(gogoproto.enumvalue_customname) = "Success"];
+        // The executor returned an error and proposed action didn't update state
+        PROPOSAL_EXECUTOR_RESULT_FAILURE = 3 [(gogoproto.enumvalue_customname) = "Failure"];
+    }
+    // Result is the final result based on the votes and election rule. Initial value is NotRun.
+    ExecutorResult executor_result = 9;
+
+    Tally vote_state = 10 [(gogoproto.nullable) = false];
 
     // Timestamp of the block where the voting period ends. Header times of the votes must be before this end time
     // to be included in the election.
-    google.protobuf.Timestamp voting_end_time = 10 [(gogoproto.nullable) = false];
+    google.protobuf.Timestamp voting_end_time = 11 [(gogoproto.nullable) = false];
 }
 
 message Tally {
