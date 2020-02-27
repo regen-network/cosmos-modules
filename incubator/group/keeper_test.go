@@ -3,6 +3,7 @@ package group
 import (
 	"testing"
 
+	"github.com/cosmos/cosmos-sdk/baseapp"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/x/params"
 	"github.com/cosmos/cosmos-sdk/x/params/subspace"
@@ -16,7 +17,7 @@ func TestCreateGroup(t *testing.T) {
 	paramSpace := subspace.NewSubspace(ModuleCdc.amino, pKey, pTKey, DefaultParamspace)
 
 	groupKey := sdk.NewKVStoreKey(StoreKeyName)
-	k := NewGroupKeeper(groupKey, paramSpace, &MockProposalModel{})
+	k := NewGroupKeeper(groupKey, paramSpace, baseapp.NewRouter(), &MockProposalI{})
 	ctx := NewContext(pKey, pTKey, groupKey)
 	k.setParams(ctx, DefaultParams())
 
@@ -61,7 +62,7 @@ func TestLoadParam(t *testing.T) {
 	paramSpace := subspace.NewSubspace(ModuleCdc.amino, pKey, pTKey, DefaultParamspace)
 
 	groupKey := sdk.NewKVStoreKey(StoreKeyName)
-	k := NewGroupKeeper(groupKey, paramSpace, &MockProposalModel{})
+	k := NewGroupKeeper(groupKey, paramSpace, baseapp.NewRouter(), &MockProposalI{})
 
 	ctx := NewContext(pKey, pTKey, groupKey)
 

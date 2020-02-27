@@ -1,6 +1,7 @@
 package group
 
 import (
+	"github.com/cosmos/cosmos-sdk/baseapp"
 	"github.com/cosmos/cosmos-sdk/store/rootmulti"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/x/params"
@@ -29,24 +30,31 @@ func createGroupKeeper() (Keeper, sdk.Context) {
 	paramSpace := subspace.NewSubspace(ModuleCdc.amino, pKey, pTKey, DefaultParamspace)
 
 	groupKey := sdk.NewKVStoreKey(StoreKeyName)
-	k := NewGroupKeeper(groupKey, paramSpace, &MockProposalModel{})
+	k := NewGroupKeeper(groupKey, paramSpace, baseapp.NewRouter(), &MockProposalI{})
 	ctx := NewContext(pKey, pTKey, groupKey)
 	k.setParams(ctx, DefaultParams())
 	return k, ctx
 }
 
-type MockProposalModel struct {
-	Proposal ProposalI
+type MockProposalI struct {
 }
 
-func (f MockProposalModel) Marshal() ([]byte, error) {
+func (m MockProposalI) Marshal() ([]byte, error) {
 	panic("implement me")
 }
 
-func (f MockProposalModel) Unmarshal([]byte) error {
+func (m MockProposalI) Unmarshal([]byte) error {
 	panic("implement me")
 }
 
-func (f MockProposalModel) GetProposalI() ProposalI {
-	return f.Proposal
+func (m MockProposalI) GetBase() ProposalBase {
+	panic("implement me")
+}
+
+func (m MockProposalI) SetBase(ProposalBase) {
+	panic("implement me")
+}
+
+func (m MockProposalI) GetMsg() []sdk.Msg {
+	panic("implement me")
 }

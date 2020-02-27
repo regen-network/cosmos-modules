@@ -40,30 +40,15 @@ const (
 )
 
 type ProposalI interface {
+	orm.Persistent
 	GetBase() ProposalBase
 	SetBase(ProposalBase)
-}
-
-type ProposalModel interface {
-	orm.Persistent
-	GetProposalI() ProposalI
-}
-type ExecRouter map[string]func(ctx sdk.Context, p ProposalI) error
-
-func (e ExecRouter) Add(k interface{}, f func(ctx sdk.Context, p ProposalI) error) {
-	key := reflect.TypeOf(k).String()
-	if _, exists := e[key]; exists {
-		panic(errors.Wrapf(ErrDuplicate, "%q already registered: %T", key, k))
-	}
-	e[key] = f
+	GetMsg() []sdk.Msg
 }
 
 type Keeper struct {
 	key               sdk.StoreKey
 	proposalModelType reflect.Type
-
-	// todo: not mutable
-	ExecRouter ExecRouter
 
 	// Group Table
 	groupTable        orm.Table
@@ -91,9 +76,10 @@ type Keeper struct {
 	groupSeq                orm.Sequence
 
 	paramSpace params.Subspace
+	router     sdk.Router
 }
 
-func NewGroupKeeper(storeKey sdk.StoreKey, paramSpace params.Subspace, proposalModel ProposalModel) Keeper {
+func NewGroupKeeper(storeKey sdk.StoreKey, paramSpace params.Subspace, router sdk.Router, proposalModel ProposalI) Keeper {
 	// set KeyTable if it has not already been set
 	if !paramSpace.HasKeyTable() {
 		paramSpace = paramSpace.WithKeyTable(params.NewKeyTable().RegisterParamSet(&Params{}))
@@ -105,12 +91,15 @@ func NewGroupKeeper(storeKey sdk.StoreKey, paramSpace params.Subspace, proposalM
 	if proposalModel == nil {
 		panic("proposalModel must not be nil")
 	}
+	if router == nil {
+		panic("router must not be nil")
+	}
 	tp := reflect.TypeOf(proposalModel)
 	if tp.Kind() == reflect.Ptr {
 		tp = tp.Elem()
 	}
 
-	k := Keeper{key: storeKey, paramSpace: paramSpace, proposalModelType: tp, ExecRouter: make(ExecRouter)}
+	k := Keeper{key: storeKey, paramSpace: paramSpace, proposalModelType: tp, router: router}
 
 	//
 	// Group Table
@@ -153,12 +142,12 @@ func NewGroupKeeper(storeKey sdk.StoreKey, paramSpace params.Subspace, proposalM
 	// Proposal Table
 	proposalTableBuilder := orm.NewAutoUInt64TableBuilder(ProposalBaseTablePrefix, ProposalBaseTableSeqPrefix, storeKey, proposalModel)
 	k.ProposalGroupAccountIndex = orm.NewIndex(proposalTableBuilder, ProposalBaseByGroupAccountIndexPrefix, func(value interface{}) ([]orm.RowID, error) {
-		account := value.(ProposalModel).GetProposalI().GetBase().GroupAccount
+		account := value.(ProposalI).GetBase().GroupAccount
 		return []orm.RowID{account.Bytes()}, nil
 
 	})
 	k.ProposalByProposerIndex = orm.NewIndex(proposalTableBuilder, ProposalBaseByProposerIndexPrefix, func(value interface{}) ([]orm.RowID, error) {
-		proposers := value.(ProposalModel).GetProposalI().GetBase().Proposers
+		proposers := value.(ProposalI).GetBase().Proposers
 		r := make([]orm.RowID, len(proposers))
 		for i := range proposers {
 			r[i] = proposers[i].Bytes()
@@ -312,15 +301,15 @@ func (k Keeper) Vote(ctx sdk.Context, id ProposalID, voters []sdk.AccAddress, ch
 	if err != nil {
 		return err
 	}
-	proposalModel, err := k.getProposalModel(ctx, id)
+	proposal, err := k.GetProposal(ctx, id)
 	if err != nil {
 		return err
 	}
-	proposal := proposalModel.GetProposalI().GetBase()
-	if proposal.Status != ProposalBase_Submitted {
+	base := proposal.GetBase()
+	if base.Status != ProposalBase_Submitted {
 		return errors.Wrap(ErrInvalid, "proposal not open")
 	}
-	votingPeriodEnd, err := types.TimestampFromProto(&proposal.VotingEndTime)
+	votingPeriodEnd, err := types.TimestampFromProto(&base.VotingEndTime)
 	if err != nil {
 		return err
 	}
@@ -328,11 +317,11 @@ func (k Keeper) Vote(ctx sdk.Context, id ProposalID, voters []sdk.AccAddress, ch
 	if end.Before(ctx.BlockTime()) || end.Equal(ctx.BlockTime()) {
 		return errors.Wrap(ErrExpired, "voting period has ended already")
 	}
-	electorate, err := k.GetGroupByGroupAccount(ctx, proposal.GroupAccount)
+	electorate, err := k.GetGroupByGroupAccount(ctx, base.GroupAccount)
 	if err != nil {
 		return err
 	}
-	if electorate.Version != proposal.GroupVersion {
+	if electorate.Version != base.GroupVersion {
 		// todo: this is not the voters fault.
 		return errors.Wrap(ErrModified, "group was modified")
 	}
@@ -360,11 +349,11 @@ func (k Keeper) Vote(ctx sdk.Context, id ProposalID, voters []sdk.AccAddress, ch
 		case err != nil:
 			return errors.Wrap(err, "load old vote")
 		default: // it is an update
-			if err := proposal.VoteState.Sub(oldVote, member.Weight); err != nil {
+			if err := base.VoteState.Sub(oldVote, member.Weight); err != nil {
 				return errors.Wrap(err, "previous vote")
 			}
 		}
-		if err := proposal.VoteState.Add(newVote, member.Weight); err != nil {
+		if err := base.VoteState.Add(newVote, member.Weight); err != nil {
 			return errors.Wrap(err, "new vote")
 		}
 
@@ -379,41 +368,40 @@ func (k Keeper) Vote(ctx sdk.Context, id ProposalID, voters []sdk.AccAddress, ch
 			}
 		}
 	}
-	proposalModel.GetProposalI().SetBase(proposal)
-	return k.proposalTable.Save(ctx, id.Uint64(), proposalModel)
+	proposal.SetBase(base)
+	return k.proposalTable.Save(ctx, id.Uint64(), proposal)
 }
 
 func (k Keeper) ExecProposal(ctx sdk.Context, id ProposalID) error {
-	proposalModel, err := k.getProposalModel(ctx, id)
+	proposal, err := k.GetProposal(ctx, id)
 	if err != nil {
 		return err
 	}
-	proposal := proposalModel.GetProposalI()
-	proposalBase := proposal.GetBase()
+	base := proposal.GetBase()
 
-	if proposalBase.Status != ProposalBase_Submitted {
+	if base.Status != ProposalBase_Submitted {
 		return errors.Wrap(ErrInvalid, "proposal not open")
 	}
 
 	var accountMetadata StdGroupAccountMetadata
-	if err := k.groupAccountTable.GetOne(ctx, proposalBase.GroupAccount.Bytes(), &accountMetadata); err != nil {
+	if err := k.groupAccountTable.GetOne(ctx, base.GroupAccount.Bytes(), &accountMetadata); err != nil {
 		return errors.Wrap(err, "load group account")
 	}
 
-	electorate, err := k.GetGroupByGroupAccount(ctx, proposalBase.GroupAccount)
+	electorate, err := k.GetGroupByGroupAccount(ctx, base.GroupAccount)
 	if err != nil {
 		return err
 	}
 
-	if electorate.Version != proposalBase.GroupVersion {
-		proposalBase.Status = ProposalBase_Aborted
+	if electorate.Version != base.GroupVersion {
+		base.Status = ProposalBase_Aborted
 		return nil
 		// todo: or error?
 		//return errors.Wrap(ErrModified, "group was modified")
 	}
 	// todo: validate
 
-	votingPeriodEnd, err := types.TimestampFromProto(&proposalBase.VotingEndTime)
+	votingPeriodEnd, err := types.TimestampFromProto(&base.VotingEndTime)
 	if err != nil {
 		return err
 	}
@@ -421,7 +409,7 @@ func (k Keeper) ExecProposal(ctx sdk.Context, id ProposalID) error {
 		return errors.Wrap(ErrExpired, "voting period not ended yet")
 	}
 
-	proposalBase.Status = ProposalBase_Closed
+	base.Status = ProposalBase_Closed
 
 	// run decision policy
 	policy := accountMetadata.DecisionPolicy.GetThreshold()
@@ -429,54 +417,70 @@ func (k Keeper) ExecProposal(ctx sdk.Context, id ProposalID) error {
 		return errors.Wrap(ErrInvalid, "unknown decision policy")
 	}
 
-	submittedAt, err := types.TimestampFromProto(&proposalBase.SubmittedAt)
+	submittedAt, err := types.TimestampFromProto(&base.SubmittedAt)
 	if err != nil {
 		return errors.Wrap(err, "from proto time")
 	}
-	switch accepted, err := policy.Allow(proposalBase.VoteState, electorate.TotalWeight, ctx.BlockTime().Sub(submittedAt)); {
+	switch accepted, err := policy.Allow(base.VoteState, electorate.TotalWeight, ctx.BlockTime().Sub(submittedAt)); {
 	case err != nil:
 		return errors.Wrap(err, "policy execution")
 	case accepted:
-		proposalBase.Result = ProposalBase_Accepted
+		base.Result = ProposalBase_Accepted
 		logger := ctx.Logger().With("module", fmt.Sprintf("x/%s", ModuleName))
 		proposalType := reflect.TypeOf(proposal).String()
-		if exec, ok := k.ExecRouter[proposalType]; !ok {
-			logger.Error("no executor for proposal", "type", proposalType, "proposalID", id)
-			proposalBase.ExecutorResult = ProposalBase_Failure
-		} else {
-			// execute proposal in a nested TX and only flush on non error
-			cacheCtx, writeCache := ctx.CacheContext()
-			if err := exec(cacheCtx, proposal); err != nil {
-				proposalBase.ExecutorResult = ProposalBase_Failure
-				logger.Error("executor failed for proposal", "cause", err, "proposalID", id)
-			} else {
-				writeCache()
-				proposalBase.ExecutorResult = ProposalBase_Success
+
+		msgs := proposal.GetMsg()
+		results := make([]sdk.Result, len(msgs))
+		for i, msg := range msgs {
+			for _, acct := range msg.GetSigners() {
+				_ = acct
+				if !accountMetadata.Base.GroupAccount.Equals(acct) {
+					return errors.Wrap(errors.ErrUnauthorized, "proposal msg does not have permission")
+				}
 			}
+
+			handler := k.router.Route(ctx, msg.Route())
+			if handler == nil {
+				logger.Debug("no handler found", "type", proposalType, "proposalID", id, "route", msg.Route(), "pos", i)
+				return errors.Wrap(ErrInvalid, "no message handler found")
+			}
+			r, err := handler(ctx, msg)
+			if err != nil {
+				return errors.Wrapf(err, "message %q at position %d", msg.Type(), i)
+			}
+			results[i] = *r
 		}
+		_ = results // todo: merge results
+		//if exec, ok := k.ExecRouter[proposalType]; !ok {
+		//	logger.Error("no executor for proposal", "type", proposalType, "proposalID", id)
+		//	base.ExecutorResult = ProposalBase_Failure
+		//} else {
+		//	// execute proposal in a nested TX and only flush on non error
+		//	cacheCtx, writeCache := ctx.CacheContext()
+		//	if err := exec(cacheCtx, proposal); err != nil {
+		//		base.ExecutorResult = ProposalBase_Failure
+		//		logger.Error("executor failed for proposal", "cause", err, "proposalID", id)
+		//	} else {
+		//		writeCache()
+		//		base.ExecutorResult = ProposalBase_Success
+		//	}
+		//}
 	default:
-		proposalBase.Result = ProposalBase_Rejected
+		base.Result = ProposalBase_Rejected
 	}
-	proposal.SetBase(proposalBase)
-	return k.proposalTable.Save(ctx, id.Uint64(), proposalModel)
+	proposal.SetBase(base)
+	return k.proposalTable.Save(ctx, id.Uint64(), proposal)
 }
 
-func (k Keeper) getProposalModel(ctx sdk.Context, id ProposalID) (ProposalModel, error) {
-	loaded := reflect.New(k.proposalModelType).Interface().(ProposalModel)
+func (k Keeper) GetProposal(ctx sdk.Context, id ProposalID) (ProposalI, error) {
+	loaded := reflect.New(k.proposalModelType).Interface().(ProposalI)
 	if _, err := k.proposalTable.GetOne(ctx, id.Uint64(), loaded); err != nil {
 		return nil, errors.Wrap(err, "load proposal source")
 	}
 	return loaded, nil
 }
-func (k Keeper) GetProposal(ctx sdk.Context, id ProposalID) (ProposalI, error) {
-	s, err := k.getProposalModel(ctx, id)
-	if err != nil {
-		return nil, err
-	}
-	return s.GetProposalI(), nil
-}
 
-func (k Keeper) CreateProposal(ctx sdk.Context, p ProposalModel) (ProposalID, error) {
+func (k Keeper) CreateProposal(ctx sdk.Context, p ProposalI) (ProposalID, error) {
 	id, err := k.proposalTable.Create(ctx, p)
 	if err != nil {
 		return 0, errors.Wrap(err, "create proposal")
