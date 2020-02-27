@@ -29,7 +29,7 @@ func RegisterCodec(cdc *codec.Codec) {
 	cdc.RegisterConcrete(MsgVote{}, "cosmos-sdk/group/MsgVote", nil)
 	cdc.RegisterConcrete(MsgExec{}, "cosmos-sdk/group/MsgExec", nil)
 
-	// oh man... this is for amino
+	// oh man... amino
 	cdc.RegisterConcrete(StdDecisionPolicy{}, "cosmos-sdk/StdDecisionPolicy", nil)
 	cdc.RegisterConcrete(&StdDecisionPolicy_Threshold{}, "cosmos-sdk/StdDecisionPolicy_Threshold", nil)
 	cdc.RegisterConcrete(ThresholdDecisionPolicy{}, "cosmos-sdk/ThresholdDecisionPolicy", nil)

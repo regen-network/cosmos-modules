@@ -115,14 +115,15 @@ func TestFullProposalWorkflow(t *testing.T) {
 			},
 		},
 		// submit proposal
-		testdata.MsgProposeA{
+		testdata.MsgPropose{
 			Base: group.MsgProposeBase{
 				GroupAccount: make([]byte, sdk.AddrLen),
 				Proposers:    []sdk.AccAddress{myAddr},
 				Comment:      "ok",
 			},
+			Msgs: []testdata.MyAppMsg{{Sum: &testdata.MyAppMsg_A{A: &testdata.MyAppProposalPayloadMsgA{}}}},
 		},
-		testdata.MsgProposeB{
+		testdata.MsgPropose{
 			Base: group.MsgProposeBase{
 				GroupAccount: make([]byte, sdk.AddrLen),
 				Proposers:    []sdk.AccAddress{myAddr},
