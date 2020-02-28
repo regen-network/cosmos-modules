@@ -108,8 +108,8 @@ func TestFullProposalWorkflow(t *testing.T) {
 			DecisionPolicy: group.StdDecisionPolicy{
 				Sum: &group.StdDecisionPolicy_Threshold{
 					Threshold: &group.ThresholdDecisionPolicy{
-						Threshold:       sdk.ZeroDec(),
-						MaxVotingWindow: *proto.DurationProto(time.Nanosecond),
+						Threshold: sdk.ZeroDec(),
+						Timout:    *proto.DurationProto(time.Second),
 					},
 				},
 			},
@@ -154,14 +154,11 @@ func TestFullProposalWorkflow(t *testing.T) {
 
 	// execute can not be in the same block so start new one
 	app.BeginBlock(abci.RequestBeginBlock{Header: abci.Header{Height: app.LastBlockHeight() + 1, Time: time.Now()}})
-	// execute
+
+	// execute first proposal
 	msgs = []sdk.Msg{
 		group.MsgExec{
 			Proposal: 1,
-			Signer:   myAddr,
-		},
-		group.MsgExec{
-			Proposal: 2,
 			Signer:   myAddr,
 		},
 	}
@@ -180,11 +177,25 @@ func TestFullProposalWorkflow(t *testing.T) {
 	expTally := group.Tally{YesCount: sdk.OneDec(), NoCount: sdk.ZeroDec(), AbstainCount: sdk.ZeroDec(), VetoCount: sdk.ZeroDec()}
 	assert.Equal(t, expTally, proposal.GetBase().VoteState)
 
-	// verify other proposal
+	// execute second proposal
+	msgs = []sdk.Msg{
+		group.MsgExec{
+			Proposal: 2,
+			Signer:   myAddr,
+		},
+	}
+	myAccount = app.AccountKeeper.GetAccount(ctx, myAddr)
+	privs, accNums, seqs = []crypto.PrivKey{myKey}, myAccount.GetAccountNumber(), myAccount.GetSequence()
+	tx = types.NewTestTx(ctx, msgs, privs, []uint64{accNums}, []uint64{seqs}, fee)
+
+	resp = app.DeliverTx(abci.RequestDeliverTx{Tx: app.Codec().MustMarshalBinaryLengthPrefixed(tx)})
+	require.Equal(t, uint32(0), resp.Code, resp.Log)
+
+	// verify second  proposal
 	proposal, err = app.GroupKeeper.GetProposal(ctx, 2)
 	require.NoError(t, err)
-	assert.Equal(t, group.ProposalBase_Rejected, proposal.GetBase().Result, proposal.GetBase().Result.String())
-	assert.Equal(t, group.ProposalBase_Closed, proposal.GetBase().Status, proposal.GetBase().Status.String())
+	assert.Equal(t, group.ProposalBase_Undefined, proposal.GetBase().Result, proposal.GetBase().Result.String())
+	assert.Equal(t, group.ProposalBase_Submitted, proposal.GetBase().Status, proposal.GetBase().Status.String())
 	expTally = group.Tally{YesCount: sdk.ZeroDec(), NoCount: sdk.ZeroDec(), AbstainCount: sdk.ZeroDec(), VetoCount: sdk.OneDec()}
 	assert.Equal(t, expTally, proposal.GetBase().VoteState)
 }

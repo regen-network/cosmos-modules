@@ -40,7 +40,7 @@ func CreateProposal(k Keeper, ctx sdk.Context, accountAddress sdk.AccAddress, co
 		return 0, errors.Wrap(err, "block time conversion")
 	}
 	policy := account.GetDecisionPolicy()
-	window, err := types.DurationFromProto(&policy.GetThreshold().MaxVotingWindow)
+	window, err := types.DurationFromProto(&policy.GetThreshold().Timout)
 	if err != nil {
 		return 0, errors.Wrap(err, "maxVotingWindow time conversion")
 	}
@@ -60,8 +60,7 @@ func CreateProposal(k Keeper, ctx sdk.Context, accountAddress sdk.AccAddress, co
 			GroupAccountVersion: account.Base.Version,
 			Result:              group.ProposalBase_Undefined,
 			Status:              group.ProposalBase_Submitted,
-			ExecutorResult:      group.ProposalBase_NotRun,
-			VotingEndTime:       *endTime,
+			Timeout:             *endTime,
 		},
 		Msgs:msgs,
 	}

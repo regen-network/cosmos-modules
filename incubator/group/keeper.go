@@ -309,78 +309,93 @@ func (k Keeper) Vote(ctx sdk.Context, id ProposalID, voters []sdk.AccAddress, ch
 	if base.Status != ProposalBase_Submitted {
 		return errors.Wrap(ErrInvalid, "proposal not open")
 	}
-	votingPeriodEnd, err := types.TimestampFromProto(&base.VotingEndTime)
+	votingPeriodEnd, err := types.TimestampFromProto(&base.Timeout)
 	if err != nil {
 		return err
 	}
-	end := votingPeriodEnd.UTC()
-	if end.Before(ctx.BlockTime()) || end.Equal(ctx.BlockTime()) {
+	if votingPeriodEnd.Before(ctx.BlockTime()) || votingPeriodEnd.Equal(ctx.BlockTime()) {
 		return errors.Wrap(ErrExpired, "voting period has ended already")
 	}
-	electorate, err := k.GetGroupByGroupAccount(ctx, base.GroupAccount)
+	var accountMetadata StdGroupAccountMetadata
+	if err := k.groupAccountTable.GetOne(ctx, base.GroupAccount.Bytes(), &accountMetadata); err != nil {
+		return errors.Wrap(err, "load group account")
+	}
+	if base.GroupAccountVersion != accountMetadata.Base.Version {
+		// todo: this is not the voters fault so we return an error to rollback the TX
+		return errors.Wrap(ErrModified, "group account was modified")
+	}
+
+	electorate, err := k.GetGroup(ctx, accountMetadata.Base.Group)
 	if err != nil {
 		return err
 	}
 	if electorate.Version != base.GroupVersion {
-		// todo: this is not the voters fault.
+		// todo: this is not the voters fault so we return an error to rollback the TX
 		return errors.Wrap(ErrModified, "group was modified")
 	}
-	for _, v := range voters {
+
+	// count and store votes
+	for _, voterAddr := range voters {
+		voter := GroupMember{Group: electorate.Group, Member: voterAddr}
+		if err := k.groupMemberTable.GetOne(ctx, voter.NaturalKey(), &voter); err != nil {
+			return errors.Wrapf(err, "address: %s", voterAddr)
+		}
 		newVote := Vote{
 			Proposal:    id,
-			Voter:       v,
+			Voter:       voterAddr,
 			Choice:      choice,
 			Comment:     comment,
 			SubmittedAt: *blockTime,
 		}
-		member := GroupMember{
-			Group:  electorate.Group,
-			Member: v,
+		if err := base.VoteState.Add(newVote, voter.Weight); err != nil {
+			return errors.Wrap(err, "add new vote")
 		}
 
-		if err := k.groupMemberTable.GetOne(ctx, member.NaturalKey(), &member); err != nil {
-			return errors.Wrapf(err, "get member by group and address")
-		}
-
-		var oldVote Vote
-		err = k.voteTable.GetOne(ctx, newVote.NaturalKey(), &oldVote)
-		switch {
-		case orm.ErrNotFound.Is(err): // it is a new vote
-		case err != nil:
-			return errors.Wrap(err, "load old vote")
-		default: // it is an update
-			if err := base.VoteState.Sub(oldVote, member.Weight); err != nil {
-				return errors.Wrap(err, "previous vote")
-			}
-		}
-		if err := base.VoteState.Add(newVote, member.Weight); err != nil {
-			return errors.Wrap(err, "new vote")
-		}
-
-		// todo: here a put would be nicer again
-		if oldVote.Proposal == 0 { // not persistent
-			if err := k.voteTable.Create(ctx, &newVote); err != nil {
-				return errors.Wrap(err, "create vote")
-			}
-		} else {
-			if err := k.voteTable.Save(ctx, &newVote); err != nil {
-				return errors.Wrap(err, "update vote")
-			}
+		if err := k.voteTable.Create(ctx, &newVote); err != nil {
+			return errors.Wrap(err, "store vote")
 		}
 	}
+
+	// run tally with new votes to close early
+
+	policy := accountMetadata.DecisionPolicy.GetThreshold()
+	submittedAt, err := types.TimestampFromProto(&base.SubmittedAt)
+	if err != nil {
+		return err
+	}
+	switch accepted, err := policy.Allow(base.VoteState, electorate.TotalWeight, ctx.BlockTime().Sub(submittedAt)); {
+	case err != nil:
+		return errors.Wrap(err, "policy execution")
+	case accepted:
+		// with enough votes we can close the proposal early as votes can not be changed
+		base.Result = ProposalBase_Accepted
+		base.Status = ProposalBase_Closed
+	}
+
 	proposal.SetBase(base)
 	return k.proposalTable.Save(ctx, id.Uint64(), proposal)
 }
 
+// ExecProposal can be executed n times before the timeout. It will update the proposal status and executes the msg payload.
+// There are no separate transactions for the payload messages so that it is a full atomic operation that
+// would either succeed or fail.
 func (k Keeper) ExecProposal(ctx sdk.Context, id ProposalID) error {
 	proposal, err := k.GetProposal(ctx, id)
 	if err != nil {
 		return err
 	}
+	// check constraints
 	base := proposal.GetBase()
 
-	if base.Status != ProposalBase_Submitted {
-		return errors.Wrap(ErrInvalid, "proposal not open")
+	if base.Status != ProposalBase_Submitted && base.Status != ProposalBase_Closed {
+		return errors.Wrapf(ErrInvalid, "not possible with proposal status %s", base.Status.String())
+	}
+	votingPeriodEnd, err := types.TimestampFromProto(&base.Timeout)
+	if err != nil {
+		return err
+	}
+	if ctx.BlockTime().After(votingPeriodEnd) {
+		return errors.Wrap(ErrExpired, "proposal has timed out already")
 	}
 
 	var accountMetadata StdGroupAccountMetadata
@@ -388,44 +403,53 @@ func (k Keeper) ExecProposal(ctx sdk.Context, id ProposalID) error {
 		return errors.Wrap(err, "load group account")
 	}
 
-	electorate, err := k.GetGroupByGroupAccount(ctx, base.GroupAccount)
+	storeUpdates := func() error {
+		proposal.SetBase(base)
+		return k.proposalTable.Save(ctx, id.Uint64(), proposal)
+	}
+
+	if base.GroupAccountVersion != accountMetadata.Base.Version {
+		base.Result = ProposalBase_Undefined
+		base.Status = ProposalBase_Aborted
+		return storeUpdates()
+	}
+
+	electorate, err := k.GetGroup(ctx, accountMetadata.Base.Group)
 	if err != nil {
-		return err
+		return errors.Wrap(err, "load group")
 	}
 
 	if electorate.Version != base.GroupVersion {
+		base.Result = ProposalBase_Undefined
 		base.Status = ProposalBase_Aborted
-		return nil
-		// todo: or error?
-		//return errors.Wrap(ErrModified, "group was modified")
-	}
-	// todo: validate
-
-	votingPeriodEnd, err := types.TimestampFromProto(&base.VotingEndTime)
-	if err != nil {
-		return err
-	}
-	if ctx.BlockTime().Before(votingPeriodEnd.UTC()) {
-		return errors.Wrap(ErrExpired, "voting period not ended yet")
+		return storeUpdates()
 	}
 
-	base.Status = ProposalBase_Closed
+	if base.Status == ProposalBase_Submitted {
+		// proposal was not closed early so run decision policy
+		policy := accountMetadata.DecisionPolicy.GetThreshold()
+		if policy == nil {
+			return errors.Wrap(ErrInvalid, "unknown decision policy")
+		}
 
-	// run decision policy
-	policy := accountMetadata.DecisionPolicy.GetThreshold()
-	if policy == nil {
-		return errors.Wrap(ErrInvalid, "unknown decision policy")
+		submittedAt, err := types.TimestampFromProto(&base.SubmittedAt)
+		if err != nil {
+			return errors.Wrap(err, "from proto time")
+		}
+		switch accepted, err := policy.Allow(base.VoteState, electorate.TotalWeight, ctx.BlockTime().Sub(submittedAt)); {
+		case err != nil:
+			return errors.Wrap(err, "policy execution")
+		case accepted:
+			base.Result = ProposalBase_Accepted
+			base.Status = ProposalBase_Closed
+		default:
+			// there might be votes coming so we can not close it
+			// todo: let decision policy decide on impossible cases to close early with ProposalBase_Rejected
+		}
 	}
 
-	submittedAt, err := types.TimestampFromProto(&base.SubmittedAt)
-	if err != nil {
-		return errors.Wrap(err, "from proto time")
-	}
-	switch accepted, err := policy.Allow(base.VoteState, electorate.TotalWeight, ctx.BlockTime().Sub(submittedAt)); {
-	case err != nil:
-		return errors.Wrap(err, "policy execution")
-	case accepted:
-		base.Result = ProposalBase_Accepted
+	if base.Status == ProposalBase_Closed && base.Result == ProposalBase_Accepted {
+
 		logger := ctx.Logger().With("module", fmt.Sprintf("x/%s", ModuleName))
 		proposalType := reflect.TypeOf(proposal).String()
 
@@ -451,25 +475,8 @@ func (k Keeper) ExecProposal(ctx sdk.Context, id ProposalID) error {
 			results[i] = *r
 		}
 		_ = results // todo: merge results
-		//if exec, ok := k.ExecRouter[proposalType]; !ok {
-		//	logger.Error("no executor for proposal", "type", proposalType, "proposalID", id)
-		//	base.ExecutorResult = ProposalBase_Failure
-		//} else {
-		//	// execute proposal in a nested TX and only flush on non error
-		//	cacheCtx, writeCache := ctx.CacheContext()
-		//	if err := exec(cacheCtx, proposal); err != nil {
-		//		base.ExecutorResult = ProposalBase_Failure
-		//		logger.Error("executor failed for proposal", "cause", err, "proposalID", id)
-		//	} else {
-		//		writeCache()
-		//		base.ExecutorResult = ProposalBase_Success
-		//	}
-		//}
-	default:
-		base.Result = ProposalBase_Rejected
 	}
-	proposal.SetBase(base)
-	return k.proposalTable.Save(ctx, id.Uint64(), proposal)
+	return storeUpdates()
 }
 
 func (k Keeper) GetProposal(ctx sdk.Context, id ProposalID) (ProposalI, error) {
@@ -487,31 +494,6 @@ func (k Keeper) CreateProposal(ctx sdk.Context, p ProposalI) (ProposalID, error)
 	}
 	return ProposalID(id), nil
 }
-
-//
-//func (k Keeper) UpdateGroupAccountAdmin(ctx orm.HasKVStore, groupAcc sdk.AccAddress, newAdmin sdk.AccAddress) error {
-//	panic("implement me")
-//}
-//
-//func (k Keeper) UpdateGroupAccountDecisionPolicy(ctx orm.HasKVStore, groupAcc sdk.AccAddress, newPolicy DecisionPolicy) error {
-//	panic("implement me")
-//}
-//
-//func (k Keeper) UpdateGroupAccountComment(ctx orm.HasKVStore, groupAcc sdk.AccAddress, newComment string) error {
-//	panic("implement me")
-//}
-//
-//func (k Keeper) Propose(ctx orm.HasKVStore, groupAcc sdk.AccAddress, approvers []sdk.AccAddress, msgs []sdk.Msg, comment string, execNow bool) (id ProposalID, execResult sdk.Result) {
-//	panic("implement me")
-//}
-//
-//func (k Keeper) Vote(ctx orm.HasKVStore, id ProposalID, voters []sdk.AccAddress, choice Choice) error {
-//	panic("implement me")
-//}
-//
-//func (k Keeper) Exec(ctx orm.HasKVStore, id ProposalID) sdk.Result {
-//	panic("implement me")
-//}
 
 type KeeperDELME interface { // obsolete when Keeper implements all functions
 	// Groups
