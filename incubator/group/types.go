@@ -6,6 +6,7 @@ import (
 	"github.com/cosmos/cosmos-sdk/x/params"
 	"github.com/cosmos/cosmos-sdk/x/params/subspace"
 	"github.com/cosmos/modules/incubator/orm"
+	"github.com/gogo/protobuf/types"
 	"github.com/pkg/errors"
 	"gopkg.in/yaml.v2"
 
@@ -32,18 +33,31 @@ func (p ProposalID) Uint64() uint64 {
 	return uint64(p)
 }
 
-type DecisionPolicy interface {
-	// todo: @aaron: not sure if understood the concept of this policy correct but when the
-	// result is the decision if a proposal is accepted or rejected we need to check we need
-	// an error state as well. example: MsgExec before voting period end.
-	Allow(tally Tally, totalPower sdk.Dec, votingDuration time.Duration) (bool, error)
+type DecisionPolicyResult struct {
+	Allow bool
+	Final bool
 }
 
-func (p ThresholdDecisionPolicy) Allow(tally Tally, totalPower sdk.Dec, votingDuration time.Duration) (bool, error) {
-	//	if p.MinVotingWindow > votingDuration {
-	//		return false, errors.Wrap(ErrInvalid, "min voting period not")
-	//	}
-	return tally.YesCount.GT(p.Threshold), nil
+type DecisionPolicy interface {
+	Allow(tally Tally, totalPower sdk.Dec, votingDuration time.Duration) (DecisionPolicyResult, error)
+}
+
+func (p ThresholdDecisionPolicy) Allow(tally Tally, totalPower sdk.Dec, votingDuration time.Duration) (DecisionPolicyResult, error) {
+	timeout, err := types.DurationFromProto(&p.Timout)
+	if err != nil {
+		return DecisionPolicyResult{}, err
+	}
+	if timeout < votingDuration {
+		return DecisionPolicyResult{Allow: false, Final: true}, nil
+	}
+	if tally.YesCount.GT(p.Threshold) {
+		return DecisionPolicyResult{Allow: true, Final: true}, nil
+	}
+	undecided := totalPower.Sub(tally.TotalCounts())
+	if tally.YesCount.Add(undecided).LTE(p.Threshold) {
+		return DecisionPolicyResult{Allow: false, Final: true}, nil
+	}
+	return DecisionPolicyResult{Allow: false, Final: false}, nil
 }
 
 func (g GroupMember) NaturalKey() []byte {

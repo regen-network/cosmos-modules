@@ -363,12 +363,14 @@ func (k Keeper) Vote(ctx sdk.Context, id ProposalID, voters []sdk.AccAddress, ch
 	if err != nil {
 		return err
 	}
-	switch accepted, err := policy.Allow(base.VoteState, electorate.TotalWeight, ctx.BlockTime().Sub(submittedAt)); {
+	switch result, err := policy.Allow(base.VoteState, electorate.TotalWeight, ctx.BlockTime().Sub(submittedAt)); {
 	case err != nil:
 		return errors.Wrap(err, "policy execution")
-	case accepted:
-		// with enough votes we can close the proposal early as votes can not be changed
+	case result == DecisionPolicyResult{Allow: true, Final: true}:
 		base.Result = ProposalBase_Accepted
+		base.Status = ProposalBase_Closed
+	case result == DecisionPolicyResult{Allow: false, Final: true}:
+		base.Result = ProposalBase_Rejected
 		base.Status = ProposalBase_Closed
 	}
 
@@ -436,15 +438,17 @@ func (k Keeper) ExecProposal(ctx sdk.Context, id ProposalID) error {
 		if err != nil {
 			return errors.Wrap(err, "from proto time")
 		}
-		switch accepted, err := policy.Allow(base.VoteState, electorate.TotalWeight, ctx.BlockTime().Sub(submittedAt)); {
+		switch result, err := policy.Allow(base.VoteState, electorate.TotalWeight, ctx.BlockTime().Sub(submittedAt)); {
 		case err != nil:
 			return errors.Wrap(err, "policy execution")
-		case accepted:
+		case result == DecisionPolicyResult{Allow: true, Final: true}:
 			base.Result = ProposalBase_Accepted
+			base.Status = ProposalBase_Closed
+		case result == DecisionPolicyResult{Allow: false, Final: true}:
+			base.Result = ProposalBase_Rejected
 			base.Status = ProposalBase_Closed
 		default:
 			// there might be votes coming so we can not close it
-			// todo: let decision policy decide on impossible cases to close early with ProposalBase_Rejected
 		}
 	}
 

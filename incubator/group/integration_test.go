@@ -194,8 +194,8 @@ func TestFullProposalWorkflow(t *testing.T) {
 	// verify second  proposal
 	proposal, err = app.GroupKeeper.GetProposal(ctx, 2)
 	require.NoError(t, err)
-	assert.Equal(t, group.ProposalBase_Undefined, proposal.GetBase().Result, proposal.GetBase().Result.String())
-	assert.Equal(t, group.ProposalBase_Submitted, proposal.GetBase().Status, proposal.GetBase().Status.String())
+	assert.Equal(t, group.ProposalBase_Rejected, proposal.GetBase().Result, proposal.GetBase().Result.String())
+	assert.Equal(t, group.ProposalBase_Closed, proposal.GetBase().Status, proposal.GetBase().Status.String())
 	expTally = group.Tally{YesCount: sdk.ZeroDec(), NoCount: sdk.ZeroDec(), AbstainCount: sdk.ZeroDec(), VetoCount: sdk.OneDec()}
 	assert.Equal(t, expTally, proposal.GetBase().VoteState)
 }
