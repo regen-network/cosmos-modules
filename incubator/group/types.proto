@@ -7,6 +7,8 @@ option go_package = "github.com/cosmos/modules/incubator/group";
 import "gogoproto/gogo.proto";
 import "google/protobuf/duration.proto";
 import "google/protobuf/timestamp.proto";
+import "third_party/proto/cosmos-proto/cosmos.proto";
+
 
 message Msg {
     oneof sum {
@@ -105,6 +107,7 @@ message MsgUpdateGroupAccountComment {
 // MyAppDecisionPolicy should include all the existing StdDecisionPolicy types with the same field number and then
 // add custom DecisionPolicy types afterwards.
 message StdDecisionPolicy {
+    option (cosmos_proto.interface_type) = "DecisionPolicy";
     oneof sum {
         ThresholdDecisionPolicy threshold = 1;
     }
@@ -113,12 +116,9 @@ message StdDecisionPolicy {
 message ThresholdDecisionPolicy {
     // threshold is a fix weight value that must be exceeded for a proposal to succeed.
     string threshold = 1 [(gogoproto.customtype) = "github.com/cosmos/cosmos-sdk/types.Dec", (gogoproto.nullable) = false];
-
-    // TODO: why do we need min/max? when people can change their vote there is no way we can
-    // close a proposal early. Even if everybody has voted already. I would propose a single value instead so that
-    // we can calculate the end of the voting period.
-    google.protobuf.Duration min_voting_window = 2 [(gogoproto.nullable) = false];
-    google.protobuf.Duration max_voting_window = 3 [(gogoproto.nullable) = false];
+    // timout is the duration from submission of a proposal to the end of voting period
+    // Within this times votes and exec messages can be submitted.
+    google.protobuf.Duration timout = 2 [(gogoproto.nullable) = false];
 }
 
 //
@@ -266,24 +266,13 @@ message ProposalBase {
     // The result is persisted so that clients can always rely on this state and not have to replicate the logic.
     Result result = 8;
 
-    enum ExecutorResult {
-        // An empty value is not allowed
-        PROPOSAL_EXECUTOR_RESULT_INVALID = 0;
-        // We have not yet run the executor
-        PROPOSAL_EXECUTOR_RESULT_NOT_RUN = 1 [(gogoproto.enumvalue_customname) = "NotRun"];
-        // The executor was successful and proposed action updated state
-        PROPOSAL_EXECUTOR_RESULT_SUCCESS = 2 [(gogoproto.enumvalue_customname) = "Success"];
-        // The executor returned an error and proposed action didn't update state
-        PROPOSAL_EXECUTOR_RESULT_FAILURE = 3 [(gogoproto.enumvalue_customname) = "Failure"];
-    }
-    // Result is the final result based on the votes and election rule. Initial value is NotRun.
-    ExecutorResult executor_result = 9;
+    // Tally contains the sums of all weighted votes for this proposal.
+    Tally vote_state = 9 [(gogoproto.nullable) = false];
 
-    Tally vote_state = 10 [(gogoproto.nullable) = false];
-
-    // Timestamp of the block where the voting period ends. Header times of the votes must be before this end time
-    // to be included in the election.
-    google.protobuf.Timestamp voting_end_time = 11 [(gogoproto.nullable) = false];
+    // Timestamp of the block where the proposal execution times out. Header times of the votes and execution messages
+    // must be before this end time to be included in the election. After the timeout timestamp the proposal can not be
+    // executed anymore and should be considered pending delete.
+    google.protobuf.Timestamp timeout = 10 [(gogoproto.nullable) = false];
 }
 
 message Tally {
