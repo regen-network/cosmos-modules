@@ -43,7 +43,8 @@ type ProposalI interface {
 	orm.Persistent
 	GetBase() ProposalBase
 	SetBase(ProposalBase)
-	GetMsg() []sdk.Msg
+	GetMsgs() []sdk.Msg
+	SetMsgs([]sdk.Msg) error
 }
 
 type Keeper struct {
@@ -457,7 +458,7 @@ func (k Keeper) ExecProposal(ctx sdk.Context, id ProposalID) error {
 		logger := ctx.Logger().With("module", fmt.Sprintf("x/%s", ModuleName))
 		proposalType := reflect.TypeOf(proposal).String()
 
-		msgs := proposal.GetMsg()
+		msgs := proposal.GetMsgs()
 		results := make([]sdk.Result, len(msgs))
 		for i, msg := range msgs {
 			for _, acct := range msg.GetSigners() {
