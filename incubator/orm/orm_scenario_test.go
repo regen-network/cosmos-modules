@@ -1,6 +1,7 @@
 package orm
 
 import (
+	"bytes"
 	"encoding/binary"
 	"fmt"
 	"testing"
@@ -252,6 +253,119 @@ func TestGasCostsNaturalKeyTable(t *testing.T) {
 		err = k.groupMemberTable.Delete(gCtx, &m)
 		require.NoError(t, err)
 		t.Logf("%d: gas consumed on delete: %d", i, gCtx.GasConsumed())
+	}
+}
+
+func TestExportImportStateAutoUInt64Table(t *testing.T) {
+	storeKey := sdk.NewKVStoreKey("test")
+	ctx := NewMockContext()
+
+	k := NewGroupKeeper(storeKey)
+
+	testRecords := 10
+	for i := 1; i <= testRecords; i++ {
+		myAddr := sdk.AccAddress(bytes.Repeat([]byte{byte(i)}, sdk.AddrLen))
+		g := testdata.GroupMetadata{
+			Description: fmt.Sprintf("my test %d", i),
+			Admin:       myAddr,
+		}
+
+		groupRowID, err := k.groupTable.Create(ctx, &g)
+		require.NoError(t, err)
+		require.Equal(t, uint64(i), groupRowID)
+	}
+	jsonModels, seqVal, err := ExportTableData(ctx, k.groupTable)
+	require.NoError(t, err)
+
+	// when a new db seeded
+	ctx = NewMockContext()
+
+	err = ImportTableData(ctx, k.groupTable, jsonModels, seqVal)
+	require.NoError(t, err)
+	// then all data is set again
+
+	for i := 1; i <= testRecords; i++ {
+		require.True(t, k.groupTable.Has(ctx, uint64(i)))
+		var loaded testdata.GroupMetadata
+		groupRowID, err := k.groupTable.GetOne(ctx, uint64(i), &loaded)
+		require.NoError(t, err)
+
+		require.Equal(t, RowID(EncodeSequence(uint64(i))), groupRowID)
+		assert.Equal(t, fmt.Sprintf("my test %d", i), loaded.Description)
+		exp := sdk.AccAddress(bytes.Repeat([]byte{byte(i)}, sdk.AddrLen))
+		assert.Equal(t, exp, loaded.Admin)
+
+		// and also the indexes
+		require.True(t, k.groupByAdminIndex.Has(ctx, exp))
+		it, err := k.groupByAdminIndex.Get(ctx, exp)
+		require.NoError(t, err)
+		var all []testdata.GroupMetadata
+		ReadAll(it, &all)
+		require.Len(t, all, 1)
+		assert.Equal(t, loaded, all[0])
+	}
+	require.Equal(t, uint64(testRecords), k.groupTable.seq.CurVal(ctx))
+}
+
+func TestExportImportStateNaturalKeyTable(t *testing.T) {
+	storeKey := sdk.NewKVStoreKey("test")
+	ctx := NewMockContext()
+
+	k := NewGroupKeeper(storeKey)
+	myGroupAddr := sdk.AccAddress(bytes.Repeat([]byte{byte('a')}, sdk.AddrLen))
+	testRecordsNum := 10
+	testRecords := make([]testdata.GroupMember, testRecordsNum)
+	for i := 1; i <= testRecordsNum; i++ {
+		myAddr := sdk.AccAddress(bytes.Repeat([]byte{byte(i)}, sdk.AddrLen))
+		g := testdata.GroupMember{
+			Group:  myGroupAddr,
+			Member: myAddr,
+			Weight: uint64(i),
+		}
+		err := k.groupMemberTable.Create(ctx, &g)
+		require.NoError(t, err)
+		testRecords[i-1] = g
+	}
+	jsonModels, _, err := ExportTableData(ctx, k.groupMemberTable)
+	require.NoError(t, err)
+
+	// when a new db seeded
+	ctx = NewMockContext()
+
+	err = ImportTableData(ctx, k.groupMemberTable, jsonModels, 0)
+	require.NoError(t, err)
+
+	// then all data is set again
+	it, err := k.groupMemberTable.PrefixScan(ctx, nil, nil)
+	require.NoError(t, err)
+	var loaded []testdata.GroupMember
+	keys, err := ReadAll(it, &loaded)
+	require.NoError(t, err)
+	for i := range keys {
+		assert.Equal(t, testRecords[i].NaturalKey(), keys[i].Bytes())
+	}
+	assert.Equal(t, testRecords, loaded)
+
+	// and first index setup
+	it, err = k.groupMemberByGroupIndex.Get(ctx, myGroupAddr)
+	require.NoError(t, err)
+	loaded = nil
+	keys, err = ReadAll(it, &loaded)
+	require.NoError(t, err)
+	for i := range keys {
+		assert.Equal(t, testRecords[i].NaturalKey(), keys[i].Bytes())
+	}
+	assert.Equal(t, testRecords, loaded)
+
+	// and second index setup
+	for _, v := range testRecords {
+		it, err = k.groupMemberByMemberIndex.Get(ctx, v.Member)
+		require.NoError(t, err)
+		loaded = nil
+		keys, err = ReadAll(it, &loaded)
+		require.NoError(t, err)
+		assert.Equal(t, []RowID{v.NaturalKey()}, keys)
+		assert.Equal(t, []testdata.GroupMember{v}, loaded)
 	}
 }
 

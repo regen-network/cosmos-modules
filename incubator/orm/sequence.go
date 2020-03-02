@@ -5,6 +5,7 @@ import (
 
 	"github.com/cosmos/cosmos-sdk/store/prefix"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	"github.com/cosmos/cosmos-sdk/types/errors"
 )
 
 // sequenceStorageKey is a fix key to read/ write data on the storage layer
@@ -16,14 +17,14 @@ type Sequence struct {
 	prefix   byte
 }
 
-func NewSequence(storeKey sdk.StoreKey, prefix byte) *Sequence {
-	return &Sequence{
+func NewSequence(storeKey sdk.StoreKey, prefix byte) Sequence {
+	return Sequence{
 		prefix:   prefix,
 		storeKey: storeKey,
 	}
 }
 
-// NextVal increments the counter by one and returns the value.
+// NextVal increments and persists the counter by one and returns the value.
 func (s Sequence) NextVal(ctx HasKVStore) uint64 {
 	store := prefix.NewStore(ctx.KVStore(s.storeKey), []byte{s.prefix})
 	v := store.Get(sequenceStorageKey)
@@ -33,11 +34,33 @@ func (s Sequence) NextVal(ctx HasKVStore) uint64 {
 	return seq
 }
 
-// CurVal returns the last value used. 0Nex if none.
+// CurVal returns the last value used. 0 if none.
 func (s Sequence) CurVal(ctx HasKVStore) uint64 {
 	store := prefix.NewStore(ctx.KVStore(s.storeKey), []byte{s.prefix})
 	v := store.Get(sequenceStorageKey)
 	return DecodeSequence(v)
+}
+
+// PeekNextVal returns the CurVal + increment step. Not persistent.
+func (s Sequence) PeekNextVal(ctx HasKVStore) uint64 {
+	store := prefix.NewStore(ctx.KVStore(s.storeKey), []byte{s.prefix})
+	v := store.Get(sequenceStorageKey)
+	return DecodeSequence(v) + 1
+}
+
+// InitVal sets the start value for the sequence. It must be called only once on an empty DB.
+// Otherwise an error is returned when the key exits. The given start value is stored as current
+// value.
+//
+// It is recommended to call this method only for a sequence start value other than `1` as the
+// method consumes unnecessary gas otherwise. A scenario would be an import from genesis.
+func (s Sequence) InitVal(ctx HasKVStore, seq uint64) error {
+	store := prefix.NewStore(ctx.KVStore(s.storeKey), []byte{s.prefix})
+	if store.Has(sequenceStorageKey) {
+		return errors.Wrap(ErrUniqueConstraint, "already initialized")
+	}
+	store.Set(sequenceStorageKey, EncodeSequence(seq))
+	return nil
 }
 
 // DecodeSequence converts the binary representation into an Uint64 value.

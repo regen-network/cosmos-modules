@@ -21,7 +21,7 @@ func NewAutoUInt64TableBuilder(prefixData byte, prefixSeq byte, storeKey sdk.Sto
 
 type AutoUInt64TableBuilder struct {
 	*TableBuilder
-	seq *Sequence
+	seq Sequence
 }
 
 // Build create the AutoUInt64Table object.
@@ -32,10 +32,13 @@ func (a AutoUInt64TableBuilder) Build() AutoUInt64Table {
 	}
 }
 
+var _ SequenceExportable = &AutoUInt64Table{}
+var _ TableExportable = &AutoUInt64Table{}
+
 // AutoUInt64Table is the table type which an auto incrementing ID.
 type AutoUInt64Table struct {
 	table Table
-	seq   *Sequence
+	seq   Sequence
 }
 
 // Create a new persistent object with an auto generated uint64 primary key. They key is returned.
@@ -113,4 +116,14 @@ func (a AutoUInt64Table) PrefixScan(ctx HasKVStore, start, end uint64) (Iterator
 // CONTRACT: No writes may happen within a domain while an iterator exists over it.
 func (a AutoUInt64Table) ReversePrefixScan(ctx HasKVStore, start uint64, end uint64) (Iterator, error) {
 	return a.table.ReversePrefixScan(ctx, EncodeSequence(start), EncodeSequence(end))
+}
+
+// Sequence returns the sequence used by this table
+func (a AutoUInt64Table) Sequence() Sequence {
+	return a.seq
+}
+
+// Table satisfies the TableExportable interface and must not be used otherwise.
+func (a AutoUInt64Table) Table() Table {
+	return a.table
 }

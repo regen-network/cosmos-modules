@@ -32,6 +32,11 @@ type HasKVStore interface {
 // Unique identifier of a persistent table.
 type RowID []byte
 
+// Bytes returns raw bytes.
+func (r RowID) Bytes() []byte {
+	return r
+}
+
 // Persistent supports Marshal and Unmarshal
 //
 // This is separated from Marshal, as this almost always requires

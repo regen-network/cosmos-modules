@@ -33,6 +33,8 @@ type NaturalKeyed interface {
 	Persistent
 }
 
+var _ TableExportable = &NaturalKeyTable{}
+
 // NaturalKeyTable provides simpler object style orm methods without passing database RowIDs.
 // Entries are persisted and loaded with a reference to their unique natural key.
 type NaturalKeyTable struct {
@@ -73,6 +75,14 @@ func (a NaturalKeyTable) Has(ctx HasKVStore, naturalKey RowID) bool {
 	return a.table.Has(ctx, naturalKey)
 }
 
+// Contains returns true when an object with same type and natural key is persisted in this table.
+func (a NaturalKeyTable) Contains(ctx HasKVStore, obj NaturalKeyed) bool {
+	if err := assertCorrectType(a.table.model, obj); err != nil {
+		return false
+	}
+	return a.table.Has(ctx, obj.NaturalKey())
+}
+
 // GetOne load the object persisted for the given primary Key into the dest parameter.
 // If none exists `ErrNotFound` is returned instead. Parameters must not be nil.
 func (a NaturalKeyTable) GetOne(ctx HasKVStore, primKey RowID, dest Persistent) error {
@@ -110,4 +120,9 @@ func (a NaturalKeyTable) PrefixScan(ctx HasKVStore, start, end []byte) (Iterator
 // CONTRACT: No writes may happen within a domain while an iterator exists over it.
 func (a NaturalKeyTable) ReversePrefixScan(ctx HasKVStore, start, end []byte) (Iterator, error) {
 	return a.table.ReversePrefixScan(ctx, start, end)
+}
+
+// Table satisfies the TableExportable interface and must not be used otherwise.
+func (a NaturalKeyTable) Table() Table {
+	return a.table
 }
