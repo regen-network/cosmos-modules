@@ -90,16 +90,22 @@ func ImportTableData(ctx HasKVStore, t TableExportable, src json.RawMessage, seq
 // forEachInTable iterates through all entries in the given table and calls the callback function.
 // Aborts on first error.
 func forEachInTable(ctx HasKVStore, table Table, f func(RowID, Persistent) error) error {
-	store := prefix.NewStore(ctx.KVStore(table.storeKey), []byte{table.prefix})
-	it := store.Iterator(nil, nil)
+	it, err := table.PrefixScan(ctx, nil, nil)
+	if err != nil {
+		return errors.Wrap(err, "all rows prefix scan")
+	}
 	defer it.Close()
-	for ; it.Valid(); it.Next() {
+	for {
 		obj := reflect.New(table.model).Interface().(Persistent)
-		if err := obj.Unmarshal(it.Value()); err != nil {
-			return errors.Wrap(err, "unmarshal")
-		}
-		if err := f(it.Key(), obj); err != nil {
-			return err
+		switch rowID, err := it.LoadNext(obj); {
+		case ErrIteratorDone.Is(err):
+			return nil
+		case err != nil:
+			return errors.Wrap(err, "load next")
+		default:
+			if err := f(rowID, obj); err != nil {
+				return err
+			}
 		}
 	}
 	return nil
