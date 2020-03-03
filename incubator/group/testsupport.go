@@ -57,6 +57,10 @@ func (m MockProposalI) SetBase(ProposalBase) {
 	panic("implement me")
 }
 
-func (m MockProposalI) GetMsg() []sdk.Msg {
+func (m MockProposalI) GetMsgs() []sdk.Msg {
+	panic("implement me")
+}
+
+func (m MockProposalI) SetMsgs([]sdk.Msg) error {
 	panic("implement me")
 }

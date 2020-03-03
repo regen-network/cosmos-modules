@@ -43,7 +43,8 @@ type ProposalI interface {
 	orm.Persistent
 	GetBase() ProposalBase
 	SetBase(ProposalBase)
-	GetMsg() []sdk.Msg
+	GetMsgs() []sdk.Msg
+	SetMsgs([]sdk.Msg) error
 }
 
 type Keeper struct {
@@ -457,7 +458,7 @@ func (k Keeper) ExecProposal(ctx sdk.Context, id ProposalID) error {
 		logger := ctx.Logger().With("module", fmt.Sprintf("x/%s", ModuleName))
 		proposalType := reflect.TypeOf(proposal).String()
 
-		msgs := proposal.GetMsg()
+		msgs := proposal.GetMsgs()
 		results := make([]sdk.Result, len(msgs))
 		for i, msg := range msgs {
 			for _, acct := range msg.GetSigners() {
@@ -491,8 +492,47 @@ func (k Keeper) GetProposal(ctx sdk.Context, id ProposalID) (ProposalI, error) {
 	return loaded, nil
 }
 
-func (k Keeper) CreateProposal(ctx sdk.Context, p ProposalI) (ProposalID, error) {
-	id, err := k.proposalTable.Create(ctx, p)
+func (k Keeper) CreateProposal(ctx sdk.Context, accountAddress sdk.AccAddress, comment string, proposers []sdk.AccAddress, msgs []sdk.Msg) (ProposalID, error) {
+	account, err := k.GetGroupAccount(ctx, accountAddress.Bytes())
+	if err != nil {
+		return 0, errors.Wrap(err, "load group account")
+	}
+
+	g, err := k.GetGroupByGroupAccount(ctx, accountAddress)
+	if err != nil {
+		return 0, errors.Wrap(err, "get group by account")
+	}
+	blockTime, err := types.TimestampProto(ctx.BlockTime())
+	if err != nil {
+		return 0, errors.Wrap(err, "block time conversion")
+	}
+	policy := account.GetDecisionPolicy()
+	window, err := types.DurationFromProto(&policy.GetThreshold().Timout)
+	if err != nil {
+		return 0, errors.Wrap(err, "maxVotingWindow time conversion")
+	}
+	endTime, err := types.TimestampProto(ctx.BlockTime().Add(window))
+	if err != nil {
+		return 0, errors.Wrap(err, "end time conversion")
+	}
+
+	m := reflect.New(k.proposalModelType).Interface().(ProposalI)
+	m.SetBase(ProposalBase{
+		GroupAccount:        accountAddress,
+		Comment:             comment,
+		Proposers:           proposers,
+		SubmittedAt:         *blockTime,
+		GroupVersion:        g.Version,
+		GroupAccountVersion: account.Base.Version,
+		Result:              ProposalBase_Undefined,
+		Status:              ProposalBase_Submitted,
+		Timeout:             *endTime,
+	})
+	if err := m.SetMsgs(msgs); err != nil {
+		return 0, errors.Wrap(err, "create proposal")
+	}
+
+	id, err := k.proposalTable.Create(ctx, m)
 	if err != nil {
 		return 0, errors.Wrap(err, "create proposal")
 	}

@@ -6,7 +6,6 @@ import (
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
-	"github.com/cosmos/modules/incubator/orm"
 )
 
 func NewHandler(k Keeper) sdk.Handler {
@@ -35,12 +34,12 @@ func NewHandler(k Keeper) sdk.Handler {
 func handleMsgPropose(ctx sdk.Context, k Keeper, msg MsgPropose) (*sdk.Result, error) {
 	// todo: vaidate
 	// check execNow
-	id, err := k.CreateProposalA(ctx, msg.Base.GroupAccount, msg.Base.Proposers, msg.Base.Comment, msg.Msgs)
+	id, err := k.CreateProposal(ctx, msg.Base.GroupAccount, msg.Base.Proposers, msg.Base.Comment, msg.Msgs)
 	if err != nil {
 		return nil, err
 	}
 	return &sdk.Result{
-		Data:   orm.EncodeSequence(id),
+		Data:   id.Byte(),
 		Log:    fmt.Sprintf("Proposal created :%d", id),
 		Events: ctx.EventManager().Events(),
 	}, nil

@@ -18,8 +18,8 @@ message MyAppMsg {
 
 
 message MyAppProposal {
+    option (gogoproto.goproto_getters) = false;
     cosmos_modules.incubator.group.v1_alpha.ProposalBase base = 1 [(gogoproto.nullable) = false];
-    //    option (cosmos_proto.interface_type) = "*github.com/cosmos/modules/incubator/group.ProposalI";
     repeated MyAppMsg msgs = 2 [(gogoproto.nullable) = false];
 }
 
