@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - master
+      - new_master
       - orm_develop
   pull_request:
     branches:
