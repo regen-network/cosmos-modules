@@ -164,3 +164,8 @@ func (m *Tally) Add(vote Vote, weight sdk.Dec) error {
 func (m Tally) TotalCounts() sdk.Dec {
 	return m.YesCount.Add(m.NoCount).Add(m.AbstainCount).Add(m.VetoCount)
 }
+
+func (g GenesisState) String() string {
+	out, _ := yaml.Marshal(g)
+	return string(out)
+}

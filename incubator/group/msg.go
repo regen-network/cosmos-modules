@@ -1,8 +1,11 @@
 package group
 
 import (
+	"bytes"
+
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
+	"github.com/gogo/protobuf/jsonpb"
 	"github.com/pkg/errors"
 )
 
@@ -29,7 +32,12 @@ func (m MsgCreateGroup) GetSigners() []sdk.AccAddress {
 
 // GetSignBytes returns the bytes for the message signer to sign on
 func (m MsgCreateGroup) GetSignBytes() []byte {
-	return sdk.MustSortJSON(ModuleCdc.MustMarshalJSON(m))
+	var buf bytes.Buffer
+	enc := jsonpb.Marshaler{}
+	if err := enc.Marshal(&buf, &m); err != nil {
+		panic(errors.Wrap(err, "get sign bytes"))
+	}
+	return sdk.MustSortJSON(buf.Bytes())
 }
 
 // ValidateBasic does a sanity check on the provided data
@@ -73,7 +81,12 @@ func (m MsgUpdateGroupAdmin) GetSigners() []sdk.AccAddress {
 
 // GetSignBytes returns the bytes for the message signer to sign on
 func (m MsgUpdateGroupAdmin) GetSignBytes() []byte {
-	return sdk.MustSortJSON(ModuleCdc.MustMarshalJSON(m))
+	var buf bytes.Buffer
+	enc := jsonpb.Marshaler{}
+	if err := enc.Marshal(&buf, &m); err != nil {
+		panic(errors.Wrap(err, "get sign bytes"))
+	}
+	return sdk.MustSortJSON(buf.Bytes())
 }
 
 // ValidateBasic does a sanity check on the provided data
@@ -107,7 +120,12 @@ func (m MsgUpdateGroupComment) GetSigners() []sdk.AccAddress {
 
 // GetSignBytes returns the bytes for the message signer to sign on
 func (m MsgUpdateGroupComment) GetSignBytes() []byte {
-	return sdk.MustSortJSON(ModuleCdc.MustMarshalJSON(m))
+	var buf bytes.Buffer
+	enc := jsonpb.Marshaler{}
+	if err := enc.Marshal(&buf, &m); err != nil {
+		panic(errors.Wrap(err, "get sign bytes"))
+	}
+	return sdk.MustSortJSON(buf.Bytes())
 }
 
 // ValidateBasic does a sanity check on the provided data
@@ -134,7 +152,12 @@ func (m MsgUpdateGroupMembers) GetSigners() []sdk.AccAddress {
 
 // GetSignBytes returns the bytes for the message signer to sign on
 func (m MsgUpdateGroupMembers) GetSignBytes() []byte {
-	return sdk.MustSortJSON(ModuleCdc.MustMarshalJSON(m))
+	var buf bytes.Buffer
+	enc := jsonpb.Marshaler{}
+	if err := enc.Marshal(&buf, &m); err != nil {
+		panic(errors.Wrap(err, "get sign bytes"))
+	}
+	return sdk.MustSortJSON(buf.Bytes())
 }
 
 // ValidateBasic does a sanity check on the provided data
@@ -204,7 +227,12 @@ func (m MsgCreateGroupAccountStd) GetSigners() []sdk.AccAddress {
 
 // GetSignBytes returns the bytes for the message signer to sign on
 func (m MsgCreateGroupAccountStd) GetSignBytes() []byte {
-	return sdk.MustSortJSON(ModuleCdc.MustMarshalJSON(m))
+	var buf bytes.Buffer
+	enc := jsonpb.Marshaler{}
+	if err := enc.Marshal(&buf, &m); err != nil {
+		panic(errors.Wrap(err, "get sign bytes"))
+	}
+	return sdk.MustSortJSON(buf.Bytes())
 }
 
 // ValidateBasic does a sanity check on the provided data
@@ -227,7 +255,12 @@ func (m MsgVote) GetSigners() []sdk.AccAddress {
 
 // GetSignBytes returns the bytes for the message signer to sign on
 func (m MsgVote) GetSignBytes() []byte {
-	return sdk.MustSortJSON(ModuleCdc.MustMarshalJSON(m))
+	var buf bytes.Buffer
+	enc := jsonpb.Marshaler{}
+	if err := enc.Marshal(&buf, &m); err != nil {
+		panic(errors.Wrap(err, "get sign bytes"))
+	}
+	return sdk.MustSortJSON(buf.Bytes())
 }
 
 // ValidateBasic does a sanity check on the provided data
@@ -263,7 +296,12 @@ func (m MsgExec) GetSigners() []sdk.AccAddress {
 
 // GetSignBytes returns the bytes for the message signer to sign on
 func (m MsgExec) GetSignBytes() []byte {
-	return sdk.MustSortJSON(ModuleCdc.MustMarshalJSON(m))
+	var buf bytes.Buffer
+	enc := jsonpb.Marshaler{}
+	if err := enc.Marshal(&buf, &m); err != nil {
+		panic(errors.Wrap(err, "get sign bytes"))
+	}
+	return sdk.MustSortJSON(buf.Bytes())
 }
 
 // ValidateBasic does a sanity check on the provided data

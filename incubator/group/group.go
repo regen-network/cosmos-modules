@@ -1,12 +1,15 @@
 package group
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 
 	"github.com/cosmos/cosmos-sdk/client/context"
 	"github.com/cosmos/cosmos-sdk/codec"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	"github.com/cosmos/cosmos-sdk/types/errors"
+	"github.com/gogo/protobuf/jsonpb"
 	"github.com/gorilla/mux"
 	"github.com/spf13/cobra"
 	abci "github.com/tendermint/tendermint/abci/types"
@@ -43,17 +46,23 @@ func (a AppModule) Name() string {
 }
 
 func (a AppModule) RegisterCodec(cdc *codec.Codec) {
-	RegisterCodec(cdc)
+	RegisterCodec(cdc) // can not be removed until sdk.StdTx support protobuf
 }
 
 func (a AppModule) DefaultGenesis() json.RawMessage {
-	return ModuleCdc.MustMarshalJSON(NewGenesisState())
+	var buf bytes.Buffer
+	marshaler := jsonpb.Marshaler{}
+	err := marshaler.Marshal(&buf, NewGenesisState())
+	if err != nil {
+		panic(errors.Wrap(err, "failed to marshal default genesis"))
+	}
+	return buf.Bytes()
 }
 
 func (a AppModule) ValidateGenesis(bz json.RawMessage) error {
 	var data GenesisState
-	if err := ModuleCdc.UnmarshalJSON(bz, &data); err != nil {
-		return err
+	if err := jsonpb.Unmarshal(bytes.NewReader(bz), &data); err != nil {
+		return errors.Wrapf(err, "validate genesis")
 	}
 	return data.Validate()
 }
@@ -74,20 +83,27 @@ func (a AppModule) GetQueryCmd(*codec.Codec) *cobra.Command {
 	panic("implement me")
 }
 
-func (a AppModule) InitGenesis(ctx sdk.Context, data json.RawMessage) []abci.ValidatorUpdate {
-	var genesisState GenesisState
-	ModuleCdc.MustUnmarshalJSON(data, &genesisState)
-	if err := genesisState.Validate(); err != nil {
+func (a AppModule) InitGenesis(ctx sdk.Context, bz json.RawMessage) []abci.ValidatorUpdate {
+	var data GenesisState
+	if err := jsonpb.Unmarshal(bytes.NewReader(bz), &data); err != nil {
+		panic(errors.Wrapf(err, "init genesis"))
+	}
+
+	if err := data.Validate(); err != nil {
 		panic(fmt.Sprintf("failed to validate %s genesis state: %s", ModuleName, err))
 	}
-	a.keeper.setParams(ctx, genesisState.Params)
+	a.keeper.setParams(ctx, data.Params)
 	return []abci.ValidatorUpdate{}
 
 }
 
 func (a AppModule) ExportGenesis(ctx sdk.Context) json.RawMessage {
-	gs := ExportGenesis(ctx, a.keeper)
-	return ModuleCdc.MustMarshalJSON(gs)
+	var buf bytes.Buffer
+	marshaller := jsonpb.Marshaler{}
+	if err := marshaller.Marshal(&buf, ExportGenesis(ctx, a.keeper)); err != nil {
+		panic(errors.Wrap(err, "export genesis"))
+	}
+	return buf.Bytes()
 }
 
 func (a AppModule) RegisterInvariants(sdk.InvariantRegistry) {

@@ -64,7 +64,7 @@ func (m MyAppProposalPayloadMsgA) GetSignBytes() []byte {
 	var buf bytes.Buffer
 	enc := jsonpb.Marshaler{}
 	if err := enc.Marshal(&buf, &m); err != nil {
-		panic(err)
+		panic(errors.Wrap(err, "get sign bytes"))
 	}
 	return sdk.MustSortJSON(buf.Bytes())
 }

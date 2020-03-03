@@ -323,8 +323,9 @@ func (app *SimApp) EndBlocker(ctx sdk.Context, req abci.RequestEndBlock) abci.Re
 // InitChainer application update at chain initialization
 func (app *SimApp) InitChainer(ctx sdk.Context, req abci.RequestInitChain) abci.ResponseInitChain {
 	var genesisState map[string]json.RawMessage
-
-	app.cdc.MustUnmarshalJSON(req.AppStateBytes, &genesisState)
+	if err:= json.Unmarshal(req.AppStateBytes, &genesisState); err!=nil{
+		panic(err)
+	}
 	return app.mm.InitGenesis(ctx, genesisState)
 }
 
