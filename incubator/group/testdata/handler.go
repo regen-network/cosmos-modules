@@ -39,7 +39,7 @@ func handleMsgPropose(ctx sdk.Context, k Keeper, msg MsgPropose) (*sdk.Result, e
 		return nil, err
 	}
 	return &sdk.Result{
-		Data:   id.Byte(),
+		Data:   id.Bytes(),
 		Log:    fmt.Sprintf("Proposal created :%d", id),
 		Events: ctx.EventManager().Events(),
 	}, nil

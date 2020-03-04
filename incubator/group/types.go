@@ -19,13 +19,13 @@ func (p GroupID) Uint64() uint64 {
 	return uint64(p)
 }
 
-func (g GroupID) Byte() []byte {
+func (g GroupID) Bytes() []byte {
 	return orm.EncodeSequence(uint64(g))
 }
 
 type ProposalID uint64
 
-func (p ProposalID) Byte() []byte {
+func (p ProposalID) Bytes() []byte {
 	return orm.EncodeSequence(uint64(p))
 }
 
@@ -62,7 +62,7 @@ func (p ThresholdDecisionPolicy) Allow(tally Tally, totalPower sdk.Dec, votingDu
 
 func (g GroupMember) NaturalKey() []byte {
 	result := make([]byte, 8, 8+len(g.Member))
-	copy(result[0:8], g.Group.Byte())
+	copy(result[0:8], g.Group.Bytes())
 	result = append(result, g.Member...)
 	return result
 }
@@ -77,7 +77,7 @@ func (g StdGroupAccountMetadata) NaturalKey() []byte {
 
 func (v Vote) NaturalKey() []byte {
 	result := make([]byte, 8, 8+len(v.Voter))
-	copy(result[0:8], v.Proposal.Byte())
+	copy(result[0:8], v.Proposal.Bytes())
 	result = append(result, v.Voter...)
 	return result
 }

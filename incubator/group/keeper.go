@@ -226,7 +226,7 @@ func (k Keeper) CreateGroup(ctx sdk.Context, admin sdk.AccAddress, members []Mem
 
 func (k Keeper) GetGroup(ctx sdk.Context, id GroupID) (GroupMetadata, error) {
 	var obj GroupMetadata
-	return obj, k.groupTable.GetOne(ctx, id.Byte(), &obj)
+	return obj, k.groupTable.GetOne(ctx, id.Bytes(), &obj)
 }
 
 func (k Keeper) HasGroup(ctx sdk.Context, rowID orm.RowID) bool {
@@ -235,7 +235,7 @@ func (k Keeper) HasGroup(ctx sdk.Context, rowID orm.RowID) bool {
 
 func (k Keeper) UpdateGroup(ctx sdk.Context, g *GroupMetadata) error {
 	g.Version++
-	return k.groupTable.Save(ctx, g.Group.Byte(), g)
+	return k.groupTable.Save(ctx, g.Group.Bytes(), g)
 }
 
 func (k Keeper) getParams(ctx sdk.Context) Params {
