@@ -9,8 +9,6 @@ import (
 	"github.com/pkg/errors"
 )
 
-var _ sdk.Msg = &MsgCreateGroup{}
-
 const (
 	msgTypeCreateGroup           = "create_group"
 	msgTypeUpdateGroupAdmin      = "update_group_admin"
@@ -20,6 +18,13 @@ const (
 	msgTypeVote                  = "vote"
 	msgTypeExecProposal          = "exec_proposal"
 )
+
+type MsgCreateGroupAccountI interface {
+	GetBase() MsgCreateGroupAccountBase
+	GetDecisionPolicy() StdDecisionPolicy
+}
+
+var _ sdk.Msg = &MsgCreateGroup{}
 
 func (m MsgCreateGroup) Route() string { return ModuleName }
 func (m MsgCreateGroup) Type() string  { return msgTypeCreateGroup }
@@ -241,6 +246,16 @@ func (m MsgCreateGroupAccountStd) ValidateBasic() error {
 		return nil
 	}
 	return nil
+}
+
+var _ MsgCreateGroupAccountI = MsgCreateGroupAccountStd{}
+
+func (m MsgCreateGroupAccountStd) GetBase() MsgCreateGroupAccountBase {
+	return m.Base
+}
+
+func (m MsgCreateGroupAccountStd) GetDecisionPolicy() StdDecisionPolicy {
+	return m.DecisionPolicy
 }
 
 var _ sdk.Msg = &MsgVote{}

@@ -73,6 +73,7 @@ message MsgCreateGroupAccountBase {
 // create their own create account msg that supports custom DecisionPolicy's using MsgCreateGroupAccountBase as
 // starting point
 message MsgCreateGroupAccountStd {
+    option (gogoproto.goproto_getters) = false;
     MsgCreateGroupAccountBase base = 1 [(gogoproto.nullable) = false];
     StdDecisionPolicy decision_policy = 2 [(gogoproto.nullable) = false];
 }

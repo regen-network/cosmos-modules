@@ -21,13 +21,8 @@ func NewHandler(k Keeper) sdk.Handler {
 			return handleMsgUpdateGroupComment(ctx, k, msg)
 		case MsgUpdateGroupMembers:
 			return handleMsgUpdateGroupMembers(ctx, k, msg)
-
-		// todo: @aaronc is this message type supposed to be handled or for extensions only?
-		//case MsgCreateGroupAccountBase:
-		//case MsgProposeBase:
-
-		case MsgCreateGroupAccountStd:
-			return handleMsgCreateGroupAccountStd(ctx, k, msg)
+		case MsgCreateGroupAccountI:
+			return handleMsgCreateGroupAccountI(ctx, k, msg)
 		case MsgVote:
 			return handleMsgVote(ctx, k, msg)
 		case MsgExec:
@@ -62,12 +57,13 @@ func handleMsgExec(ctx sdk.Context, k Keeper, msg MsgExec) (*sdk.Result, error) 
 	}, nil
 }
 
-func handleMsgCreateGroupAccountStd(ctx sdk.Context, k Keeper, msg MsgCreateGroupAccountStd) (*sdk.Result, error) {
-	acc, err := k.CreateGroupAccount(ctx, msg.Base.Admin, msg.Base.Group, *msg.DecisionPolicy.GetThreshold(), msg.Base.Comment)
+func handleMsgCreateGroupAccountI(ctx sdk.Context, k Keeper, msg MsgCreateGroupAccountI) (*sdk.Result, error) {
+	decisionPolicy := msg.GetDecisionPolicy()
+	acc, err := k.CreateGroupAccount(ctx, msg.GetBase().Admin, msg.GetBase().Group, *decisionPolicy.GetThreshold(), msg.GetBase().Comment)
 	if err != nil {
 		return nil, errors.Wrap(err, "create group account")
 	}
-	return buildGroupAccountResult(ctx, msg.Base.Admin, acc, "created")
+	return buildGroupAccountResult(ctx, msg.GetBase().Admin, acc, "created")
 }
 
 func buildGroupAccountResult(ctx sdk.Context, admin sdk.AccAddress, acc sdk.AccAddress, note string) (*sdk.Result, error) {
