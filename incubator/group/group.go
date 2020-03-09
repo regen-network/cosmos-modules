@@ -9,6 +9,7 @@ import (
 	"github.com/cosmos/cosmos-sdk/codec"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/types/errors"
+	"github.com/cosmos/modules/incubator/orm"
 	"github.com/gogo/protobuf/jsonpb"
 	"github.com/gorilla/mux"
 	"github.com/spf13/cobra"
@@ -30,6 +31,11 @@ const (
 
 	DefaultParamspace = ModuleName
 )
+
+// AccountCondition returns a condition to build a group account address.
+func AccountCondition(id uint64) Condition {
+	return NewCondition("group", "account", orm.EncodeSequence(id))
+}
 
 type AppModule struct {
 	keeper Keeper

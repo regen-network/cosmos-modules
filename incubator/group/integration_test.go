@@ -114,10 +114,26 @@ func TestFullProposalWorkflow(t *testing.T) {
 				},
 			},
 		},
-		// submit proposal
+		// and another one
+		group.MsgCreateGroupAccountStd{
+			Base: group.MsgCreateGroupAccountBase{
+				Admin:   myAddr,
+				Group:   1,
+				Comment: "second account",
+			},
+			DecisionPolicy: group.StdDecisionPolicy{
+				Sum: &group.StdDecisionPolicy_Threshold{
+					Threshold: &group.ThresholdDecisionPolicy{
+						Threshold: sdk.ZeroDec(),
+						Timout:    *proto.DurationProto(time.Second),
+					},
+				},
+			},
+		},
+		// submit proposals
 		testdata.MsgPropose{
 			Base: group.MsgProposeBase{
-				GroupAccount: make([]byte, sdk.AddrLen),
+				GroupAccount: group.AccountCondition(1).Address(), // first account
 				Proposers:    []sdk.AccAddress{myAddr},
 				Comment:      "ok",
 			},
@@ -125,7 +141,7 @@ func TestFullProposalWorkflow(t *testing.T) {
 		},
 		testdata.MsgPropose{
 			Base: group.MsgProposeBase{
-				GroupAccount: make([]byte, sdk.AddrLen),
+				GroupAccount: group.AccountCondition(2).Address(), // second account, same group
 				Proposers:    []sdk.AccAddress{myAddr},
 				Comment:      "other proposal",
 			},

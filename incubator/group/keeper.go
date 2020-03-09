@@ -24,8 +24,9 @@ const (
 
 	// Group Account Table
 	GroupAccountTablePrefix        byte = 0x20
-	GroupAccountByGroupIndexPrefix byte = 0x21
-	GroupAccountByAdminIndexPrefix byte = 0x22
+	GroupAccountTableSeqPrefix     byte = 0x21
+	GroupAccountByGroupIndexPrefix byte = 0x22
+	GroupAccountByAdminIndexPrefix byte = 0x23
 
 	// ProposalBase Table
 	ProposalBaseTablePrefix               byte = 0x30
@@ -52,6 +53,7 @@ type Keeper struct {
 	proposalModelType reflect.Type
 
 	// Group Table
+	groupSeq          orm.Sequence
 	groupTable        orm.Table
 	groupByAdminIndex orm.Index
 
@@ -61,6 +63,7 @@ type Keeper struct {
 	groupMemberByMemberIndex orm.Index
 
 	// Group Account Table
+	groupAccountSeq          orm.Sequence
 	groupAccountTable        orm.NaturalKeyTable
 	groupAccountByGroupIndex orm.UInt64Index
 	groupAccountByAdminIndex orm.Index
@@ -74,7 +77,6 @@ type Keeper struct {
 	voteTable               orm.NaturalKeyTable
 	voteByProposalBaseIndex orm.UInt64Index
 	voteByVoterIndex        orm.Index
-	groupSeq                orm.Sequence
 
 	paramSpace params.Subspace
 	router     sdk.Router
@@ -129,6 +131,7 @@ func NewGroupKeeper(storeKey sdk.StoreKey, paramSpace params.Subspace, router sd
 	//
 	// Group Account Table
 	//
+	k.groupAccountSeq = orm.NewSequence(storeKey, GroupAccountTableSeqPrefix)
 	groupAccountTableBuilder := orm.NewNaturalKeyTableBuilder(GroupAccountTablePrefix, storeKey, &StdGroupAccountMetadata{}, orm.Max255DynamicLengthIndexKeyCodec{})
 	k.groupAccountByGroupIndex = orm.NewUInt64Index(groupAccountTableBuilder, GroupAccountByGroupIndexPrefix, func(value interface{}) ([]uint64, error) {
 		group := value.(*StdGroupAccountMetadata).Base.Group
@@ -258,9 +261,8 @@ func (k Keeper) CreateGroupAccount(ctx sdk.Context, admin sdk.AccAddress, groupI
 
 	// todo: other validations
 	// todo: where to store decision policy?
-	//var accountAddr sdk.AccAddress   // todo: how do we generate deterministic address??? as in weave with conditions?
 
-	accountAddr := make([]byte, sdk.AddrLen)
+	accountAddr := AccountCondition(k.groupAccountSeq.NextVal(ctx)).Address()
 	groupAccount := StdGroupAccountMetadata{
 		Base: GroupAccountMetadataBase{
 			GroupAccount: accountAddr,
@@ -498,7 +500,7 @@ func (k Keeper) CreateProposal(ctx sdk.Context, accountAddress sdk.AccAddress, c
 		return 0, errors.Wrap(err, "load group account")
 	}
 
-	g, err := k.GetGroupByGroupAccount(ctx, accountAddress)
+	g, err := k.GetGroup(ctx, account.Base.Group)
 	if err != nil {
 		return 0, errors.Wrap(err, "get group by account")
 	}
