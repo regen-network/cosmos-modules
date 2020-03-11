@@ -1,0 +1,35 @@
+syntax = "proto3";
+
+package cosmos_modules.incubator.group.v1_alpha.testdata;
+option go_package = "github.com/cosmos/modules/incubator/group/testdata";
+
+import "third_party/proto/cosmos-proto/cosmos.proto";
+import "gogoproto/gogo.proto";
+import "group/types.proto";
+
+// MyAppMsg is the payload stored with a proposal and executed on success
+message MyAppMsg {
+    option (cosmos_proto.interface_type) = "*github.com/cosmos/cosmos-sdk/types.Msg";
+    oneof sum {
+        MyAppProposalPayloadMsgA A = 1;
+        MyAppProposalPayloadMsgB B = 2;
+    }
+}
+
+
+message MyAppProposal {
+    option (gogoproto.goproto_getters) = false;
+    cosmos_modules.incubator.group.v1_alpha.ProposalBase base = 1 [(gogoproto.nullable) = false];
+    repeated MyAppMsg msgs = 2 [(gogoproto.nullable) = false];
+}
+
+message MyAppProposalPayloadMsgA {
+}
+
+message MyAppProposalPayloadMsgB {
+}
+
+message MsgPropose {
+    cosmos_modules.incubator.group.v1_alpha.MsgProposeBase base = 1 [(gogoproto.nullable) = false];
+    repeated MyAppMsg msgs = 2 [(gogoproto.nullable) = false];
+}

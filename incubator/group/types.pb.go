@@ -9,6 +9,7 @@ import (
 	_ "github.com/gogo/protobuf/gogoproto"
 	proto "github.com/gogo/protobuf/proto"
 	types "github.com/gogo/protobuf/types"
+	_ "github.com/regen-network/cosmos-proto"
 	io "io"
 	math "math"
 	math_bits "math/bits"
@@ -57,6 +58,76 @@ func (x Choice) String() string {
 
 func (Choice) EnumDescriptor() ([]byte, []int) {
 	return fileDescriptor_d938547f84707355, []int{0}
+}
+
+type ProposalBase_Status int32
+
+const (
+	// An empty value is invalid and not allowed
+	ProposalBase_PROPOSAL_STATUS_INVALID ProposalBase_Status = 0
+	// Initial status of a proposal when persisted.
+	ProposalBase_Submitted ProposalBase_Status = 1
+	// Final status of a proposal when the final tally was executed
+	ProposalBase_Closed ProposalBase_Status = 2
+	// Final status of a proposal when the group was modified before the final tally.
+	ProposalBase_Aborted ProposalBase_Status = 3
+)
+
+var ProposalBase_Status_name = map[int32]string{
+	0: "PROPOSAL_STATUS_INVALID",
+	1: "PROPOSAL_STATUS_SUBMITTED",
+	2: "PROPOSAL_STATUS_CLOSED",
+	3: "PROPOSAL_STATUS_ABORTED",
+}
+
+var ProposalBase_Status_value = map[string]int32{
+	"PROPOSAL_STATUS_INVALID":   0,
+	"PROPOSAL_STATUS_SUBMITTED": 1,
+	"PROPOSAL_STATUS_CLOSED":    2,
+	"PROPOSAL_STATUS_ABORTED":   3,
+}
+
+func (x ProposalBase_Status) String() string {
+	return proto.EnumName(ProposalBase_Status_name, int32(x))
+}
+
+func (ProposalBase_Status) EnumDescriptor() ([]byte, []int) {
+	return fileDescriptor_d938547f84707355, []int{21, 0}
+}
+
+type ProposalBase_Result int32
+
+const (
+	// An empty value is invalid and not allowed
+	ProposalBase_PROPOSAL_RESULT_INVALID ProposalBase_Result = 0
+	// Until a final tally has happened the status is undefined
+	ProposalBase_Undefined ProposalBase_Result = 1
+	// Final result of the tally
+	ProposalBase_Accepted ProposalBase_Result = 2
+	// Final result of the tally
+	ProposalBase_Rejected ProposalBase_Result = 3
+)
+
+var ProposalBase_Result_name = map[int32]string{
+	0: "PROPOSAL_RESULT_INVALID",
+	1: "PROPOSAL_RESULT_UNDEFINED",
+	2: "PROPOSAL_RESULT_ACCEPTED",
+	3: "PROPOSAL_RESULT_REJECTED",
+}
+
+var ProposalBase_Result_value = map[string]int32{
+	"PROPOSAL_RESULT_INVALID":   0,
+	"PROPOSAL_RESULT_UNDEFINED": 1,
+	"PROPOSAL_RESULT_ACCEPTED":  2,
+	"PROPOSAL_RESULT_REJECTED":  3,
+}
+
+func (x ProposalBase_Result) String() string {
+	return proto.EnumName(ProposalBase_Result_name, int32(x))
+}
+
+func (ProposalBase_Result) EnumDescriptor() ([]byte, []int) {
+	return fileDescriptor_d938547f84707355, []int{21, 1}
 }
 
 type Msg struct {
@@ -605,8 +676,8 @@ func (m *MsgCreateGroupAccountBase) GetComment() string {
 // create their own create account msg that supports custom DecisionPolicy's using MsgCreateGroupAccountBase as
 // starting point
 type MsgCreateGroupAccountStd struct {
-	Base           *MsgCreateGroupAccountBase `protobuf:"bytes,1,opt,name=base,proto3" json:"base,omitempty"`
-	DecisionPolicy *StdDecisionPolicy         `protobuf:"bytes,2,opt,name=decision_policy,json=decisionPolicy,proto3" json:"decision_policy,omitempty"`
+	Base           MsgCreateGroupAccountBase `protobuf:"bytes,1,opt,name=base,proto3" json:"base"`
+	DecisionPolicy StdDecisionPolicy         `protobuf:"bytes,2,opt,name=decision_policy,json=decisionPolicy,proto3" json:"decision_policy"`
 }
 
 func (m *MsgCreateGroupAccountStd) Reset()         { *m = MsgCreateGroupAccountStd{} }
@@ -642,24 +713,10 @@ func (m *MsgCreateGroupAccountStd) XXX_DiscardUnknown() {
 
 var xxx_messageInfo_MsgCreateGroupAccountStd proto.InternalMessageInfo
 
-func (m *MsgCreateGroupAccountStd) GetBase() *MsgCreateGroupAccountBase {
-	if m != nil {
-		return m.Base
-	}
-	return nil
-}
-
-func (m *MsgCreateGroupAccountStd) GetDecisionPolicy() *StdDecisionPolicy {
-	if m != nil {
-		return m.DecisionPolicy
-	}
-	return nil
-}
-
 type MsgUpdateGroupAccountAdmin struct {
-	Admin       github_com_cosmos_cosmos_sdk_types.AccAddress `protobuf:"bytes,1,opt,name=admin,proto3,casttype=github.com/cosmos/cosmos-sdk/types.AccAddress" json:"admin,omitempty"`
-	GroupAcount github_com_cosmos_cosmos_sdk_types.AccAddress `protobuf:"bytes,2,opt,name=group_acount,json=groupAcount,proto3,casttype=github.com/cosmos/cosmos-sdk/types.AccAddress" json:"group_acount,omitempty"`
-	NewAdmin    github_com_cosmos_cosmos_sdk_types.AccAddress `protobuf:"bytes,3,opt,name=new_admin,json=newAdmin,proto3,casttype=github.com/cosmos/cosmos-sdk/types.AccAddress" json:"new_admin,omitempty"`
+	Admin        github_com_cosmos_cosmos_sdk_types.AccAddress `protobuf:"bytes,1,opt,name=admin,proto3,casttype=github.com/cosmos/cosmos-sdk/types.AccAddress" json:"admin,omitempty"`
+	GroupAccount github_com_cosmos_cosmos_sdk_types.AccAddress `protobuf:"bytes,2,opt,name=group_account,json=groupAccount,proto3,casttype=github.com/cosmos/cosmos-sdk/types.AccAddress" json:"group_account,omitempty"`
+	NewAdmin     github_com_cosmos_cosmos_sdk_types.AccAddress `protobuf:"bytes,3,opt,name=new_admin,json=newAdmin,proto3,casttype=github.com/cosmos/cosmos-sdk/types.AccAddress" json:"new_admin,omitempty"`
 }
 
 func (m *MsgUpdateGroupAccountAdmin) Reset()         { *m = MsgUpdateGroupAccountAdmin{} }
@@ -702,9 +759,9 @@ func (m *MsgUpdateGroupAccountAdmin) GetAdmin() github_com_cosmos_cosmos_sdk_typ
 	return nil
 }
 
-func (m *MsgUpdateGroupAccountAdmin) GetGroupAcount() github_com_cosmos_cosmos_sdk_types.AccAddress {
+func (m *MsgUpdateGroupAccountAdmin) GetGroupAccount() github_com_cosmos_cosmos_sdk_types.AccAddress {
 	if m != nil {
-		return m.GroupAcount
+		return m.GroupAccount
 	}
 	return nil
 }
@@ -771,8 +828,8 @@ func (m *MsgUpdateGroupAccountBase) GetGroup() GroupID {
 // MsgCreateGroupAccountStd allows a group account decision policy to be updated to a member of StdDecisionPolicy, can
 // be overridden to support custom DecisionPolicy's by apps.
 type MsgUpdateGroupAccountDecisionPolicyStd struct {
-	Base           *MsgUpdateGroupAccountBase `protobuf:"bytes,1,opt,name=base,proto3" json:"base,omitempty"`
-	DecisionPolicy *StdDecisionPolicy         `protobuf:"bytes,3,opt,name=decision_policy,json=decisionPolicy,proto3" json:"decision_policy,omitempty"`
+	Base           MsgUpdateGroupAccountBase `protobuf:"bytes,1,opt,name=base,proto3" json:"base"`
+	DecisionPolicy StdDecisionPolicy         `protobuf:"bytes,2,opt,name=decision_policy,json=decisionPolicy,proto3" json:"decision_policy"`
 }
 
 func (m *MsgUpdateGroupAccountDecisionPolicyStd) Reset() {
@@ -810,24 +867,24 @@ func (m *MsgUpdateGroupAccountDecisionPolicyStd) XXX_DiscardUnknown() {
 
 var xxx_messageInfo_MsgUpdateGroupAccountDecisionPolicyStd proto.InternalMessageInfo
 
-func (m *MsgUpdateGroupAccountDecisionPolicyStd) GetBase() *MsgUpdateGroupAccountBase {
+func (m *MsgUpdateGroupAccountDecisionPolicyStd) GetBase() MsgUpdateGroupAccountBase {
 	if m != nil {
 		return m.Base
 	}
-	return nil
+	return MsgUpdateGroupAccountBase{}
 }
 
-func (m *MsgUpdateGroupAccountDecisionPolicyStd) GetDecisionPolicy() *StdDecisionPolicy {
+func (m *MsgUpdateGroupAccountDecisionPolicyStd) GetDecisionPolicy() StdDecisionPolicy {
 	if m != nil {
 		return m.DecisionPolicy
 	}
-	return nil
+	return StdDecisionPolicy{}
 }
 
 type MsgUpdateGroupAccountComment struct {
-	Admin       github_com_cosmos_cosmos_sdk_types.AccAddress `protobuf:"bytes,1,opt,name=admin,proto3,casttype=github.com/cosmos/cosmos-sdk/types.AccAddress" json:"admin,omitempty"`
-	GroupAcount github_com_cosmos_cosmos_sdk_types.AccAddress `protobuf:"bytes,2,opt,name=group_acount,json=groupAcount,proto3,casttype=github.com/cosmos/cosmos-sdk/types.AccAddress" json:"group_acount,omitempty"`
-	Comment     string                                        `protobuf:"bytes,3,opt,name=comment,proto3" json:"comment,omitempty"`
+	Admin        github_com_cosmos_cosmos_sdk_types.AccAddress `protobuf:"bytes,1,opt,name=admin,proto3,casttype=github.com/cosmos/cosmos-sdk/types.AccAddress" json:"admin,omitempty"`
+	GroupAccount github_com_cosmos_cosmos_sdk_types.AccAddress `protobuf:"bytes,2,opt,name=group_account,json=groupAccount,proto3,casttype=github.com/cosmos/cosmos-sdk/types.AccAddress" json:"group_account,omitempty"`
+	Comment      string                                        `protobuf:"bytes,3,opt,name=comment,proto3" json:"comment,omitempty"`
 }
 
 func (m *MsgUpdateGroupAccountComment) Reset()         { *m = MsgUpdateGroupAccountComment{} }
@@ -870,9 +927,9 @@ func (m *MsgUpdateGroupAccountComment) GetAdmin() github_com_cosmos_cosmos_sdk_t
 	return nil
 }
 
-func (m *MsgUpdateGroupAccountComment) GetGroupAcount() github_com_cosmos_cosmos_sdk_types.AccAddress {
+func (m *MsgUpdateGroupAccountComment) GetGroupAccount() github_com_cosmos_cosmos_sdk_types.AccAddress {
 	if m != nil {
-		return m.GroupAcount
+		return m.GroupAccount
 	}
 	return nil
 }
@@ -961,10 +1018,13 @@ func (*StdDecisionPolicy) XXX_OneofWrappers() []interface{} {
 	}
 }
 
+// todo: we need to ensure that ThresholdDecisionPolicy can not be modified during a running proposal
 type ThresholdDecisionPolicy struct {
-	Threshold       *github_com_cosmos_cosmos_sdk_types.Dec `protobuf:"bytes,1,opt,name=threshold,proto3,customtype=github.com/cosmos/cosmos-sdk/types.Dec" json:"threshold,omitempty"`
-	MinVotingWindow *types.Duration                         `protobuf:"bytes,2,opt,name=min_voting_window,json=minVotingWindow,proto3" json:"min_voting_window,omitempty"`
-	MaxVotingWindow *types.Duration                         `protobuf:"bytes,3,opt,name=max_voting_window,json=maxVotingWindow,proto3" json:"max_voting_window,omitempty"`
+	// threshold is a fix weight value that must be exceeded for a proposal to succeed.
+	Threshold github_com_cosmos_cosmos_sdk_types.Dec `protobuf:"bytes,1,opt,name=threshold,proto3,customtype=github.com/cosmos/cosmos-sdk/types.Dec" json:"threshold"`
+	// timout is the duration from submission of a proposal to the end of voting period
+	// Within this times votes and exec messages can be submitted.
+	Timout types.Duration `protobuf:"bytes,2,opt,name=timout,proto3" json:"timout"`
 }
 
 func (m *ThresholdDecisionPolicy) Reset()         { *m = ThresholdDecisionPolicy{} }
@@ -1000,18 +1060,11 @@ func (m *ThresholdDecisionPolicy) XXX_DiscardUnknown() {
 
 var xxx_messageInfo_ThresholdDecisionPolicy proto.InternalMessageInfo
 
-func (m *ThresholdDecisionPolicy) GetMinVotingWindow() *types.Duration {
+func (m *ThresholdDecisionPolicy) GetTimout() types.Duration {
 	if m != nil {
-		return m.MinVotingWindow
+		return m.Timout
 	}
-	return nil
-}
-
-func (m *ThresholdDecisionPolicy) GetMaxVotingWindow() *types.Duration {
-	if m != nil {
-		return m.MaxVotingWindow
-	}
-	return nil
+	return types.Duration{}
 }
 
 // MsgProposeBase is the base propose msg that app should use to implement a MsgPropose type based
@@ -1221,7 +1274,8 @@ type GroupMetadata struct {
 	// would break existing proposals. Whenever any members power is changed,
 	// or any member is added or removed this version is incremented and will
 	// cause proposals based on older versions of this group to fail
-	Version uint64 `protobuf:"varint,4,opt,name=version,proto3" json:"version,omitempty"`
+	Version     uint64                                 `protobuf:"varint,4,opt,name=version,proto3" json:"version,omitempty"`
+	TotalWeight github_com_cosmos_cosmos_sdk_types.Dec `protobuf:"bytes,5,opt,name=totalWeight,proto3,customtype=github.com/cosmos/cosmos-sdk/types.Dec" json:"totalWeight"`
 }
 
 func (m *GroupMetadata) Reset()         { *m = GroupMetadata{} }
@@ -1286,9 +1340,12 @@ func (m *GroupMetadata) GetVersion() uint64 {
 }
 
 type GroupMember struct {
-	Group  GroupID                                       `protobuf:"varint,1,opt,name=group,proto3,casttype=GroupID" json:"group,omitempty"`
+	Group GroupID `protobuf:"varint,1,opt,name=group,proto3,casttype=GroupID" json:"group,omitempty"`
+	// todo: @aaronc field has different name in `Member.address`. Can we unify this?
 	Member github_com_cosmos_cosmos_sdk_types.AccAddress `protobuf:"bytes,2,opt,name=member,proto3,casttype=github.com/cosmos/cosmos-sdk/types.AccAddress" json:"member,omitempty"`
-	Weight github_com_cosmos_cosmos_sdk_types.Dec        `protobuf:"bytes,3,opt,name=weight,proto3,customtype=github.com/cosmos/cosmos-sdk/types.Dec" json:"weight"`
+	// todo: @aaronc it is `Member.power`. Can we unify this?
+	Weight  github_com_cosmos_cosmos_sdk_types.Dec `protobuf:"bytes,3,opt,name=weight,proto3,customtype=github.com/cosmos/cosmos-sdk/types.Dec" json:"weight"`
+	Comment string                                 `protobuf:"bytes,4,opt,name=comment,proto3" json:"comment,omitempty"`
 }
 
 func (m *GroupMember) Reset()         { *m = GroupMember{} }
@@ -1338,6 +1395,13 @@ func (m *GroupMember) GetMember() github_com_cosmos_cosmos_sdk_types.AccAddress 
 	return nil
 }
 
+func (m *GroupMember) GetComment() string {
+	if m != nil {
+		return m.Comment
+	}
+	return ""
+}
+
 // GroupAccountMetadataBase is the base message that app's should use to specify group account metadata based on the
 // DecisionPolicy's they support.
 //
@@ -1353,6 +1417,9 @@ type GroupAccountMetadataBase struct {
 	Group        GroupID                                       `protobuf:"varint,2,opt,name=group,proto3,casttype=GroupID" json:"group,omitempty"`
 	Admin        github_com_cosmos_cosmos_sdk_types.AccAddress `protobuf:"bytes,3,opt,name=admin,proto3,casttype=github.com/cosmos/cosmos-sdk/types.AccAddress" json:"admin,omitempty"`
 	Comment      string                                        `protobuf:"bytes,4,opt,name=comment,proto3" json:"comment,omitempty"`
+	// version is used to track changes to a group's GroupAccountMetadataBase structure that
+	// would create a different result on a running proposal.
+	Version uint64 `protobuf:"varint,5,opt,name=version,proto3" json:"version,omitempty"`
 }
 
 func (m *GroupAccountMetadataBase) Reset()         { *m = GroupAccountMetadataBase{} }
@@ -1416,11 +1483,18 @@ func (m *GroupAccountMetadataBase) GetComment() string {
 	return ""
 }
 
+func (m *GroupAccountMetadataBase) GetVersion() uint64 {
+	if m != nil {
+		return m.Version
+	}
+	return 0
+}
+
 // StdGroupAccountMetadata is a default group account metadata type to be used by apps which do not implement custom
 // DecisionPolicy's.
 type StdGroupAccountMetadata struct {
-	Base           *GroupAccountMetadataBase `protobuf:"bytes,1,opt,name=base,proto3" json:"base,omitempty"`
-	DecisionPolicy *StdDecisionPolicy        `protobuf:"bytes,2,opt,name=decision_policy,json=decisionPolicy,proto3" json:"decision_policy,omitempty"`
+	Base           GroupAccountMetadataBase `protobuf:"bytes,1,opt,name=base,proto3" json:"base"`
+	DecisionPolicy StdDecisionPolicy        `protobuf:"bytes,2,opt,name=decision_policy,json=decisionPolicy,proto3" json:"decision_policy"`
 }
 
 func (m *StdGroupAccountMetadata) Reset()         { *m = StdGroupAccountMetadata{} }
@@ -1456,18 +1530,18 @@ func (m *StdGroupAccountMetadata) XXX_DiscardUnknown() {
 
 var xxx_messageInfo_StdGroupAccountMetadata proto.InternalMessageInfo
 
-func (m *StdGroupAccountMetadata) GetBase() *GroupAccountMetadataBase {
+func (m *StdGroupAccountMetadata) GetBase() GroupAccountMetadataBase {
 	if m != nil {
 		return m.Base
 	}
-	return nil
+	return GroupAccountMetadataBase{}
 }
 
-func (m *StdGroupAccountMetadata) GetDecisionPolicy() *StdDecisionPolicy {
+func (m *StdGroupAccountMetadata) GetDecisionPolicy() StdDecisionPolicy {
 	if m != nil {
 		return m.DecisionPolicy
 	}
-	return nil
+	return StdDecisionPolicy{}
 }
 
 // ProposalBase is the base proposal type that app should use to implement a Proposal type based
@@ -1482,10 +1556,24 @@ type ProposalBase struct {
 	GroupAccount github_com_cosmos_cosmos_sdk_types.AccAddress   `protobuf:"bytes,1,opt,name=group_account,json=groupAccount,proto3,casttype=github.com/cosmos/cosmos-sdk/types.AccAddress" json:"group_account,omitempty"`
 	Comment      string                                          `protobuf:"bytes,2,opt,name=comment,proto3" json:"comment,omitempty"`
 	Proposers    []github_com_cosmos_cosmos_sdk_types.AccAddress `protobuf:"bytes,3,rep,name=proposers,proto3,casttype=github.com/cosmos/cosmos-sdk/types.AccAddress" json:"proposers,omitempty"`
-	SubmittedAt  *types.Timestamp                                `protobuf:"bytes,4,opt,name=submitted_at,json=submittedAt,proto3" json:"submitted_at,omitempty"`
+	SubmittedAt  types.Timestamp                                 `protobuf:"bytes,4,opt,name=submitted_at,json=submittedAt,proto3" json:"submitted_at"`
 	// GroupVersion tracks the version of the group that this proposal corresponds to. When group membership is changed
 	// existing proposals for prior group versions will become invalid.
 	GroupVersion uint64 `protobuf:"varint,5,opt,name=group_version,json=groupVersion,proto3" json:"group_version,omitempty"`
+	// GroupAccountVersion tracks the version of the group account that this proposal corresponds to. When a decision policy is changed
+	// an existing proposals for prior policy versions will become invalid.
+	GroupAccountVersion uint64 `protobuf:"varint,6,opt,name=group_account_version,json=groupAccountVersion,proto3" json:"group_account_version,omitempty"`
+	// Status represents the high level position in the life cycle of the proposal. Initial value is Submitted.
+	Status ProposalBase_Status `protobuf:"varint,7,opt,name=status,proto3,enum=cosmos_modules.incubator.group.v1_alpha.ProposalBase_Status" json:"status,omitempty"`
+	// Result is the final result based on the votes and election rule. Initial value is Undefined.
+	// The result is persisted so that clients can always rely on this state and not have to replicate the logic.
+	Result ProposalBase_Result `protobuf:"varint,8,opt,name=result,proto3,enum=cosmos_modules.incubator.group.v1_alpha.ProposalBase_Result" json:"result,omitempty"`
+	// Tally contains the sums of all weighted votes for this proposal.
+	VoteState Tally `protobuf:"bytes,9,opt,name=vote_state,json=voteState,proto3" json:"vote_state"`
+	// Timestamp of the block where the proposal execution times out. Header times of the votes and execution messages
+	// must be before this end time to be included in the election. After the timeout timestamp the proposal can not be
+	// executed anymore and should be considered pending delete.
+	Timeout types.Timestamp `protobuf:"bytes,10,opt,name=timeout,proto3" json:"timeout"`
 }
 
 func (m *ProposalBase) Reset()         { *m = ProposalBase{} }
@@ -1542,11 +1630,11 @@ func (m *ProposalBase) GetProposers() []github_com_cosmos_cosmos_sdk_types.AccAd
 	return nil
 }
 
-func (m *ProposalBase) GetSubmittedAt() *types.Timestamp {
+func (m *ProposalBase) GetSubmittedAt() types.Timestamp {
 	if m != nil {
 		return m.SubmittedAt
 	}
-	return nil
+	return types.Timestamp{}
 }
 
 func (m *ProposalBase) GetGroupVersion() uint64 {
@@ -1556,11 +1644,46 @@ func (m *ProposalBase) GetGroupVersion() uint64 {
 	return 0
 }
 
+func (m *ProposalBase) GetGroupAccountVersion() uint64 {
+	if m != nil {
+		return m.GroupAccountVersion
+	}
+	return 0
+}
+
+func (m *ProposalBase) GetStatus() ProposalBase_Status {
+	if m != nil {
+		return m.Status
+	}
+	return ProposalBase_PROPOSAL_STATUS_INVALID
+}
+
+func (m *ProposalBase) GetResult() ProposalBase_Result {
+	if m != nil {
+		return m.Result
+	}
+	return ProposalBase_PROPOSAL_RESULT_INVALID
+}
+
+func (m *ProposalBase) GetVoteState() Tally {
+	if m != nil {
+		return m.VoteState
+	}
+	return Tally{}
+}
+
+func (m *ProposalBase) GetTimeout() types.Timestamp {
+	if m != nil {
+		return m.Timeout
+	}
+	return types.Timestamp{}
+}
+
 type Tally struct {
-	YesCount     *github_com_cosmos_cosmos_sdk_types.Dec `protobuf:"bytes,1,opt,name=yes_count,json=yesCount,proto3,customtype=github.com/cosmos/cosmos-sdk/types.Dec" json:"yes_count,omitempty"`
-	NoCount      *github_com_cosmos_cosmos_sdk_types.Dec `protobuf:"bytes,2,opt,name=no_count,json=noCount,proto3,customtype=github.com/cosmos/cosmos-sdk/types.Dec" json:"no_count,omitempty"`
-	AbstainCount *github_com_cosmos_cosmos_sdk_types.Dec `protobuf:"bytes,3,opt,name=abstain_count,json=abstainCount,proto3,customtype=github.com/cosmos/cosmos-sdk/types.Dec" json:"abstain_count,omitempty"`
-	VetoCount    *github_com_cosmos_cosmos_sdk_types.Dec `protobuf:"bytes,4,opt,name=veto_count,json=vetoCount,proto3,customtype=github.com/cosmos/cosmos-sdk/types.Dec" json:"veto_count,omitempty"`
+	YesCount     github_com_cosmos_cosmos_sdk_types.Dec `protobuf:"bytes,1,opt,name=yes_count,json=yesCount,proto3,customtype=github.com/cosmos/cosmos-sdk/types.Dec" json:"yes_count"`
+	NoCount      github_com_cosmos_cosmos_sdk_types.Dec `protobuf:"bytes,2,opt,name=no_count,json=noCount,proto3,customtype=github.com/cosmos/cosmos-sdk/types.Dec" json:"no_count"`
+	AbstainCount github_com_cosmos_cosmos_sdk_types.Dec `protobuf:"bytes,3,opt,name=abstain_count,json=abstainCount,proto3,customtype=github.com/cosmos/cosmos-sdk/types.Dec" json:"abstain_count"`
+	VetoCount    github_com_cosmos_cosmos_sdk_types.Dec `protobuf:"bytes,4,opt,name=veto_count,json=vetoCount,proto3,customtype=github.com/cosmos/cosmos-sdk/types.Dec" json:"veto_count"`
 }
 
 func (m *Tally) Reset()         { *m = Tally{} }
@@ -1601,7 +1724,7 @@ type Vote struct {
 	Voter       github_com_cosmos_cosmos_sdk_types.AccAddress `protobuf:"bytes,2,opt,name=voter,proto3,casttype=github.com/cosmos/cosmos-sdk/types.AccAddress" json:"voter,omitempty"`
 	Choice      Choice                                        `protobuf:"varint,3,opt,name=choice,proto3,enum=cosmos_modules.incubator.group.v1_alpha.Choice" json:"choice,omitempty"`
 	Comment     string                                        `protobuf:"bytes,4,opt,name=comment,proto3" json:"comment,omitempty"`
-	SubmittedAt *types.Timestamp                              `protobuf:"bytes,5,opt,name=submitted_at,json=submittedAt,proto3" json:"submitted_at,omitempty"`
+	SubmittedAt types.Timestamp                               `protobuf:"bytes,5,opt,name=submitted_at,json=submittedAt,proto3" json:"submitted_at"`
 }
 
 func (m *Vote) Reset()         { *m = Vote{} }
@@ -1665,11 +1788,11 @@ func (m *Vote) GetComment() string {
 	return ""
 }
 
-func (m *Vote) GetSubmittedAt() *types.Timestamp {
+func (m *Vote) GetSubmittedAt() types.Timestamp {
 	if m != nil {
 		return m.SubmittedAt
 	}
-	return nil
+	return types.Timestamp{}
 }
 
 // Params defines the set of configurable parameters.
@@ -1716,8 +1839,53 @@ func (m *Params) GetMaxCommentLength() uint32 {
 	return 0
 }
 
+type GenesisState struct {
+	Params Params `protobuf:"bytes,1,opt,name=Params,proto3" json:"Params"`
+}
+
+func (m *GenesisState) Reset()      { *m = GenesisState{} }
+func (*GenesisState) ProtoMessage() {}
+func (*GenesisState) Descriptor() ([]byte, []int) {
+	return fileDescriptor_d938547f84707355, []int{25}
+}
+func (m *GenesisState) XXX_Unmarshal(b []byte) error {
+	return m.Unmarshal(b)
+}
+func (m *GenesisState) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	if deterministic {
+		return xxx_messageInfo_GenesisState.Marshal(b, m, deterministic)
+	} else {
+		b = b[:cap(b)]
+		n, err := m.MarshalToSizedBuffer(b)
+		if err != nil {
+			return nil, err
+		}
+		return b[:n], nil
+	}
+}
+func (m *GenesisState) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_GenesisState.Merge(m, src)
+}
+func (m *GenesisState) XXX_Size() int {
+	return m.Size()
+}
+func (m *GenesisState) XXX_DiscardUnknown() {
+	xxx_messageInfo_GenesisState.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_GenesisState proto.InternalMessageInfo
+
+func (m *GenesisState) GetParams() Params {
+	if m != nil {
+		return m.Params
+	}
+	return Params{}
+}
+
 func init() {
 	proto.RegisterEnum("cosmos_modules.incubator.group.v1_alpha.Choice", Choice_name, Choice_value)
+	proto.RegisterEnum("cosmos_modules.incubator.group.v1_alpha.ProposalBase_Status", ProposalBase_Status_name, ProposalBase_Status_value)
+	proto.RegisterEnum("cosmos_modules.incubator.group.v1_alpha.ProposalBase_Result", ProposalBase_Result_name, ProposalBase_Result_value)
 	proto.RegisterType((*Msg)(nil), "cosmos_modules.incubator.group.v1_alpha.Msg")
 	proto.RegisterType((*MsgCreateGroup)(nil), "cosmos_modules.incubator.group.v1_alpha.MsgCreateGroup")
 	proto.RegisterType((*MsgUpdateGroupMembers)(nil), "cosmos_modules.incubator.group.v1_alpha.MsgUpdateGroupMembers")
@@ -1743,105 +1911,125 @@ func init() {
 	proto.RegisterType((*Tally)(nil), "cosmos_modules.incubator.group.v1_alpha.Tally")
 	proto.RegisterType((*Vote)(nil), "cosmos_modules.incubator.group.v1_alpha.Vote")
 	proto.RegisterType((*Params)(nil), "cosmos_modules.incubator.group.v1_alpha.Params")
+	proto.RegisterType((*GenesisState)(nil), "cosmos_modules.incubator.group.v1_alpha.GenesisState")
 }
 
 func init() { proto.RegisterFile("types.proto", fileDescriptor_d938547f84707355) }
 
 var fileDescriptor_d938547f84707355 = []byte{
-	// 1478 bytes of a gzipped FileDescriptorProto
-	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xcc, 0x58, 0xcd, 0x6f, 0x1b, 0x45,
-	0x14, 0xf7, 0xfa, 0xdb, 0xcf, 0x4e, 0xea, 0x0e, 0x45, 0xdd, 0x44, 0xc5, 0x2e, 0x0b, 0x2a, 0xa5,
-	0x52, 0x6d, 0x5a, 0x0e, 0x48, 0x15, 0x45, 0xd8, 0x4e, 0x9a, 0x44, 0xa5, 0x4e, 0xb4, 0x49, 0x53,
-	0x81, 0x2a, 0x2d, 0xeb, 0xdd, 0x61, 0xbd, 0xc2, 0xbb, 0x63, 0xed, 0x47, 0x9c, 0x48, 0x1c, 0x10,
-	0x17, 0x90, 0xb8, 0x70, 0xe4, 0x52, 0xa9, 0xfd, 0x0b, 0x38, 0xa0, 0xfe, 0x05, 0x70, 0xe8, 0xb1,
-	0x1c, 0x50, 0x11, 0x87, 0x08, 0x1a, 0x21, 0x71, 0x42, 0x82, 0x13, 0x2a, 0x17, 0xb4, 0x33, 0xbb,
-	0xf1, 0x77, 0xeb, 0xb5, 0xd3, 0xa8, 0xa7, 0x64, 0x77, 0xf6, 0xfd, 0xde, 0x7b, 0xbf, 0x79, 0xf3,
-	0xde, 0x6f, 0x0c, 0x59, 0x67, 0xaf, 0x8d, 0xed, 0x52, 0xdb, 0x22, 0x0e, 0x41, 0x6f, 0x28, 0xc4,
-	0x36, 0x88, 0x2d, 0x19, 0x44, 0x75, 0x5b, 0xd8, 0x2e, 0xe9, 0xa6, 0xe2, 0x36, 0x64, 0x87, 0x58,
-	0x25, 0xcd, 0x22, 0x6e, 0xbb, 0xb4, 0x73, 0x49, 0x92, 0x5b, 0xed, 0xa6, 0xbc, 0x78, 0x4a, 0x23,
-	0x1a, 0xa1, 0x36, 0x65, 0xef, 0x3f, 0x66, 0xbe, 0x58, 0xd0, 0x08, 0xd1, 0x5a, 0xb8, 0x4c, 0x9f,
-	0x1a, 0xee, 0x27, 0x65, 0xd5, 0xb5, 0x64, 0x47, 0x27, 0xa6, 0xbf, 0x5e, 0x1c, 0x5c, 0x77, 0x74,
-	0x03, 0xdb, 0x8e, 0x6c, 0xb4, 0xd9, 0x07, 0xc2, 0x7f, 0x69, 0x88, 0xdd, 0xb0, 0x35, 0x74, 0x1b,
-	0x72, 0x8a, 0x85, 0x65, 0x07, 0x4b, 0xd4, 0x2f, 0xcf, 0x9d, 0xe5, 0xce, 0x67, 0x2f, 0xbf, 0x53,
-	0x9a, 0x30, 0xbc, 0xd2, 0x0d, 0x5b, 0xab, 0x51, 0xfb, 0x15, 0xef, 0xfd, 0x6a, 0x44, 0xcc, 0x2a,
-	0xdd, 0x47, 0x64, 0xc1, 0x29, 0xb7, 0xad, 0x1e, 0xa2, 0x4b, 0x06, 0x36, 0x1a, 0xd8, 0xb2, 0xf9,
-	0x28, 0xf5, 0xf2, 0x5e, 0x18, 0x2f, 0x37, 0x29, 0x0e, 0x85, 0xbd, 0xc1, 0x50, 0x56, 0x23, 0x22,
-	0x72, 0x87, 0xde, 0xa2, 0x16, 0xa0, 0x3e, 0x9f, 0xb2, 0x6a, 0xe8, 0x26, 0x1f, 0xa3, 0x1e, 0xdf,
-	0x9d, 0xd2, 0x63, 0xc5, 0xc3, 0x58, 0x8d, 0x88, 0x79, 0x77, 0xe0, 0xdd, 0x50, 0x86, 0x0a, 0x31,
-	0x0c, 0x6c, 0x3a, 0x7c, 0x7c, 0xa6, 0x0c, 0x6b, 0x0c, 0x65, 0x20, 0x43, 0xff, 0x2d, 0x72, 0xe1,
-	0x54, 0xef, 0x9e, 0x49, 0xb2, 0xa2, 0x10, 0xd7, 0x74, 0xf8, 0x04, 0xf5, 0x59, 0x99, 0x72, 0xef,
-	0x2a, 0x0c, 0x65, 0xd3, 0x51, 0x3d, 0xb7, 0xca, 0xd0, 0x02, 0xfa, 0x82, 0x83, 0xc5, 0x7e, 0x66,
-	0xd9, 0x82, 0xcf, 0x70, 0x92, 0x7a, 0xaf, 0x4d, 0xcb, 0x30, 0xc3, 0x0a, 0x88, 0x3e, 0xed, 0x8e,
-	0x5e, 0x42, 0xf7, 0x38, 0x78, 0x7d, 0x64, 0x10, 0x2a, 0x56, 0x74, 0x5b, 0x27, 0xa6, 0xd4, 0x26,
-	0x2d, 0x5d, 0xd9, 0xe3, 0x53, 0x34, 0x9c, 0xf5, 0xd9, 0xc2, 0x59, 0xf2, 0x41, 0x37, 0x28, 0x26,
-	0xa3, 0xe6, 0xac, 0xfb, 0x8c, 0xcf, 0xd0, 0x57, 0x1c, 0x9c, 0x19, 0x19, 0x63, 0x50, 0x1c, 0x69,
-	0x1a, 0xdb, 0xf2, 0x6c, 0xb1, 0x75, 0x6b, 0x64, 0xc1, 0x1d, 0xb7, 0x88, 0xae, 0x41, 0x7c, 0x87,
-	0x38, 0x98, 0xcf, 0x50, 0x8f, 0x6f, 0x85, 0xf1, 0xb8, 0x4d, 0x1c, 0xbc, 0x1a, 0x11, 0xa9, 0xbd,
-	0x87, 0x83, 0x77, 0xb1, 0xc2, 0x43, 0x78, 0x9c, 0xe5, 0x5d, 0xac, 0x78, 0x38, 0x9e, 0x7d, 0x35,
-	0x01, 0x31, 0xdb, 0x35, 0x84, 0x1f, 0x39, 0x98, 0xef, 0xaf, 0x3e, 0xb4, 0x02, 0x09, 0x56, 0x47,
-	0x5e, 0x07, 0xca, 0x55, 0x2f, 0x3d, 0xd9, 0x2f, 0x5e, 0xd4, 0x74, 0xa7, 0xe9, 0x36, 0x4a, 0x0a,
-	0x31, 0xca, 0xcc, 0xa1, 0xff, 0xe7, 0xa2, 0xad, 0x7e, 0x5a, 0x66, 0xdd, 0xb4, 0xa2, 0x28, 0x15,
-	0x55, 0xb5, 0xb0, 0x6d, 0x8b, 0xcc, 0x1e, 0xad, 0x43, 0xaa, 0xdb, 0x66, 0x62, 0xe7, 0xb3, 0x97,
-	0xcb, 0x93, 0x47, 0x4b, 0xed, 0xaa, 0xf1, 0x07, 0xfb, 0xc5, 0x88, 0x18, 0xa0, 0x20, 0x1e, 0x52,
-	0xc1, 0xc6, 0x79, 0x5d, 0x24, 0x23, 0x06, 0x8f, 0xc2, 0xef, 0x1c, 0xbc, 0x3c, 0xb2, 0x35, 0x1d,
-	0x5d, 0x36, 0xaf, 0x42, 0x82, 0x35, 0x66, 0xaf, 0x65, 0xc6, 0xab, 0xd9, 0x27, 0xfb, 0xc5, 0x14,
-	0xf5, 0xb4, 0xb6, 0x24, 0xb2, 0x15, 0x74, 0x1b, 0xe6, 0x59, 0xa8, 0x12, 0xab, 0x03, 0x9b, 0x8f,
-	0xcd, 0x92, 0xf7, 0x1c, 0x03, 0x63, 0x49, 0xd9, 0xc2, 0x4f, 0x1c, 0xbc, 0x34, 0xa2, 0x19, 0x1e,
-	0x6b, 0x86, 0x75, 0xc8, 0x98, 0xb8, 0xd3, 0xd3, 0xc9, 0xa7, 0xf2, 0x97, 0x36, 0x71, 0x87, 0xc6,
-	0x2e, 0xdc, 0x19, 0xda, 0xb7, 0xe0, 0xbc, 0x1c, 0x67, 0x56, 0xe3, 0xeb, 0xea, 0x3e, 0x07, 0x49,
-	0xb6, 0x27, 0xe8, 0x3a, 0xa4, 0x64, 0x86, 0x3c, 0x7d, 0x48, 0x01, 0x02, 0x5a, 0x82, 0x44, 0x9b,
-	0x74, 0xb0, 0x45, 0x83, 0xca, 0x54, 0x4b, 0xde, 0x7e, 0xff, 0xba, 0x5f, 0x3c, 0x37, 0x01, 0xdc,
-	0x12, 0x56, 0x44, 0x66, 0xfc, 0x94, 0xb8, 0xef, 0x71, 0xb0, 0x30, 0x72, 0xa8, 0x54, 0x65, 0x1b,
-	0xbf, 0x20, 0xdc, 0x3e, 0xe2, 0x80, 0x1f, 0x37, 0xf8, 0xd0, 0x36, 0xc4, 0x1b, 0xb2, 0x8d, 0x7d,
-	0x15, 0x54, 0x9d, 0x6d, 0x92, 0x7a, 0x49, 0x8b, 0x14, 0x0f, 0x29, 0x70, 0x62, 0x70, 0x3e, 0x31,
-	0x09, 0x74, 0x65, 0x62, 0x17, 0x9b, 0x8e, 0xda, 0x3f, 0x66, 0xc4, 0x79, 0xb5, 0xef, 0x59, 0xf8,
-	0x3a, 0x0a, 0x8b, 0xe3, 0x87, 0xea, 0xd1, 0xd1, 0xbf, 0x05, 0xb9, 0x60, 0xac, 0x51, 0xd9, 0x11,
-	0x9d, 0x16, 0x2f, 0xab, 0xb1, 0x20, 0xa9, 0xba, 0x38, 0xea, 0x33, 0xfe, 0x25, 0xab, 0xc5, 0x61,
-	0x36, 0x8e, 0xbb, 0x16, 0x85, 0x3f, 0x38, 0x38, 0x37, 0x99, 0xba, 0x98, 0xa5, 0xfe, 0x46, 0x27,
-	0x3a, 0xbe, 0xfe, 0x62, 0x47, 0x5e, 0x7f, 0x8f, 0x38, 0x38, 0xf3, 0x34, 0xa5, 0xf2, 0xa2, 0x57,
-	0xe0, 0xf8, 0x9e, 0xf1, 0x19, 0x9c, 0x1c, 0x4a, 0x1f, 0x7d, 0x0c, 0x19, 0xa7, 0x69, 0x61, 0xbb,
-	0x49, 0x5a, 0xaa, 0xbf, 0x61, 0xef, 0x4f, 0xcc, 0xe6, 0x56, 0x60, 0xd9, 0x0f, 0xba, 0x1a, 0x11,
-	0xbb, 0xa0, 0x81, 0x58, 0xfa, 0x9b, 0x83, 0xd3, 0x63, 0xbe, 0x47, 0xab, 0x83, 0x41, 0x64, 0xaa,
-	0x17, 0x42, 0x74, 0xf4, 0xae, 0x31, 0x5a, 0x86, 0x93, 0x86, 0x6e, 0x4a, 0x3b, 0xc4, 0xd1, 0x4d,
-	0x4d, 0xea, 0xe8, 0xa6, 0x4a, 0x3a, 0x7e, 0x93, 0x5a, 0x28, 0xb1, 0xdb, 0x64, 0x29, 0xb8, 0x4d,
-	0x96, 0x96, 0xfc, 0xdb, 0xa6, 0x78, 0xc2, 0xd0, 0xcd, 0x6d, 0x6a, 0x72, 0x8b, 0x5a, 0x50, 0x18,
-	0x79, 0x77, 0x00, 0x26, 0xf6, 0x6c, 0x18, 0x79, 0xb7, 0x17, 0x46, 0xf8, 0x8b, 0x09, 0xc4, 0x0d,
-	0x8b, 0xb4, 0x89, 0x8d, 0xe9, 0x91, 0xdd, 0x86, 0xb9, 0xfe, 0xeb, 0xce, 0xd4, 0x55, 0x94, 0xd3,
-	0x7a, 0xaf, 0x35, 0xeb, 0x90, 0x69, 0x33, 0x37, 0xbe, 0x62, 0x9c, 0x0a, 0xb3, 0x8b, 0x31, 0xbe,
-	0x8e, 0xd0, 0x02, 0xa4, 0x3d, 0x15, 0x2c, 0x99, 0xa4, 0x43, 0x2f, 0x88, 0x69, 0x31, 0xe5, 0x3d,
-	0xd7, 0x49, 0x47, 0x38, 0xe0, 0x20, 0xe5, 0x8b, 0x6e, 0x74, 0x01, 0xd2, 0x0c, 0x4d, 0x6e, 0xd1,
-	0x24, 0xe3, 0xd5, 0xf9, 0x27, 0xfb, 0x45, 0xd8, 0xf0, 0xdf, 0xad, 0x2d, 0x89, 0x87, 0xeb, 0x68,
-	0x0d, 0x92, 0x9e, 0x40, 0x9f, 0x25, 0x74, 0x1f, 0x00, 0xad, 0x40, 0x52, 0x69, 0x12, 0x5d, 0xc1,
-	0x34, 0xec, 0xf9, 0x10, 0xfa, 0xb1, 0x46, 0xcd, 0x44, 0xdf, 0xbc, 0x97, 0x80, 0x78, 0xff, 0x41,
-	0xfa, 0x9c, 0x65, 0xe9, 0x5d, 0x09, 0xc2, 0x66, 0x69, 0xeb, 0x9a, 0xe9, 0x2b, 0x97, 0xe9, 0xb2,
-	0x64, 0x00, 0xc2, 0x77, 0x1c, 0xcc, 0xf9, 0x52, 0xdd, 0x91, 0x55, 0xd9, 0x91, 0xbb, 0x2d, 0x9c,
-	0x1b, 0x2b, 0x27, 0x0e, 0x3b, 0x57, 0x74, 0xc6, 0xce, 0x35, 0xbe, 0x36, 0x78, 0x48, 0xed, 0x60,
-	0xcb, 0x3b, 0xda, 0x94, 0xb4, 0xb8, 0x18, 0x3c, 0x0a, 0x3f, 0x70, 0x90, 0xed, 0xb9, 0x5c, 0x4c,
-	0x12, 0xef, 0x1a, 0x24, 0x99, 0x8a, 0x9f, 0x81, 0x2f, 0x06, 0x80, 0xae, 0x41, 0xb2, 0x83, 0x75,
-	0xad, 0xe9, 0x07, 0x1c, 0x5a, 0x34, 0xfa, 0xd6, 0xc2, 0xbf, 0x1c, 0xf0, 0xbd, 0x43, 0x21, 0xa0,
-	0xff, 0xb9, 0x9e, 0xed, 0x09, 0x94, 0xe2, 0xe1, 0xd6, 0xc6, 0x8e, 0x6e, 0x6b, 0x07, 0xaa, 0xfe,
-	0x67, 0x0e, 0x4e, 0x6f, 0x3a, 0xea, 0xa8, 0xec, 0xd1, 0xcd, 0xbe, 0x89, 0x3f, 0xf9, 0x6f, 0x37,
-	0xe3, 0xa8, 0x3c, 0x4e, 0xc1, 0x79, 0x3f, 0x0a, 0xb9, 0xe0, 0xb8, 0x3e, 0xd7, 0x6d, 0xec, 0xa1,
-	0x36, 0xda, 0x7f, 0x6a, 0xfa, 0x9a, 0x77, 0xec, 0x08, 0x9a, 0xf7, 0x55, 0xc8, 0xd9, 0x6e, 0xc3,
-	0xd0, 0x1d, 0x07, 0xab, 0x92, 0x1c, 0xfc, 0x8e, 0xb7, 0x38, 0x34, 0xba, 0xb6, 0x82, 0xdf, 0x53,
-	0xc5, 0xec, 0xe1, 0xf7, 0x15, 0x07, 0xbd, 0x16, 0x30, 0x10, 0x9c, 0xe5, 0x04, 0x3d, 0xcb, 0x2c,
-	0x9d, 0x6d, 0xff, 0x40, 0x7f, 0x1f, 0x85, 0xc4, 0x96, 0xdc, 0x6a, 0xed, 0xa1, 0x15, 0xc8, 0xec,
-	0x61, 0x5b, 0xea, 0x92, 0x15, 0x6e, 0x7c, 0xa7, 0xf7, 0xb0, 0x5d, 0xa3, 0x0c, 0x2d, 0x43, 0xda,
-	0x24, 0x52, 0x57, 0x0d, 0x85, 0xc3, 0x49, 0x99, 0xa4, 0xe6, 0xcf, 0xc2, 0x39, 0xb9, 0x61, 0x3b,
-	0xb2, 0x6e, 0xfa, 0x58, 0xb1, 0xd0, 0x58, 0x39, 0x1f, 0x80, 0x01, 0xae, 0x01, 0xec, 0x60, 0x27,
-	0x88, 0x2c, 0x1e, 0x5e, 0xa0, 0x78, 0xd6, 0x14, 0x4a, 0xb8, 0x13, 0x85, 0x78, 0xe8, 0xf1, 0xb8,
-	0x02, 0x09, 0x3a, 0xdd, 0x66, 0x68, 0xdc, 0xd4, 0xfe, 0x18, 0x86, 0xe3, 0x50, 0xe9, 0x25, 0x42,
-	0x95, 0x9e, 0x20, 0x41, 0x72, 0x43, 0xb6, 0x64, 0xc3, 0x46, 0xd7, 0x01, 0x79, 0x1a, 0xcc, 0xc7,
-	0x95, 0x5a, 0xd8, 0xd4, 0x9c, 0x26, 0xa5, 0x6a, 0xae, 0xfa, 0xca, 0x3f, 0xfb, 0xc5, 0x85, 0x3d,
-	0xd9, 0x68, 0x5d, 0x11, 0x86, 0xbf, 0x11, 0xc4, 0xbc, 0x21, 0xef, 0xfa, 0x72, 0xfd, 0x03, 0xfa,
-	0xea, 0x4a, 0xfa, 0xdb, 0xbb, 0xc5, 0xc8, 0x9f, 0x77, 0x8b, 0xdc, 0x85, 0xab, 0x90, 0x64, 0xb9,
-	0xa0, 0x2c, 0xa4, 0x6e, 0xd6, 0xaf, 0xd7, 0xd7, 0x6f, 0xd5, 0xf3, 0x11, 0x94, 0x84, 0x68, 0x7d,
-	0x3d, 0xcf, 0xa1, 0x14, 0xc4, 0x3e, 0x5c, 0xde, 0xcc, 0x47, 0xbd, 0xd5, 0x4a, 0x75, 0x73, 0xab,
-	0xb2, 0x56, 0xcf, 0xc7, 0x50, 0x1a, 0xe2, 0xdb, 0xcb, 0x5b, 0xeb, 0xf9, 0x78, 0xb5, 0xf6, 0xe0,
-	0x71, 0x81, 0x7b, 0xf8, 0xb8, 0xc0, 0xfd, 0xf6, 0xb8, 0xc0, 0x7d, 0x73, 0x50, 0x88, 0x3c, 0x3c,
-	0x28, 0x44, 0x7e, 0x39, 0x28, 0x44, 0x3e, 0x7a, 0x73, 0x78, 0x47, 0x7c, 0x56, 0xcb, 0x87, 0xac,
-	0x96, 0x29, 0xab, 0x8d, 0x24, 0x65, 0xe1, 0xed, 0xff, 0x03, 0x00, 0x00, 0xff, 0xff, 0x3e, 0x27,
-	0xef, 0xfb, 0x4c, 0x19, 0x00, 0x00,
+	// 1788 bytes of a gzipped FileDescriptorProto
+	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xcc, 0x58, 0xcb, 0x6f, 0x23, 0x49,
+	0x19, 0x77, 0xfb, 0xd1, 0xb6, 0x3f, 0x27, 0xc1, 0xd4, 0xce, 0x32, 0x4e, 0x58, 0xe2, 0xd0, 0xa0,
+	0x61, 0x18, 0x18, 0x87, 0x1d, 0x0e, 0x2b, 0x45, 0x80, 0xf0, 0x6b, 0x12, 0x33, 0x89, 0x1d, 0xb5,
+	0x9d, 0xac, 0x80, 0x91, 0x9a, 0x76, 0x77, 0xad, 0xd3, 0xe0, 0xee, 0xb2, 0xba, 0xab, 0x27, 0x93,
+	0x1b, 0xec, 0x85, 0xd5, 0x48, 0x48, 0x2b, 0x4e, 0x5c, 0x22, 0xcd, 0x0a, 0x71, 0xe2, 0x0a, 0x7f,
+	0x01, 0x1c, 0x56, 0x9c, 0x96, 0x1b, 0x20, 0x11, 0xc1, 0xcc, 0x05, 0x2e, 0x48, 0x70, 0x1c, 0x2e,
+	0xa8, 0xab, 0xaa, 0xe3, 0xf7, 0xe0, 0x47, 0x36, 0x3b, 0x37, 0xbb, 0xab, 0xbe, 0xdf, 0xf7, 0xac,
+	0xef, 0xfb, 0x55, 0x41, 0x86, 0x9e, 0xf5, 0xb0, 0x57, 0xe8, 0xb9, 0x84, 0x12, 0xf4, 0x25, 0x83,
+	0x78, 0x36, 0xf1, 0x34, 0x9b, 0x98, 0x7e, 0x17, 0x7b, 0x05, 0xcb, 0x31, 0xfc, 0xb6, 0x4e, 0x89,
+	0x5b, 0xe8, 0xb8, 0xc4, 0xef, 0x15, 0x1e, 0xbd, 0xa9, 0xe9, 0xdd, 0xde, 0x89, 0xbe, 0x71, 0xa3,
+	0x43, 0x3a, 0x84, 0xc9, 0x6c, 0x07, 0xbf, 0xb8, 0xf8, 0xc6, 0x66, 0x87, 0x90, 0x4e, 0x17, 0x6f,
+	0xb3, 0x7f, 0x6d, 0xff, 0x9d, 0x6d, 0xd3, 0x77, 0x75, 0x6a, 0x11, 0x47, 0xac, 0xe7, 0x47, 0xd7,
+	0xa9, 0x65, 0x63, 0x8f, 0xea, 0x76, 0x4f, 0x6c, 0xf8, 0x0a, 0x3d, 0xb1, 0x5c, 0x53, 0xeb, 0xe9,
+	0x2e, 0x3d, 0xe3, 0xbb, 0xb6, 0xb9, 0x45, 0x77, 0x07, 0xff, 0xf0, 0xcd, 0xca, 0x7f, 0x53, 0x10,
+	0x3b, 0xf0, 0x3a, 0xe8, 0x21, 0xac, 0x18, 0x2e, 0xd6, 0x29, 0xd6, 0x98, 0x91, 0x39, 0x69, 0x4b,
+	0xba, 0x9d, 0xb9, 0xf7, 0x56, 0x61, 0x46, 0x5f, 0x0a, 0x07, 0x5e, 0xa7, 0xcc, 0xe4, 0x77, 0x83,
+	0xef, 0x7b, 0x11, 0x35, 0x63, 0xf4, 0xff, 0x22, 0x17, 0x6e, 0xf8, 0x3d, 0xf3, 0x12, 0x5d, 0xb3,
+	0xb1, 0xdd, 0xc6, 0xae, 0x97, 0x8b, 0x32, 0x2d, 0xdf, 0x9a, 0x47, 0xcb, 0x11, 0xc3, 0x61, 0xb0,
+	0x07, 0x1c, 0x65, 0x2f, 0xa2, 0x22, 0x7f, 0xec, 0x2b, 0xea, 0x02, 0x1a, 0xd2, 0xa9, 0x9b, 0xb6,
+	0xe5, 0xe4, 0x62, 0x4c, 0xe3, 0x37, 0x16, 0xd4, 0x58, 0x0c, 0x30, 0xf6, 0x22, 0x6a, 0xd6, 0x1f,
+	0xf9, 0x36, 0xe6, 0xa1, 0x41, 0x6c, 0x1b, 0x3b, 0x34, 0x17, 0x5f, 0xca, 0xc3, 0x32, 0x47, 0x19,
+	0xf1, 0x50, 0x7c, 0x45, 0x3e, 0xdc, 0x18, 0xcc, 0x99, 0xa6, 0x1b, 0x06, 0xf1, 0x1d, 0x9a, 0x4b,
+	0x30, 0x9d, 0xc5, 0x05, 0x73, 0x57, 0xe4, 0x28, 0x4d, 0x6a, 0x06, 0x6a, 0x8d, 0xb1, 0x05, 0xf4,
+	0xae, 0x04, 0x1b, 0xc3, 0x91, 0xe5, 0x0b, 0x22, 0xc2, 0x32, 0xd3, 0x5e, 0x5e, 0x34, 0xc2, 0x1c,
+	0x2b, 0x0c, 0xf4, 0x4d, 0x7f, 0xf2, 0x12, 0xfa, 0x40, 0x82, 0x2f, 0x4e, 0x34, 0xc2, 0xc4, 0x86,
+	0xe5, 0x59, 0xc4, 0xd1, 0x7a, 0xa4, 0x6b, 0x19, 0x67, 0xb9, 0x24, 0x33, 0xa7, 0xb1, 0x9c, 0x39,
+	0x15, 0x01, 0x7a, 0xc8, 0x30, 0x79, 0x68, 0xb6, 0xfc, 0xff, 0xb3, 0x0d, 0xbd, 0x27, 0xc1, 0x1b,
+	0x13, 0x6d, 0x0c, 0x8b, 0x23, 0xc5, 0x6c, 0xab, 0x2e, 0x67, 0x5b, 0xbf, 0x46, 0xd6, 0xfd, 0x69,
+	0x8b, 0xe8, 0x3e, 0xc4, 0x1f, 0x11, 0x8a, 0x73, 0x69, 0xa6, 0xf1, 0x6b, 0xf3, 0x68, 0x3c, 0x26,
+	0x14, 0xef, 0x45, 0x54, 0x26, 0x1f, 0xe0, 0xe0, 0xc7, 0xd8, 0xc8, 0xc1, 0xfc, 0x38, 0xd5, 0xc7,
+	0xd8, 0x08, 0x70, 0x02, 0xf9, 0x52, 0x02, 0x62, 0x9e, 0x6f, 0x2b, 0xbf, 0x97, 0x60, 0x6d, 0xb8,
+	0xfa, 0xd0, 0x2e, 0x24, 0x78, 0x1d, 0x05, 0x1d, 0x68, 0xa5, 0xf4, 0xe6, 0x8b, 0x8b, 0xfc, 0xdd,
+	0x8e, 0x45, 0x4f, 0xfc, 0x76, 0xc1, 0x20, 0xb6, 0x68, 0x5e, 0x61, 0x43, 0xf3, 0xcc, 0x1f, 0x6d,
+	0xf3, 0xd6, 0x5b, 0x34, 0x8c, 0xa2, 0x69, 0xba, 0xd8, 0xf3, 0x54, 0x2e, 0x8f, 0x1a, 0x90, 0xec,
+	0xb7, 0x99, 0xd8, 0xed, 0xcc, 0xbd, 0xed, 0xd9, 0xad, 0x65, 0x72, 0xa5, 0xf8, 0x87, 0x17, 0xf9,
+	0x88, 0x1a, 0xa2, 0xa0, 0x1c, 0x24, 0xc3, 0xc4, 0x05, 0x5d, 0x24, 0xad, 0x86, 0x7f, 0x95, 0xbf,
+	0x4b, 0xf0, 0xfa, 0xc4, 0xd6, 0x74, 0x75, 0xde, 0x7c, 0x1e, 0x12, 0xbc, 0x31, 0x07, 0x2d, 0x33,
+	0x5e, 0xca, 0xbc, 0xb8, 0xc8, 0x27, 0x99, 0xa6, 0x5a, 0x45, 0xe5, 0x2b, 0xe8, 0x21, 0xac, 0x71,
+	0x53, 0x35, 0x5e, 0x07, 0x5e, 0x2e, 0xb6, 0x8c, 0xdf, 0xab, 0x1c, 0x8c, 0x3b, 0xe5, 0x29, 0x7f,
+	0x94, 0xe0, 0xb5, 0x09, 0xcd, 0xf0, 0x5a, 0x3d, 0xac, 0x43, 0xda, 0xc1, 0xa7, 0x03, 0x9d, 0x7c,
+	0x21, 0x7d, 0x29, 0x07, 0x9f, 0x32, 0xdb, 0x95, 0xf3, 0xb1, 0xbc, 0x85, 0xe7, 0xe5, 0x3a, 0xbd,
+	0x9a, 0x5e, 0x57, 0xbf, 0x95, 0x40, 0xe6, 0x39, 0x41, 0x0f, 0x20, 0xa9, 0x73, 0xe4, 0xc5, 0x4d,
+	0x0a, 0x11, 0x50, 0x05, 0x12, 0x3d, 0x72, 0x8a, 0x5d, 0x66, 0x54, 0xba, 0x54, 0x08, 0xf2, 0xfd,
+	0x97, 0x8b, 0xfc, 0xad, 0x19, 0xe0, 0x2a, 0xd8, 0x50, 0xb9, 0xf0, 0x4b, 0xec, 0xfe, 0x40, 0x82,
+	0xf5, 0x89, 0x43, 0xa5, 0xa4, 0x7b, 0xf8, 0x15, 0x89, 0xed, 0x3f, 0x25, 0xc8, 0x4d, 0x1b, 0x7c,
+	0xe8, 0x21, 0xc4, 0xdb, 0xba, 0x87, 0x05, 0x0b, 0x2a, 0x2d, 0x37, 0x49, 0x03, 0xa7, 0xc5, 0x99,
+	0x62, 0xa8, 0xc8, 0x82, 0x4f, 0x8d, 0x4e, 0x29, 0x4e, 0x84, 0x76, 0x66, 0x56, 0xd4, 0xa4, 0xe6,
+	0xf0, 0xb0, 0x11, 0x0a, 0xd6, 0xcc, 0xa1, 0xaf, 0x3b, 0xf1, 0xf7, 0x9e, 0xe6, 0x23, 0xca, 0xcf,
+	0xa2, 0xb0, 0x31, 0x7d, 0xcc, 0x5e, 0x5d, 0x42, 0x8e, 0x61, 0x75, 0x98, 0x89, 0x44, 0x17, 0x05,
+	0x5c, 0xe9, 0x0c, 0x32, 0x8e, 0xab, 0x3e, 0xf7, 0x3f, 0xe5, 0xf5, 0x39, 0x1e, 0x8f, 0xeb, 0xae,
+	0x4f, 0xe5, 0xdf, 0x12, 0xdc, 0x9a, 0x8d, 0x71, 0x2c, 0x53, 0x93, 0x93, 0x1d, 0xfd, 0x84, 0x6a,
+	0x52, 0xf9, 0xb3, 0x04, 0x6f, 0xbc, 0x8c, 0xc9, 0xbc, 0xfa, 0xf5, 0x38, 0xbd, 0xab, 0xbc, 0x2f,
+	0xc1, 0xa7, 0xc7, 0xe2, 0x80, 0x7e, 0x00, 0x69, 0x7a, 0xe2, 0x62, 0xef, 0x84, 0x74, 0x4d, 0x91,
+	0xbf, 0x6f, 0xcf, 0x1c, 0xd6, 0x56, 0x28, 0x39, 0x0c, 0xba, 0x17, 0x51, 0xfb, 0xa0, 0x3b, 0xe8,
+	0x0f, 0xbf, 0xb9, 0xbb, 0x36, 0x12, 0x7d, 0xc1, 0xb1, 0x9e, 0x4a, 0x70, 0x73, 0x0a, 0x06, 0xda,
+	0x1f, 0x35, 0x6c, 0xfe, 0x61, 0xd0, 0x07, 0x40, 0x6f, 0x81, 0x4c, 0x2d, 0x9b, 0xf8, 0x54, 0x94,
+	0xce, 0x7a, 0x81, 0x5f, 0x55, 0x0b, 0xe1, 0x55, 0xb5, 0x50, 0x11, 0x57, 0x59, 0x51, 0x19, 0x62,
+	0xbb, 0xf2, 0x2f, 0x4e, 0x03, 0x0f, 0x5d, 0xd2, 0x23, 0x1e, 0x66, 0x87, 0x70, 0x2c, 0x75, 0xd2,
+	0xd5, 0xa4, 0xae, 0x01, 0xe9, 0x1e, 0x57, 0x23, 0x78, 0xe1, 0x42, 0x98, 0x7d, 0x8c, 0xe9, 0xb5,
+	0x80, 0xd6, 0x21, 0x15, 0x70, 0x5d, 0xcd, 0x21, 0xa7, 0xec, 0x1a, 0x98, 0x52, 0x93, 0xc1, 0xff,
+	0x3a, 0x39, 0x55, 0x9e, 0x4b, 0x90, 0x14, 0xd4, 0x1a, 0xdd, 0x81, 0x14, 0x47, 0xd3, 0xbb, 0xcc,
+	0xc9, 0x78, 0x69, 0xed, 0xc5, 0x45, 0x1e, 0x0e, 0xc5, 0xb7, 0x5a, 0x45, 0xbd, 0x5c, 0x47, 0x35,
+	0x90, 0x03, 0x1a, 0xbe, 0x8c, 0xe9, 0x02, 0x00, 0xed, 0x82, 0x6c, 0x9c, 0x10, 0xcb, 0xc0, 0xcc,
+	0xec, 0xb5, 0x39, 0x58, 0x62, 0x99, 0x89, 0xa9, 0x42, 0x7c, 0x30, 0x00, 0xf1, 0xe1, 0xc3, 0xf0,
+	0x63, 0xee, 0x65, 0x40, 0xfc, 0xe7, 0xf5, 0xd2, 0xb3, 0x3a, 0x8e, 0xe0, 0x27, 0x8b, 0x79, 0xc9,
+	0x01, 0x94, 0x9f, 0x44, 0x61, 0x55, 0x10, 0x72, 0xaa, 0x9b, 0x3a, 0xd5, 0xfb, 0x4d, 0x59, 0x9a,
+	0x4a, 0x1a, 0x2e, 0xfb, 0x4f, 0x74, 0xc9, 0xfe, 0x33, 0xbd, 0x36, 0x72, 0x90, 0x7c, 0x84, 0xdd,
+	0xe0, 0x24, 0xb2, 0xa0, 0xc5, 0xd5, 0xf0, 0x2f, 0x3a, 0x84, 0x0c, 0x25, 0x54, 0xef, 0xbe, 0x8d,
+	0xad, 0xce, 0x09, 0xbf, 0xcb, 0xcf, 0x7f, 0x28, 0x07, 0x21, 0x94, 0xbf, 0x4a, 0x90, 0x19, 0xb8,
+	0x94, 0xcc, 0x12, 0x81, 0x1a, 0xc8, 0x9c, 0xfd, 0x2f, 0x91, 0x01, 0x0e, 0x80, 0xee, 0x83, 0x7c,
+	0xca, 0x5d, 0x89, 0x2d, 0xe4, 0x8a, 0x90, 0x7e, 0x49, 0x99, 0xfd, 0x3c, 0x0a, 0xb9, 0xc1, 0x31,
+	0x12, 0xa6, 0xfa, 0x63, 0xed, 0x23, 0x33, 0x70, 0xcf, 0xcb, 0x32, 0x8a, 0x5d, 0x5d, 0x19, 0xc5,
+	0xa7, 0x96, 0x51, 0x62, 0xa8, 0x8c, 0x82, 0x2b, 0xe9, 0xcd, 0x26, 0x35, 0x27, 0xc5, 0x05, 0x7d,
+	0x7f, 0x88, 0x49, 0xcc, 0xfe, 0x4e, 0x34, 0x2d, 0xc8, 0x9f, 0x14, 0x91, 0x78, 0x37, 0x05, 0x2b,
+	0x61, 0x03, 0xf9, 0x58, 0x93, 0x3d, 0x90, 0x80, 0xe8, 0x70, 0x02, 0x86, 0xc6, 0x49, 0xec, 0x0a,
+	0xc6, 0x49, 0x19, 0x56, 0x3c, 0xbf, 0x6d, 0x5b, 0x94, 0x62, 0x53, 0xd3, 0xc3, 0xf7, 0xc3, 0x8d,
+	0xb1, 0x49, 0xda, 0x0a, 0x1f, 0x7d, 0x45, 0x6c, 0x32, 0x97, 0x52, 0x45, 0x8a, 0xbe, 0x10, 0xc6,
+	0x61, 0xb8, 0x38, 0xb8, 0x53, 0xc7, 0xa2, 0xd1, 0xdc, 0x83, 0xd7, 0x87, 0x5f, 0xa5, 0xc2, 0xcd,
+	0x32, 0xdb, 0xfc, 0xda, 0x60, 0x04, 0x42, 0x99, 0x16, 0xc8, 0x1e, 0xd5, 0xa9, 0xef, 0xb1, 0x67,
+	0xb5, 0xb5, 0x39, 0xde, 0x51, 0x07, 0xf3, 0x54, 0x68, 0x32, 0x0c, 0x55, 0x60, 0x05, 0xa8, 0x2e,
+	0xf6, 0xfc, 0x2e, 0x7f, 0x10, 0x5b, 0x18, 0x55, 0x65, 0x18, 0xaa, 0xc0, 0x42, 0x4d, 0x80, 0x60,
+	0xd4, 0x69, 0x81, 0x92, 0xf0, 0xe1, 0xab, 0x30, 0x3b, 0xeb, 0xd2, 0xbb, 0xdd, 0xb0, 0xee, 0xd2,
+	0x01, 0x4e, 0x60, 0x33, 0x46, 0x3b, 0x90, 0xa4, 0x96, 0x8d, 0x03, 0x8e, 0x03, 0x33, 0x66, 0x26,
+	0x14, 0x50, 0x7e, 0x25, 0x81, 0xcc, 0x3d, 0x47, 0x9f, 0x85, 0x9b, 0x87, 0x6a, 0xe3, 0xb0, 0xd1,
+	0x2c, 0xee, 0x6b, 0xcd, 0x56, 0xb1, 0x75, 0xd4, 0xd4, 0x6a, 0xf5, 0xe3, 0xe2, 0x7e, 0xad, 0x92,
+	0x8d, 0xa0, 0xaf, 0xc2, 0xfa, 0xe8, 0x62, 0xf3, 0xa8, 0x74, 0x50, 0x6b, 0xb5, 0xaa, 0x95, 0xac,
+	0xb4, 0xb1, 0xfa, 0xe4, 0x7c, 0x2b, 0xdd, 0x0c, 0xb3, 0x8d, 0x6e, 0xc1, 0x67, 0x46, 0x77, 0x97,
+	0xf7, 0x1b, 0xcd, 0x6a, 0x25, 0x1b, 0xdd, 0x80, 0x27, 0xe7, 0x5b, 0x72, 0xb9, 0x4b, 0x3c, 0x6c,
+	0xa2, 0xdb, 0xe3, 0x2a, 0x8b, 0xa5, 0x86, 0x1a, 0x60, 0xc6, 0x36, 0x32, 0x4f, 0xce, 0xb7, 0x92,
+	0xc5, 0x36, 0x71, 0x29, 0x36, 0x95, 0x5f, 0x4b, 0x20, 0xf3, 0x58, 0x0e, 0xd9, 0xa9, 0x56, 0x9b,
+	0x47, 0xfb, 0xad, 0x29, 0x76, 0x8a, 0xc5, 0xa3, 0x7a, 0xa5, 0x7a, 0xbf, 0x56, 0xef, 0xdb, 0x79,
+	0xe4, 0x98, 0xf8, 0x1d, 0xcb, 0xc1, 0x26, 0xba, 0x03, 0xb9, 0xd1, 0xdd, 0xc5, 0x72, 0xb9, 0x7a,
+	0xd8, 0x62, 0x96, 0xae, 0x3c, 0x39, 0xdf, 0x4a, 0x15, 0x0d, 0x03, 0xf7, 0xe8, 0xe4, 0xbd, 0x6a,
+	0xf5, 0x3b, 0xd5, 0x32, 0x37, 0x96, 0xed, 0x55, 0xf1, 0x0f, 0xb1, 0x11, 0x58, 0xfb, 0xbb, 0x28,
+	0x24, 0x58, 0xb2, 0xd0, 0x03, 0x48, 0x9f, 0x61, 0x4f, 0xeb, 0x9f, 0xfc, 0xf9, 0x87, 0x4d, 0xea,
+	0x0c, 0x7b, 0x65, 0x76, 0xe4, 0x6b, 0x90, 0x72, 0x88, 0xd6, 0xbf, 0x35, 0xcc, 0x8f, 0x95, 0x74,
+	0x08, 0x87, 0x6a, 0xc2, 0xaa, 0xde, 0xf6, 0xa8, 0x6e, 0x39, 0x02, 0x6f, 0xb1, 0x41, 0xb8, 0x22,
+	0x40, 0x38, 0xe8, 0x01, 0xc0, 0x23, 0x4c, 0x43, 0x0b, 0xe3, 0x8b, 0x51, 0xf7, 0x00, 0x81, 0xc1,
+	0x29, 0xbf, 0x8c, 0x42, 0x7c, 0x6e, 0x36, 0xba, 0x0b, 0x09, 0x46, 0x26, 0x97, 0xe0, 0x49, 0x4c,
+	0xfe, 0x1a, 0xb8, 0xe8, 0x58, 0x5f, 0x4d, 0x2c, 0xd0, 0x57, 0x15, 0x0d, 0xe4, 0x43, 0xdd, 0xd5,
+	0x6d, 0x0f, 0x3d, 0x00, 0x64, 0xeb, 0x8f, 0xc3, 0x87, 0x7c, 0xad, 0x8b, 0x9d, 0x0e, 0x3d, 0x61,
+	0x01, 0x5b, 0x2d, 0x7d, 0xee, 0x3f, 0x17, 0xf9, 0xf5, 0x33, 0xdd, 0xee, 0xee, 0x28, 0xe3, 0x7b,
+	0x14, 0x35, 0x6b, 0xeb, 0x8f, 0xc5, 0x4d, 0x77, 0x9f, 0x7d, 0xda, 0x49, 0xfd, 0xe2, 0x69, 0x3e,
+	0xf2, 0x8f, 0xa7, 0x79, 0x49, 0xe9, 0xc0, 0xca, 0x2e, 0x76, 0xb0, 0x67, 0x79, 0xbc, 0xdd, 0x1c,
+	0x84, 0x0a, 0xc5, 0xac, 0x9e, 0x3d, 0x30, 0x5c, 0x2c, 0xbc, 0x67, 0xf1, 0x7f, 0x7d, 0x45, 0x77,
+	0xbe, 0x09, 0x32, 0x0f, 0x1d, 0xca, 0x40, 0xf2, 0xa8, 0xfe, 0xa0, 0xde, 0x78, 0xbb, 0x9e, 0x8d,
+	0x20, 0x19, 0xa2, 0xf5, 0x46, 0x56, 0x42, 0x49, 0x88, 0x7d, 0xb7, 0xda, 0xcc, 0x46, 0x83, 0xd5,
+	0x62, 0xa9, 0xd9, 0x2a, 0xd6, 0xea, 0xd9, 0x18, 0x4a, 0x41, 0xfc, 0xb8, 0xda, 0x6a, 0x64, 0xe3,
+	0xa5, 0xf2, 0x87, 0xcf, 0x36, 0xa5, 0x8f, 0x9e, 0x6d, 0x4a, 0x7f, 0x7b, 0xb6, 0x29, 0xbd, 0xff,
+	0x7c, 0x33, 0xf2, 0xd1, 0xf3, 0xcd, 0xc8, 0x9f, 0x9e, 0x6f, 0x46, 0xbe, 0xf7, 0xe5, 0xf1, 0x02,
+	0x10, 0xb6, 0x6e, 0x5f, 0xda, 0xba, 0xcd, 0x6c, 0x6d, 0xcb, 0x2c, 0xe8, 0x5f, 0xff, 0x5f, 0x00,
+	0x00, 0x00, 0xff, 0xff, 0x8b, 0xcc, 0xd9, 0x99, 0x3d, 0x1d, 0x00, 0x00,
 }
 
 func (this *Params) Equal(that interface{}) bool {
@@ -1868,6 +2056,53 @@ func (this *Params) Equal(that interface{}) bool {
 	}
 	return true
 }
+func (this *GenesisState) Equal(that interface{}) bool {
+	if that == nil {
+		return this == nil
+	}
+
+	that1, ok := that.(*GenesisState)
+	if !ok {
+		that2, ok := that.(GenesisState)
+		if ok {
+			that1 = &that2
+		} else {
+			return false
+		}
+	}
+	if that1 == nil {
+		return this == nil
+	} else if this == nil {
+		return false
+	}
+	if !this.Params.Equal(&that1.Params) {
+		return false
+	}
+	return true
+}
+func (this *StdDecisionPolicy) GetDecisionPolicy() DecisionPolicy {
+	if x := this.GetThreshold(); x != nil {
+		return x
+	}
+	return nil
+}
+
+func (this *StdDecisionPolicy) SetDecisionPolicy(value DecisionPolicy) error {
+	if value == nil {
+		this.Sum = nil
+		return nil
+	}
+	switch vt := value.(type) {
+	case *ThresholdDecisionPolicy:
+		this.Sum = &StdDecisionPolicy_Threshold{vt}
+		return nil
+	case ThresholdDecisionPolicy:
+		this.Sum = &StdDecisionPolicy_Threshold{&vt}
+		return nil
+	}
+	return fmt.Errorf("can't encode value of type %T as message StdDecisionPolicy", value)
+}
+
 func (m *Msg) Marshal() (dAtA []byte, err error) {
 	size := m.Size()
 	dAtA = make([]byte, size)
@@ -2403,30 +2638,26 @@ func (m *MsgCreateGroupAccountStd) MarshalToSizedBuffer(dAtA []byte) (int, error
 	_ = i
 	var l int
 	_ = l
-	if m.DecisionPolicy != nil {
-		{
-			size, err := m.DecisionPolicy.MarshalToSizedBuffer(dAtA[:i])
-			if err != nil {
-				return 0, err
-			}
-			i -= size
-			i = encodeVarintTypes(dAtA, i, uint64(size))
+	{
+		size, err := m.DecisionPolicy.MarshalToSizedBuffer(dAtA[:i])
+		if err != nil {
+			return 0, err
 		}
-		i--
-		dAtA[i] = 0x12
+		i -= size
+		i = encodeVarintTypes(dAtA, i, uint64(size))
 	}
-	if m.Base != nil {
-		{
-			size, err := m.Base.MarshalToSizedBuffer(dAtA[:i])
-			if err != nil {
-				return 0, err
-			}
-			i -= size
-			i = encodeVarintTypes(dAtA, i, uint64(size))
+	i--
+	dAtA[i] = 0x12
+	{
+		size, err := m.Base.MarshalToSizedBuffer(dAtA[:i])
+		if err != nil {
+			return 0, err
 		}
-		i--
-		dAtA[i] = 0xa
+		i -= size
+		i = encodeVarintTypes(dAtA, i, uint64(size))
 	}
+	i--
+	dAtA[i] = 0xa
 	return len(dAtA) - i, nil
 }
 
@@ -2457,10 +2688,10 @@ func (m *MsgUpdateGroupAccountAdmin) MarshalToSizedBuffer(dAtA []byte) (int, err
 		i--
 		dAtA[i] = 0x1a
 	}
-	if len(m.GroupAcount) > 0 {
-		i -= len(m.GroupAcount)
-		copy(dAtA[i:], m.GroupAcount)
-		i = encodeVarintTypes(dAtA, i, uint64(len(m.GroupAcount)))
+	if len(m.GroupAccount) > 0 {
+		i -= len(m.GroupAccount)
+		copy(dAtA[i:], m.GroupAccount)
+		i = encodeVarintTypes(dAtA, i, uint64(len(m.GroupAccount)))
 		i--
 		dAtA[i] = 0x12
 	}
@@ -2529,30 +2760,26 @@ func (m *MsgUpdateGroupAccountDecisionPolicyStd) MarshalToSizedBuffer(dAtA []byt
 	_ = i
 	var l int
 	_ = l
-	if m.DecisionPolicy != nil {
-		{
-			size, err := m.DecisionPolicy.MarshalToSizedBuffer(dAtA[:i])
-			if err != nil {
-				return 0, err
-			}
-			i -= size
-			i = encodeVarintTypes(dAtA, i, uint64(size))
+	{
+		size, err := m.DecisionPolicy.MarshalToSizedBuffer(dAtA[:i])
+		if err != nil {
+			return 0, err
 		}
-		i--
-		dAtA[i] = 0x1a
+		i -= size
+		i = encodeVarintTypes(dAtA, i, uint64(size))
 	}
-	if m.Base != nil {
-		{
-			size, err := m.Base.MarshalToSizedBuffer(dAtA[:i])
-			if err != nil {
-				return 0, err
-			}
-			i -= size
-			i = encodeVarintTypes(dAtA, i, uint64(size))
+	i--
+	dAtA[i] = 0x12
+	{
+		size, err := m.Base.MarshalToSizedBuffer(dAtA[:i])
+		if err != nil {
+			return 0, err
 		}
-		i--
-		dAtA[i] = 0xa
+		i -= size
+		i = encodeVarintTypes(dAtA, i, uint64(size))
 	}
+	i--
+	dAtA[i] = 0xa
 	return len(dAtA) - i, nil
 }
 
@@ -2583,10 +2810,10 @@ func (m *MsgUpdateGroupAccountComment) MarshalToSizedBuffer(dAtA []byte) (int, e
 		i--
 		dAtA[i] = 0x1a
 	}
-	if len(m.GroupAcount) > 0 {
-		i -= len(m.GroupAcount)
-		copy(dAtA[i:], m.GroupAcount)
-		i = encodeVarintTypes(dAtA, i, uint64(len(m.GroupAcount)))
+	if len(m.GroupAccount) > 0 {
+		i -= len(m.GroupAccount)
+		copy(dAtA[i:], m.GroupAccount)
+		i = encodeVarintTypes(dAtA, i, uint64(len(m.GroupAccount)))
 		i--
 		dAtA[i] = 0x12
 	}
@@ -2673,42 +2900,26 @@ func (m *ThresholdDecisionPolicy) MarshalToSizedBuffer(dAtA []byte) (int, error)
 	_ = i
 	var l int
 	_ = l
-	if m.MaxVotingWindow != nil {
-		{
-			size, err := m.MaxVotingWindow.MarshalToSizedBuffer(dAtA[:i])
-			if err != nil {
-				return 0, err
-			}
-			i -= size
-			i = encodeVarintTypes(dAtA, i, uint64(size))
+	{
+		size, err := m.Timout.MarshalToSizedBuffer(dAtA[:i])
+		if err != nil {
+			return 0, err
 		}
-		i--
-		dAtA[i] = 0x1a
+		i -= size
+		i = encodeVarintTypes(dAtA, i, uint64(size))
 	}
-	if m.MinVotingWindow != nil {
-		{
-			size, err := m.MinVotingWindow.MarshalToSizedBuffer(dAtA[:i])
-			if err != nil {
-				return 0, err
-			}
-			i -= size
-			i = encodeVarintTypes(dAtA, i, uint64(size))
+	i--
+	dAtA[i] = 0x12
+	{
+		size := m.Threshold.Size()
+		i -= size
+		if _, err := m.Threshold.MarshalTo(dAtA[i:]); err != nil {
+			return 0, err
 		}
-		i--
-		dAtA[i] = 0x12
+		i = encodeVarintTypes(dAtA, i, uint64(size))
 	}
-	if m.Threshold != nil {
-		{
-			size := m.Threshold.Size()
-			i -= size
-			if _, err := m.Threshold.MarshalTo(dAtA[i:]); err != nil {
-				return 0, err
-			}
-			i = encodeVarintTypes(dAtA, i, uint64(size))
-		}
-		i--
-		dAtA[i] = 0xa
-	}
+	i--
+	dAtA[i] = 0xa
 	return len(dAtA) - i, nil
 }
 
@@ -2872,6 +3083,16 @@ func (m *GroupMetadata) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 	_ = i
 	var l int
 	_ = l
+	{
+		size := m.TotalWeight.Size()
+		i -= size
+		if _, err := m.TotalWeight.MarshalTo(dAtA[i:]); err != nil {
+			return 0, err
+		}
+		i = encodeVarintTypes(dAtA, i, uint64(size))
+	}
+	i--
+	dAtA[i] = 0x2a
 	if m.Version != 0 {
 		i = encodeVarintTypes(dAtA, i, uint64(m.Version))
 		i--
@@ -2919,6 +3140,13 @@ func (m *GroupMember) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 	_ = i
 	var l int
 	_ = l
+	if len(m.Comment) > 0 {
+		i -= len(m.Comment)
+		copy(dAtA[i:], m.Comment)
+		i = encodeVarintTypes(dAtA, i, uint64(len(m.Comment)))
+		i--
+		dAtA[i] = 0x22
+	}
 	{
 		size := m.Weight.Size()
 		i -= size
@@ -2964,6 +3192,11 @@ func (m *GroupAccountMetadataBase) MarshalToSizedBuffer(dAtA []byte) (int, error
 	_ = i
 	var l int
 	_ = l
+	if m.Version != 0 {
+		i = encodeVarintTypes(dAtA, i, uint64(m.Version))
+		i--
+		dAtA[i] = 0x28
+	}
 	if len(m.Comment) > 0 {
 		i -= len(m.Comment)
 		copy(dAtA[i:], m.Comment)
@@ -3013,30 +3246,26 @@ func (m *StdGroupAccountMetadata) MarshalToSizedBuffer(dAtA []byte) (int, error)
 	_ = i
 	var l int
 	_ = l
-	if m.DecisionPolicy != nil {
-		{
-			size, err := m.DecisionPolicy.MarshalToSizedBuffer(dAtA[:i])
-			if err != nil {
-				return 0, err
-			}
-			i -= size
-			i = encodeVarintTypes(dAtA, i, uint64(size))
+	{
+		size, err := m.DecisionPolicy.MarshalToSizedBuffer(dAtA[:i])
+		if err != nil {
+			return 0, err
 		}
-		i--
-		dAtA[i] = 0x12
+		i -= size
+		i = encodeVarintTypes(dAtA, i, uint64(size))
 	}
-	if m.Base != nil {
-		{
-			size, err := m.Base.MarshalToSizedBuffer(dAtA[:i])
-			if err != nil {
-				return 0, err
-			}
-			i -= size
-			i = encodeVarintTypes(dAtA, i, uint64(size))
+	i--
+	dAtA[i] = 0x12
+	{
+		size, err := m.Base.MarshalToSizedBuffer(dAtA[:i])
+		if err != nil {
+			return 0, err
 		}
-		i--
-		dAtA[i] = 0xa
+		i -= size
+		i = encodeVarintTypes(dAtA, i, uint64(size))
 	}
+	i--
+	dAtA[i] = 0xa
 	return len(dAtA) - i, nil
 }
 
@@ -3060,23 +3289,56 @@ func (m *ProposalBase) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 	_ = i
 	var l int
 	_ = l
+	{
+		size, err := m.Timeout.MarshalToSizedBuffer(dAtA[:i])
+		if err != nil {
+			return 0, err
+		}
+		i -= size
+		i = encodeVarintTypes(dAtA, i, uint64(size))
+	}
+	i--
+	dAtA[i] = 0x52
+	{
+		size, err := m.VoteState.MarshalToSizedBuffer(dAtA[:i])
+		if err != nil {
+			return 0, err
+		}
+		i -= size
+		i = encodeVarintTypes(dAtA, i, uint64(size))
+	}
+	i--
+	dAtA[i] = 0x4a
+	if m.Result != 0 {
+		i = encodeVarintTypes(dAtA, i, uint64(m.Result))
+		i--
+		dAtA[i] = 0x40
+	}
+	if m.Status != 0 {
+		i = encodeVarintTypes(dAtA, i, uint64(m.Status))
+		i--
+		dAtA[i] = 0x38
+	}
+	if m.GroupAccountVersion != 0 {
+		i = encodeVarintTypes(dAtA, i, uint64(m.GroupAccountVersion))
+		i--
+		dAtA[i] = 0x30
+	}
 	if m.GroupVersion != 0 {
 		i = encodeVarintTypes(dAtA, i, uint64(m.GroupVersion))
 		i--
 		dAtA[i] = 0x28
 	}
-	if m.SubmittedAt != nil {
-		{
-			size, err := m.SubmittedAt.MarshalToSizedBuffer(dAtA[:i])
-			if err != nil {
-				return 0, err
-			}
-			i -= size
-			i = encodeVarintTypes(dAtA, i, uint64(size))
+	{
+		size, err := m.SubmittedAt.MarshalToSizedBuffer(dAtA[:i])
+		if err != nil {
+			return 0, err
 		}
-		i--
-		dAtA[i] = 0x22
+		i -= size
+		i = encodeVarintTypes(dAtA, i, uint64(size))
 	}
+	i--
+	dAtA[i] = 0x22
 	if len(m.Proposers) > 0 {
 		for iNdEx := len(m.Proposers) - 1; iNdEx >= 0; iNdEx-- {
 			i -= len(m.Proposers[iNdEx])
@@ -3123,54 +3385,46 @@ func (m *Tally) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 	_ = i
 	var l int
 	_ = l
-	if m.VetoCount != nil {
-		{
-			size := m.VetoCount.Size()
-			i -= size
-			if _, err := m.VetoCount.MarshalTo(dAtA[i:]); err != nil {
-				return 0, err
-			}
-			i = encodeVarintTypes(dAtA, i, uint64(size))
+	{
+		size := m.VetoCount.Size()
+		i -= size
+		if _, err := m.VetoCount.MarshalTo(dAtA[i:]); err != nil {
+			return 0, err
 		}
-		i--
-		dAtA[i] = 0x22
+		i = encodeVarintTypes(dAtA, i, uint64(size))
 	}
-	if m.AbstainCount != nil {
-		{
-			size := m.AbstainCount.Size()
-			i -= size
-			if _, err := m.AbstainCount.MarshalTo(dAtA[i:]); err != nil {
-				return 0, err
-			}
-			i = encodeVarintTypes(dAtA, i, uint64(size))
+	i--
+	dAtA[i] = 0x22
+	{
+		size := m.AbstainCount.Size()
+		i -= size
+		if _, err := m.AbstainCount.MarshalTo(dAtA[i:]); err != nil {
+			return 0, err
 		}
-		i--
-		dAtA[i] = 0x1a
+		i = encodeVarintTypes(dAtA, i, uint64(size))
 	}
-	if m.NoCount != nil {
-		{
-			size := m.NoCount.Size()
-			i -= size
-			if _, err := m.NoCount.MarshalTo(dAtA[i:]); err != nil {
-				return 0, err
-			}
-			i = encodeVarintTypes(dAtA, i, uint64(size))
+	i--
+	dAtA[i] = 0x1a
+	{
+		size := m.NoCount.Size()
+		i -= size
+		if _, err := m.NoCount.MarshalTo(dAtA[i:]); err != nil {
+			return 0, err
 		}
-		i--
-		dAtA[i] = 0x12
+		i = encodeVarintTypes(dAtA, i, uint64(size))
 	}
-	if m.YesCount != nil {
-		{
-			size := m.YesCount.Size()
-			i -= size
-			if _, err := m.YesCount.MarshalTo(dAtA[i:]); err != nil {
-				return 0, err
-			}
-			i = encodeVarintTypes(dAtA, i, uint64(size))
+	i--
+	dAtA[i] = 0x12
+	{
+		size := m.YesCount.Size()
+		i -= size
+		if _, err := m.YesCount.MarshalTo(dAtA[i:]); err != nil {
+			return 0, err
 		}
-		i--
-		dAtA[i] = 0xa
+		i = encodeVarintTypes(dAtA, i, uint64(size))
 	}
+	i--
+	dAtA[i] = 0xa
 	return len(dAtA) - i, nil
 }
 
@@ -3194,18 +3448,16 @@ func (m *Vote) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 	_ = i
 	var l int
 	_ = l
-	if m.SubmittedAt != nil {
-		{
-			size, err := m.SubmittedAt.MarshalToSizedBuffer(dAtA[:i])
-			if err != nil {
-				return 0, err
-			}
-			i -= size
-			i = encodeVarintTypes(dAtA, i, uint64(size))
+	{
+		size, err := m.SubmittedAt.MarshalToSizedBuffer(dAtA[:i])
+		if err != nil {
+			return 0, err
 		}
-		i--
-		dAtA[i] = 0x2a
+		i -= size
+		i = encodeVarintTypes(dAtA, i, uint64(size))
 	}
+	i--
+	dAtA[i] = 0x2a
 	if len(m.Comment) > 0 {
 		i -= len(m.Comment)
 		copy(dAtA[i:], m.Comment)
@@ -3258,6 +3510,39 @@ func (m *Params) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 		i--
 		dAtA[i] = 0x8
 	}
+	return len(dAtA) - i, nil
+}
+
+func (m *GenesisState) Marshal() (dAtA []byte, err error) {
+	size := m.Size()
+	dAtA = make([]byte, size)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
+	if err != nil {
+		return nil, err
+	}
+	return dAtA[:n], nil
+}
+
+func (m *GenesisState) MarshalTo(dAtA []byte) (int, error) {
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *GenesisState) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
+	_ = i
+	var l int
+	_ = l
+	{
+		size, err := m.Params.MarshalToSizedBuffer(dAtA[:i])
+		if err != nil {
+			return 0, err
+		}
+		i -= size
+		i = encodeVarintTypes(dAtA, i, uint64(size))
+	}
+	i--
+	dAtA[i] = 0xa
 	return len(dAtA) - i, nil
 }
 
@@ -3534,14 +3819,10 @@ func (m *MsgCreateGroupAccountStd) Size() (n int) {
 	}
 	var l int
 	_ = l
-	if m.Base != nil {
-		l = m.Base.Size()
-		n += 1 + l + sovTypes(uint64(l))
-	}
-	if m.DecisionPolicy != nil {
-		l = m.DecisionPolicy.Size()
-		n += 1 + l + sovTypes(uint64(l))
-	}
+	l = m.Base.Size()
+	n += 1 + l + sovTypes(uint64(l))
+	l = m.DecisionPolicy.Size()
+	n += 1 + l + sovTypes(uint64(l))
 	return n
 }
 
@@ -3555,7 +3836,7 @@ func (m *MsgUpdateGroupAccountAdmin) Size() (n int) {
 	if l > 0 {
 		n += 1 + l + sovTypes(uint64(l))
 	}
-	l = len(m.GroupAcount)
+	l = len(m.GroupAccount)
 	if l > 0 {
 		n += 1 + l + sovTypes(uint64(l))
 	}
@@ -3588,14 +3869,10 @@ func (m *MsgUpdateGroupAccountDecisionPolicyStd) Size() (n int) {
 	}
 	var l int
 	_ = l
-	if m.Base != nil {
-		l = m.Base.Size()
-		n += 1 + l + sovTypes(uint64(l))
-	}
-	if m.DecisionPolicy != nil {
-		l = m.DecisionPolicy.Size()
-		n += 1 + l + sovTypes(uint64(l))
-	}
+	l = m.Base.Size()
+	n += 1 + l + sovTypes(uint64(l))
+	l = m.DecisionPolicy.Size()
+	n += 1 + l + sovTypes(uint64(l))
 	return n
 }
 
@@ -3609,7 +3886,7 @@ func (m *MsgUpdateGroupAccountComment) Size() (n int) {
 	if l > 0 {
 		n += 1 + l + sovTypes(uint64(l))
 	}
-	l = len(m.GroupAcount)
+	l = len(m.GroupAccount)
 	if l > 0 {
 		n += 1 + l + sovTypes(uint64(l))
 	}
@@ -3650,18 +3927,10 @@ func (m *ThresholdDecisionPolicy) Size() (n int) {
 	}
 	var l int
 	_ = l
-	if m.Threshold != nil {
-		l = m.Threshold.Size()
-		n += 1 + l + sovTypes(uint64(l))
-	}
-	if m.MinVotingWindow != nil {
-		l = m.MinVotingWindow.Size()
-		n += 1 + l + sovTypes(uint64(l))
-	}
-	if m.MaxVotingWindow != nil {
-		l = m.MaxVotingWindow.Size()
-		n += 1 + l + sovTypes(uint64(l))
-	}
+	l = m.Threshold.Size()
+	n += 1 + l + sovTypes(uint64(l))
+	l = m.Timout.Size()
+	n += 1 + l + sovTypes(uint64(l))
 	return n
 }
 
@@ -3752,6 +4021,8 @@ func (m *GroupMetadata) Size() (n int) {
 	if m.Version != 0 {
 		n += 1 + sovTypes(uint64(m.Version))
 	}
+	l = m.TotalWeight.Size()
+	n += 1 + l + sovTypes(uint64(l))
 	return n
 }
 
@@ -3770,6 +4041,10 @@ func (m *GroupMember) Size() (n int) {
 	}
 	l = m.Weight.Size()
 	n += 1 + l + sovTypes(uint64(l))
+	l = len(m.Comment)
+	if l > 0 {
+		n += 1 + l + sovTypes(uint64(l))
+	}
 	return n
 }
 
@@ -3794,6 +4069,9 @@ func (m *GroupAccountMetadataBase) Size() (n int) {
 	if l > 0 {
 		n += 1 + l + sovTypes(uint64(l))
 	}
+	if m.Version != 0 {
+		n += 1 + sovTypes(uint64(m.Version))
+	}
 	return n
 }
 
@@ -3803,14 +4081,10 @@ func (m *StdGroupAccountMetadata) Size() (n int) {
 	}
 	var l int
 	_ = l
-	if m.Base != nil {
-		l = m.Base.Size()
-		n += 1 + l + sovTypes(uint64(l))
-	}
-	if m.DecisionPolicy != nil {
-		l = m.DecisionPolicy.Size()
-		n += 1 + l + sovTypes(uint64(l))
-	}
+	l = m.Base.Size()
+	n += 1 + l + sovTypes(uint64(l))
+	l = m.DecisionPolicy.Size()
+	n += 1 + l + sovTypes(uint64(l))
 	return n
 }
 
@@ -3834,13 +4108,24 @@ func (m *ProposalBase) Size() (n int) {
 			n += 1 + l + sovTypes(uint64(l))
 		}
 	}
-	if m.SubmittedAt != nil {
-		l = m.SubmittedAt.Size()
-		n += 1 + l + sovTypes(uint64(l))
-	}
+	l = m.SubmittedAt.Size()
+	n += 1 + l + sovTypes(uint64(l))
 	if m.GroupVersion != 0 {
 		n += 1 + sovTypes(uint64(m.GroupVersion))
 	}
+	if m.GroupAccountVersion != 0 {
+		n += 1 + sovTypes(uint64(m.GroupAccountVersion))
+	}
+	if m.Status != 0 {
+		n += 1 + sovTypes(uint64(m.Status))
+	}
+	if m.Result != 0 {
+		n += 1 + sovTypes(uint64(m.Result))
+	}
+	l = m.VoteState.Size()
+	n += 1 + l + sovTypes(uint64(l))
+	l = m.Timeout.Size()
+	n += 1 + l + sovTypes(uint64(l))
 	return n
 }
 
@@ -3850,22 +4135,14 @@ func (m *Tally) Size() (n int) {
 	}
 	var l int
 	_ = l
-	if m.YesCount != nil {
-		l = m.YesCount.Size()
-		n += 1 + l + sovTypes(uint64(l))
-	}
-	if m.NoCount != nil {
-		l = m.NoCount.Size()
-		n += 1 + l + sovTypes(uint64(l))
-	}
-	if m.AbstainCount != nil {
-		l = m.AbstainCount.Size()
-		n += 1 + l + sovTypes(uint64(l))
-	}
-	if m.VetoCount != nil {
-		l = m.VetoCount.Size()
-		n += 1 + l + sovTypes(uint64(l))
-	}
+	l = m.YesCount.Size()
+	n += 1 + l + sovTypes(uint64(l))
+	l = m.NoCount.Size()
+	n += 1 + l + sovTypes(uint64(l))
+	l = m.AbstainCount.Size()
+	n += 1 + l + sovTypes(uint64(l))
+	l = m.VetoCount.Size()
+	n += 1 + l + sovTypes(uint64(l))
 	return n
 }
 
@@ -3889,10 +4166,8 @@ func (m *Vote) Size() (n int) {
 	if l > 0 {
 		n += 1 + l + sovTypes(uint64(l))
 	}
-	if m.SubmittedAt != nil {
-		l = m.SubmittedAt.Size()
-		n += 1 + l + sovTypes(uint64(l))
-	}
+	l = m.SubmittedAt.Size()
+	n += 1 + l + sovTypes(uint64(l))
 	return n
 }
 
@@ -3905,6 +4180,17 @@ func (m *Params) Size() (n int) {
 	if m.MaxCommentLength != 0 {
 		n += 1 + sovTypes(uint64(m.MaxCommentLength))
 	}
+	return n
+}
+
+func (m *GenesisState) Size() (n int) {
+	if m == nil {
+		return 0
+	}
+	var l int
+	_ = l
+	l = m.Params.Size()
+	n += 1 + l + sovTypes(uint64(l))
 	return n
 }
 
@@ -5237,9 +5523,6 @@ func (m *MsgCreateGroupAccountStd) Unmarshal(dAtA []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			if m.Base == nil {
-				m.Base = &MsgCreateGroupAccountBase{}
-			}
 			if err := m.Base.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
 				return err
 			}
@@ -5272,9 +5555,6 @@ func (m *MsgCreateGroupAccountStd) Unmarshal(dAtA []byte) error {
 			}
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
-			}
-			if m.DecisionPolicy == nil {
-				m.DecisionPolicy = &StdDecisionPolicy{}
 			}
 			if err := m.DecisionPolicy.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
 				return err
@@ -5369,7 +5649,7 @@ func (m *MsgUpdateGroupAccountAdmin) Unmarshal(dAtA []byte) error {
 			iNdEx = postIndex
 		case 2:
 			if wireType != 2 {
-				return fmt.Errorf("proto: wrong wireType = %d for field GroupAcount", wireType)
+				return fmt.Errorf("proto: wrong wireType = %d for field GroupAccount", wireType)
 			}
 			var byteLen int
 			for shift := uint(0); ; shift += 7 {
@@ -5396,9 +5676,9 @@ func (m *MsgUpdateGroupAccountAdmin) Unmarshal(dAtA []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			m.GroupAcount = append(m.GroupAcount[:0], dAtA[iNdEx:postIndex]...)
-			if m.GroupAcount == nil {
-				m.GroupAcount = []byte{}
+			m.GroupAccount = append(m.GroupAccount[:0], dAtA[iNdEx:postIndex]...)
+			if m.GroupAccount == nil {
+				m.GroupAccount = []byte{}
 			}
 			iNdEx = postIndex
 		case 3:
@@ -5623,14 +5903,11 @@ func (m *MsgUpdateGroupAccountDecisionPolicyStd) Unmarshal(dAtA []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			if m.Base == nil {
-				m.Base = &MsgUpdateGroupAccountBase{}
-			}
 			if err := m.Base.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
 				return err
 			}
 			iNdEx = postIndex
-		case 3:
+		case 2:
 			if wireType != 2 {
 				return fmt.Errorf("proto: wrong wireType = %d for field DecisionPolicy", wireType)
 			}
@@ -5658,9 +5935,6 @@ func (m *MsgUpdateGroupAccountDecisionPolicyStd) Unmarshal(dAtA []byte) error {
 			}
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
-			}
-			if m.DecisionPolicy == nil {
-				m.DecisionPolicy = &StdDecisionPolicy{}
 			}
 			if err := m.DecisionPolicy.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
 				return err
@@ -5755,7 +6029,7 @@ func (m *MsgUpdateGroupAccountComment) Unmarshal(dAtA []byte) error {
 			iNdEx = postIndex
 		case 2:
 			if wireType != 2 {
-				return fmt.Errorf("proto: wrong wireType = %d for field GroupAcount", wireType)
+				return fmt.Errorf("proto: wrong wireType = %d for field GroupAccount", wireType)
 			}
 			var byteLen int
 			for shift := uint(0); ; shift += 7 {
@@ -5782,9 +6056,9 @@ func (m *MsgUpdateGroupAccountComment) Unmarshal(dAtA []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			m.GroupAcount = append(m.GroupAcount[:0], dAtA[iNdEx:postIndex]...)
-			if m.GroupAcount == nil {
-				m.GroupAcount = []byte{}
+			m.GroupAccount = append(m.GroupAccount[:0], dAtA[iNdEx:postIndex]...)
+			if m.GroupAccount == nil {
+				m.GroupAccount = []byte{}
 			}
 			iNdEx = postIndex
 		case 3:
@@ -5990,15 +6264,13 @@ func (m *ThresholdDecisionPolicy) Unmarshal(dAtA []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			var v github_com_cosmos_cosmos_sdk_types.Dec
-			m.Threshold = &v
 			if err := m.Threshold.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
 				return err
 			}
 			iNdEx = postIndex
 		case 2:
 			if wireType != 2 {
-				return fmt.Errorf("proto: wrong wireType = %d for field MinVotingWindow", wireType)
+				return fmt.Errorf("proto: wrong wireType = %d for field Timout", wireType)
 			}
 			var msglen int
 			for shift := uint(0); ; shift += 7 {
@@ -6025,46 +6297,7 @@ func (m *ThresholdDecisionPolicy) Unmarshal(dAtA []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			if m.MinVotingWindow == nil {
-				m.MinVotingWindow = &types.Duration{}
-			}
-			if err := m.MinVotingWindow.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
-				return err
-			}
-			iNdEx = postIndex
-		case 3:
-			if wireType != 2 {
-				return fmt.Errorf("proto: wrong wireType = %d for field MaxVotingWindow", wireType)
-			}
-			var msglen int
-			for shift := uint(0); ; shift += 7 {
-				if shift >= 64 {
-					return ErrIntOverflowTypes
-				}
-				if iNdEx >= l {
-					return io.ErrUnexpectedEOF
-				}
-				b := dAtA[iNdEx]
-				iNdEx++
-				msglen |= int(b&0x7F) << shift
-				if b < 0x80 {
-					break
-				}
-			}
-			if msglen < 0 {
-				return ErrInvalidLengthTypes
-			}
-			postIndex := iNdEx + msglen
-			if postIndex < 0 {
-				return ErrInvalidLengthTypes
-			}
-			if postIndex > l {
-				return io.ErrUnexpectedEOF
-			}
-			if m.MaxVotingWindow == nil {
-				m.MaxVotingWindow = &types.Duration{}
-			}
-			if err := m.MaxVotingWindow.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
+			if err := m.Timout.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
 				return err
 			}
 			iNdEx = postIndex
@@ -6657,6 +6890,40 @@ func (m *GroupMetadata) Unmarshal(dAtA []byte) error {
 					break
 				}
 			}
+		case 5:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field TotalWeight", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowTypes
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthTypes
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthTypes
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			if err := m.TotalWeight.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
+				return err
+			}
+			iNdEx = postIndex
 		default:
 			iNdEx = preIndex
 			skippy, err := skipTypes(dAtA[iNdEx:])
@@ -6796,6 +7063,38 @@ func (m *GroupMember) Unmarshal(dAtA []byte) error {
 			if err := m.Weight.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
 				return err
 			}
+			iNdEx = postIndex
+		case 4:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Comment", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowTypes
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthTypes
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthTypes
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.Comment = string(dAtA[iNdEx:postIndex])
 			iNdEx = postIndex
 		default:
 			iNdEx = preIndex
@@ -6969,6 +7268,25 @@ func (m *GroupAccountMetadataBase) Unmarshal(dAtA []byte) error {
 			}
 			m.Comment = string(dAtA[iNdEx:postIndex])
 			iNdEx = postIndex
+		case 5:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Version", wireType)
+			}
+			m.Version = 0
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowTypes
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				m.Version |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
 		default:
 			iNdEx = preIndex
 			skippy, err := skipTypes(dAtA[iNdEx:])
@@ -7051,9 +7369,6 @@ func (m *StdGroupAccountMetadata) Unmarshal(dAtA []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			if m.Base == nil {
-				m.Base = &GroupAccountMetadataBase{}
-			}
 			if err := m.Base.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
 				return err
 			}
@@ -7086,9 +7401,6 @@ func (m *StdGroupAccountMetadata) Unmarshal(dAtA []byte) error {
 			}
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
-			}
-			if m.DecisionPolicy == nil {
-				m.DecisionPolicy = &StdDecisionPolicy{}
 			}
 			if err := m.DecisionPolicy.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
 				return err
@@ -7274,9 +7586,6 @@ func (m *ProposalBase) Unmarshal(dAtA []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			if m.SubmittedAt == nil {
-				m.SubmittedAt = &types.Timestamp{}
-			}
 			if err := m.SubmittedAt.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
 				return err
 			}
@@ -7300,6 +7609,129 @@ func (m *ProposalBase) Unmarshal(dAtA []byte) error {
 					break
 				}
 			}
+		case 6:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field GroupAccountVersion", wireType)
+			}
+			m.GroupAccountVersion = 0
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowTypes
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				m.GroupAccountVersion |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+		case 7:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Status", wireType)
+			}
+			m.Status = 0
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowTypes
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				m.Status |= ProposalBase_Status(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+		case 8:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Result", wireType)
+			}
+			m.Result = 0
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowTypes
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				m.Result |= ProposalBase_Result(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+		case 9:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field VoteState", wireType)
+			}
+			var msglen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowTypes
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				msglen |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if msglen < 0 {
+				return ErrInvalidLengthTypes
+			}
+			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLengthTypes
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			if err := m.VoteState.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
+				return err
+			}
+			iNdEx = postIndex
+		case 10:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Timeout", wireType)
+			}
+			var msglen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowTypes
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				msglen |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if msglen < 0 {
+				return ErrInvalidLengthTypes
+			}
+			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLengthTypes
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			if err := m.Timeout.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
+				return err
+			}
+			iNdEx = postIndex
 		default:
 			iNdEx = preIndex
 			skippy, err := skipTypes(dAtA[iNdEx:])
@@ -7383,8 +7815,6 @@ func (m *Tally) Unmarshal(dAtA []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			var v github_com_cosmos_cosmos_sdk_types.Dec
-			m.YesCount = &v
 			if err := m.YesCount.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
 				return err
 			}
@@ -7419,8 +7849,6 @@ func (m *Tally) Unmarshal(dAtA []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			var v github_com_cosmos_cosmos_sdk_types.Dec
-			m.NoCount = &v
 			if err := m.NoCount.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
 				return err
 			}
@@ -7455,8 +7883,6 @@ func (m *Tally) Unmarshal(dAtA []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			var v github_com_cosmos_cosmos_sdk_types.Dec
-			m.AbstainCount = &v
 			if err := m.AbstainCount.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
 				return err
 			}
@@ -7491,8 +7917,6 @@ func (m *Tally) Unmarshal(dAtA []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			var v github_com_cosmos_cosmos_sdk_types.Dec
-			m.VetoCount = &v
 			if err := m.VetoCount.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
 				return err
 			}
@@ -7683,9 +8107,6 @@ func (m *Vote) Unmarshal(dAtA []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			if m.SubmittedAt == nil {
-				m.SubmittedAt = &types.Timestamp{}
-			}
 			if err := m.SubmittedAt.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
 				return err
 			}
@@ -7762,6 +8183,92 @@ func (m *Params) Unmarshal(dAtA []byte) error {
 					break
 				}
 			}
+		default:
+			iNdEx = preIndex
+			skippy, err := skipTypes(dAtA[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if skippy < 0 {
+				return ErrInvalidLengthTypes
+			}
+			if (iNdEx + skippy) < 0 {
+				return ErrInvalidLengthTypes
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
+func (m *GenesisState) Unmarshal(dAtA []byte) error {
+	l := len(dAtA)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return ErrIntOverflowTypes
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := dAtA[iNdEx]
+			iNdEx++
+			wire |= uint64(b&0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: GenesisState: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: GenesisState: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		case 1:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Params", wireType)
+			}
+			var msglen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowTypes
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				msglen |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if msglen < 0 {
+				return ErrInvalidLengthTypes
+			}
+			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLengthTypes
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			if err := m.Params.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
+				return err
+			}
+			iNdEx = postIndex
 		default:
 			iNdEx = preIndex
 			skippy, err := skipTypes(dAtA[iNdEx:])
