@@ -157,7 +157,7 @@ func (i indexIterator) LoadNext(dest Persistent) (RowID, error) {
 	indexPrefixKey := i.it.Key()
 	rowID := i.keyCodec.StripRowID(indexPrefixKey)
 	i.it.Next()
-	return rowID, i.rowGetter(i.ctx, rowID, dest)
+	return rowID, i.rowGetter.Get(i.ctx, rowID, dest)
 }
 
 // Close releases the iterator and should be called at the end of iteration

@@ -22,7 +22,7 @@ func (i IteratorFunc) Close() error {
 	return nil
 }
 
-func NewSingleValueIterator(rowID RowID, val []byte) Iterator {
+func NewRawValueIterator(rowID RowID, val []byte) Iterator {
 	var closed bool
 	return IteratorFunc(func(dest Persistent) (RowID, error) {
 		if dest == nil {
@@ -33,6 +33,21 @@ func NewSingleValueIterator(rowID RowID, val []byte) Iterator {
 		}
 		closed = true
 		return rowID, dest.Unmarshal(val)
+	})
+}
+
+// NewSingleValueIterator creates an iterator which lazy loads the value via row getter.
+func NewSingleValueIterator(ctx HasKVStore, rg RowGetter, rowID RowID) Iterator {
+	var closed bool
+	return IteratorFunc(func(dest Persistent) (RowID, error) {
+		if dest == nil {
+			return nil, errors.Wrap(ErrArgument, "destination object must not be nil")
+		}
+		if closed {
+			return nil, ErrIteratorDone
+		}
+		closed = true
+		return rowID, rg.Get(ctx, rowID, dest)
 	})
 }
 
@@ -76,6 +91,11 @@ func (i *LimitedIterator) LoadNext(dest Persistent) (RowID, error) {
 // Close releases the iterator and should be called at the end of iteration
 func (i LimitedIterator) Close() error {
 	return i.parentIterator.Close()
+}
+
+// Remaining returns the number of elements that may be read before the limit is reached.
+func (i LimitedIterator) Remaining() int {
+	return i.remainingCount
 }
 
 // First loads the first element into the given destination type and closes the iterator.
