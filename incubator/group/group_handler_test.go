@@ -11,7 +11,7 @@ import (
 )
 
 func TestMsgCreateGroup(t *testing.T) {
-	myAdmin := []byte("admin-address")
+	myAdmin := []byte("valid--admin-address")
 
 	specs := map[string]struct {
 		src        MsgCreateGroup
@@ -24,7 +24,7 @@ func TestMsgCreateGroup(t *testing.T) {
 				Admin:   myAdmin,
 				Comment: "test",
 				Members: []Member{{
-					Address: sdk.AccAddress([]byte("member-address")),
+					Address: sdk.AccAddress([]byte("valid-member-address")),
 					Power:   sdk.NewDec(1),
 					Comment: "first",
 				}},
@@ -38,12 +38,16 @@ func TestMsgCreateGroup(t *testing.T) {
 			},
 			expMembers: []GroupMember{
 				{
-					Member:  sdk.AccAddress([]byte("member-address")),
+					Member:  sdk.AccAddress([]byte("valid-member-address")),
 					Group:   1,
 					Weight:  sdk.NewDec(1),
 					Comment: "first",
 				},
 			},
+		},
+		"invalid message": {
+			src:    MsgCreateGroup{},
+			expErr: ErrEmpty,
 		},
 	}
 	for msg, spec := range specs {
@@ -51,6 +55,9 @@ func TestMsgCreateGroup(t *testing.T) {
 			k, ctx := createGroupKeeper()
 			res, err := NewHandler(k)(ctx, spec.src)
 			require.True(t, spec.expErr.Is(err), err)
+			if spec.expErr != nil {
+				return
+			}
 			// then
 			groupID := orm.DecodeSequence(res.Data)
 			loaded, err := k.GetGroup(ctx, GroupID(groupID))
@@ -72,11 +79,11 @@ func TestMsgUpdateGroupAdmin(t *testing.T) {
 	k, pCtx := createGroupKeeper()
 
 	members := []Member{{
-		Address: sdk.AccAddress([]byte("member-address")),
+		Address: sdk.AccAddress([]byte("valid-member-address")),
 		Power:   sdk.NewDec(1),
 		Comment: "first member",
 	}}
-	oldAdmin := []byte("old-admin-address")
+	oldAdmin := []byte("my-old-admin-address")
 	groupID, err := k.CreateGroup(pCtx, oldAdmin, members, "test")
 	require.NoError(t, err)
 
@@ -89,11 +96,11 @@ func TestMsgUpdateGroupAdmin(t *testing.T) {
 			src: MsgUpdateGroupAdmin{
 				Group:    groupID,
 				Admin:    oldAdmin,
-				NewAdmin: []byte("new-admin-address"),
+				NewAdmin: []byte("my-new-admin-address"),
 			},
 			expStored: GroupMetadata{
 				Group:       groupID,
-				Admin:       []byte("new-admin-address"),
+				Admin:       []byte("my-new-admin-address"),
 				Comment:     "test",
 				TotalWeight: sdk.NewDec(1),
 				Version:     2,
@@ -103,7 +110,7 @@ func TestMsgUpdateGroupAdmin(t *testing.T) {
 			src: MsgUpdateGroupAdmin{
 				Group:    groupID,
 				Admin:    []byte("unknown-address"),
-				NewAdmin: []byte("new-admin-address"),
+				NewAdmin: []byte("my-new-admin-address"),
 			},
 			expErr: ErrUnauthorized,
 			expStored: GroupMetadata{
@@ -118,7 +125,7 @@ func TestMsgUpdateGroupAdmin(t *testing.T) {
 			src: MsgUpdateGroupAdmin{
 				Group:    999,
 				Admin:    oldAdmin,
-				NewAdmin: []byte("new-admin-address"),
+				NewAdmin: []byte("my-new-admin-address"),
 			},
 			expErr: orm.ErrNotFound,
 			expStored: GroupMetadata{
@@ -148,12 +155,12 @@ func TestMsgUpdateGroupComment(t *testing.T) {
 
 	oldComment := "first"
 	members := []Member{{
-		Address: sdk.AccAddress([]byte("member-address")),
+		Address: sdk.AccAddress([]byte("valid-member-address")),
 		Power:   sdk.NewDec(1),
 		Comment: oldComment,
 	}}
 
-	oldAdmin := []byte("old-admin-address")
+	oldAdmin := []byte("my-old-admin-address")
 	groupID, err := k.CreateGroup(pCtx, oldAdmin, members, "test")
 	require.NoError(t, err)
 
@@ -224,12 +231,12 @@ func TestMsgUpdateGroupMembers(t *testing.T) {
 	k, pCtx := createGroupKeeper()
 
 	members := []Member{{
-		Address: sdk.AccAddress([]byte("member-address")),
+		Address: sdk.AccAddress([]byte("valid-member-address")),
 		Power:   sdk.NewDec(1),
 		Comment: "first",
 	}}
 
-	myAdmin := []byte("admin-address")
+	myAdmin := []byte("valid--admin-address")
 	groupID, err := k.CreateGroup(pCtx, myAdmin, members, "test")
 	require.NoError(t, err)
 
@@ -258,16 +265,16 @@ func TestMsgUpdateGroupMembers(t *testing.T) {
 			},
 			expMembers: []GroupMember{
 				{
-					Member:  sdk.AccAddress([]byte("member-address")),
-					Group:   groupID,
-					Weight:  sdk.NewDec(1),
-					Comment: "first",
-				},
-				{
 					Member:  sdk.AccAddress([]byte("other-member-address")),
 					Group:   groupID,
 					Weight:  sdk.NewDec(2),
 					Comment: "second",
+				},
+				{
+					Member:  sdk.AccAddress([]byte("valid-member-address")),
+					Group:   groupID,
+					Weight:  sdk.NewDec(1),
+					Comment: "first",
 				},
 			},
 		},
@@ -276,7 +283,7 @@ func TestMsgUpdateGroupMembers(t *testing.T) {
 				Group: groupID,
 				Admin: myAdmin,
 				MemberUpdates: []Member{{
-					Address: sdk.AccAddress([]byte("member-address")),
+					Address: sdk.AccAddress([]byte("valid-member-address")),
 					Power:   sdk.NewDec(2),
 					Comment: "updated",
 				}},
@@ -290,7 +297,7 @@ func TestMsgUpdateGroupMembers(t *testing.T) {
 			},
 			expMembers: []GroupMember{
 				{
-					Member:  sdk.AccAddress([]byte("member-address")),
+					Member:  sdk.AccAddress([]byte("valid-member-address")),
 					Group:   groupID,
 					Weight:  sdk.NewDec(2),
 					Comment: "updated",
@@ -302,7 +309,7 @@ func TestMsgUpdateGroupMembers(t *testing.T) {
 				Group: groupID,
 				Admin: myAdmin,
 				MemberUpdates: []Member{{
-					Address: sdk.AccAddress([]byte("member-address")),
+					Address: sdk.AccAddress([]byte("valid-member-address")),
 					Power:   sdk.NewDec(1),
 					Comment: "first",
 				}},
@@ -316,7 +323,7 @@ func TestMsgUpdateGroupMembers(t *testing.T) {
 			},
 			expMembers: []GroupMember{
 				{
-					Member:  sdk.AccAddress([]byte("member-address")),
+					Member:  sdk.AccAddress([]byte("valid-member-address")),
 					Group:   groupID,
 					Weight:  sdk.NewDec(1),
 					Comment: "first",
@@ -328,12 +335,12 @@ func TestMsgUpdateGroupMembers(t *testing.T) {
 				Group: groupID,
 				Admin: myAdmin,
 				MemberUpdates: []Member{{
-					Address: sdk.AccAddress([]byte("member-address")),
+					Address: sdk.AccAddress([]byte("valid-member-address")),
 					Power:   sdk.NewDec(0),
 					Comment: "good bye",
 				},
 					{
-						Address: sdk.AccAddress([]byte("new-member-address")),
+						Address: sdk.AccAddress([]byte("my-new-member-addres")),
 						Power:   sdk.NewDec(1),
 						Comment: "welcome",
 					}},
@@ -346,7 +353,7 @@ func TestMsgUpdateGroupMembers(t *testing.T) {
 				Version:     2,
 			},
 			expMembers: []GroupMember{{
-				Member:  sdk.AccAddress([]byte("new-member-address")),
+				Member:  sdk.AccAddress([]byte("my-new-member-addres")),
 				Group:   groupID,
 				Weight:  sdk.NewDec(1),
 				Comment: "welcome",
@@ -357,7 +364,7 @@ func TestMsgUpdateGroupMembers(t *testing.T) {
 				Group: groupID,
 				Admin: myAdmin,
 				MemberUpdates: []Member{{
-					Address: sdk.AccAddress([]byte("member-address")),
+					Address: sdk.AccAddress([]byte("valid-member-address")),
 					Power:   sdk.NewDec(0),
 					Comment: "good bye",
 				}},
@@ -376,7 +383,7 @@ func TestMsgUpdateGroupMembers(t *testing.T) {
 				Group: groupID,
 				Admin: myAdmin,
 				MemberUpdates: []Member{{
-					Address: sdk.AccAddress([]byte("unknown-member-address")),
+					Address: sdk.AccAddress([]byte("unknown-member-addrs")),
 					Power:   sdk.NewDec(0),
 					Comment: "good bye",
 				}},
@@ -390,7 +397,7 @@ func TestMsgUpdateGroupMembers(t *testing.T) {
 				Version:     1,
 			},
 			expMembers: []GroupMember{{
-				Member:  sdk.AccAddress([]byte("member-address")),
+				Member:  sdk.AccAddress([]byte("valid-member-address")),
 				Group:   groupID,
 				Weight:  sdk.NewDec(1),
 				Comment: "first",
@@ -415,7 +422,7 @@ func TestMsgUpdateGroupMembers(t *testing.T) {
 				Version:     1,
 			},
 			expMembers: []GroupMember{{
-				Member:  sdk.AccAddress([]byte("member-address")),
+				Member:  sdk.AccAddress([]byte("valid-member-address")),
 				Group:   groupID,
 				Weight:  sdk.NewDec(1),
 				Comment: "first",
@@ -440,7 +447,7 @@ func TestMsgUpdateGroupMembers(t *testing.T) {
 				Version:     1,
 			},
 			expMembers: []GroupMember{{
-				Member:  sdk.AccAddress([]byte("member-address")),
+				Member:  sdk.AccAddress([]byte("valid-member-address")),
 				Group:   groupID,
 				Weight:  sdk.NewDec(1),
 				Comment: "first",

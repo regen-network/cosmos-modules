@@ -31,7 +31,6 @@ func (m MsgCreateGroup) Type() string  { return msgTypeCreateGroup }
 
 // GetSigners returns the addresses that must sign over msg.GetSignBytes()
 func (m MsgCreateGroup) GetSigners() []sdk.AccAddress {
-	// TODO: @aaronc ok with this constraint? We can enforce the signature on creation. Also see `MsgUpdateGroupAdmin.GetSigners()`.
 	return []sdk.AccAddress{m.Admin}
 }
 
@@ -50,27 +49,49 @@ func (m MsgCreateGroup) ValidateBasic() error {
 	if m.Admin.Empty() {
 		return sdkerrors.Wrap(ErrEmpty, "admin")
 	}
-	index := make(map[string]struct{}, len(m.Members))
+	if err := sdk.VerifyAddressFormat(m.Admin); err != nil {
+		return sdkerrors.Wrap(err, "admin")
+	}
+	if err := Members(m.Members).ValidateBasic(); err != nil {
+		return errors.Wrap(err, "members")
+	}
 	for i := range m.Members {
 		member := m.Members[i]
-		if err := member.ValidateBasic(); err != nil {
-			return sdkerrors.Wrap(err, "member")
-		}
-		if member.Power.LTE(sdk.ZeroDec()) {
+		if member.Power.Equal(sdk.ZeroDec()) {
 			return sdkerrors.Wrap(ErrEmpty, "member power")
 		}
-		addr := member.Address.String()
-		if _, exists := index[addr]; exists {
-			return errors.Wrapf(ErrDuplicate, "address: %s", addr)
-		}
 	}
-	// todo: test
-	// empty members list allowed
-	// max members list allowed???
-	// duplicate member address
-	// member address empty
-	// Power -1, 0
-	// comment >max
+	return nil
+}
+
+type Members []Member
+
+func (ms Members) ValidateBasic() error {
+	index := make(map[string]struct{}, len(ms))
+	for i := range ms {
+		member := ms[i]
+		if err := member.ValidateBasic(); err != nil {
+			return err
+		}
+		addr := string(member.Address)
+		if _, exists := index[addr]; exists {
+			return errors.Wrapf(ErrDuplicate, "address: %s", member.Address)
+		}
+		index[addr] = struct{}{}
+	}
+	return nil
+}
+
+func (m Member) ValidateBasic() error {
+	if m.Address.Empty() {
+		return sdkerrors.Wrap(ErrEmpty, "address")
+	}
+	if m.Power.IsNil() || m.Power.LT(sdk.ZeroDec()) {
+		return sdkerrors.Wrap(ErrInvalid, "power")
+	}
+	if err := sdk.VerifyAddressFormat(m.Address); err != nil {
+		return sdkerrors.Wrap(err, "address")
+	}
 	return nil
 }
 
@@ -104,9 +125,17 @@ func (m MsgUpdateGroupAdmin) ValidateBasic() error {
 	if m.Admin.Empty() {
 		return sdkerrors.Wrap(ErrEmpty, "admin")
 	}
+	if err := sdk.VerifyAddressFormat(m.Admin); err != nil {
+		return sdkerrors.Wrap(err, "admin")
+	}
+
 	if m.NewAdmin.Empty() {
 		return sdkerrors.Wrap(ErrEmpty, "new admin")
 	}
+	if err := sdk.VerifyAddressFormat(m.NewAdmin); err != nil {
+		return sdkerrors.Wrap(err, "new admin")
+	}
+
 	if m.Admin.Equals(m.NewAdmin) {
 		return sdkerrors.Wrap(ErrInvalid, "new and old admin are the same")
 	}
@@ -142,6 +171,9 @@ func (m MsgUpdateGroupComment) ValidateBasic() error {
 	if m.Admin.Empty() {
 		return sdkerrors.Wrap(ErrEmpty, "admin")
 	}
+	if err := sdk.VerifyAddressFormat(m.Admin); err != nil {
+		return sdkerrors.Wrap(err, "admin")
+	}
 	return nil
 }
 
@@ -174,22 +206,15 @@ func (m MsgUpdateGroupMembers) ValidateBasic() error {
 	if m.Admin.Empty() {
 		return sdkerrors.Wrap(ErrEmpty, "admin")
 	}
+	if err := sdk.VerifyAddressFormat(m.Admin); err != nil {
+		return sdkerrors.Wrap(err, "admin")
+	}
+
 	if len(m.MemberUpdates) == 0 {
 		return sdkerrors.Wrap(ErrEmpty, "member updates")
 	}
-	index := make(map[string]struct{}, len(m.MemberUpdates))
-	for i := range m.MemberUpdates {
-		member := m.MemberUpdates[i]
-		if err := member.ValidateBasic(); err != nil {
-			return sdkerrors.Wrap(err, "member")
-		}
-		if member.Power.LT(sdk.ZeroDec()) {
-			return sdkerrors.Wrap(ErrInvalid, "member power")
-		}
-		addr := member.Address.String()
-		if _, exists := index[addr]; exists {
-			return errors.Wrapf(ErrDuplicate, "address: %s", addr)
-		}
+	if err := Members(m.MemberUpdates).ValidateBasic(); err != nil {
+		return errors.Wrap(err, "members")
 	}
 	return nil
 }
