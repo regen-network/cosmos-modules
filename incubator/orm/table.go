@@ -102,7 +102,9 @@ func (a Table) Create(ctx HasKVStore, rowID RowID, obj Persistent) error {
 	if err := assertCorrectType(a.model, obj); err != nil {
 		return err
 	}
-
+	if err := obj.ValidateBasic(); err != nil {
+		return err
+	}
 	store := prefix.NewStore(ctx.KVStore(a.storeKey), []byte{a.prefix})
 	v, err := obj.Marshal()
 	if err != nil {
@@ -124,6 +126,9 @@ func (a Table) Create(ctx HasKVStore, rowID RowID, obj Persistent) error {
 // Save iterates though the registered callbacks and may add or remove secondary index keys by them.
 func (a Table) Save(ctx HasKVStore, rowID RowID, newValue Persistent) error {
 	if err := assertCorrectType(a.model, newValue); err != nil {
+		return err
+	}
+	if err := newValue.ValidateBasic(); err != nil {
 		return err
 	}
 

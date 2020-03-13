@@ -280,3 +280,7 @@ func (m mockNaturalKeyed) Marshal() ([]byte, error) {
 func (m mockNaturalKeyed) Unmarshal([]byte) error {
 	panic("implement me")
 }
+
+func (m mockNaturalKeyed) ValidateBasic() error {
+	return nil
+}

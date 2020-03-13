@@ -46,7 +46,11 @@ func (r RowID) Bytes() []byte {
 // As with Marshaller, this may do internal validation on the data
 // and errors should be expected.
 type Persistent interface {
+	// ValidateBasic is a sanity check on the data. Any error returned prevents create or updates.
+	ValidateBasic() error
+	// Marshal serializes object into binary representation
 	Marshal() ([]byte, error)
+	// Unmarshal deserializes the object from the binary representation
 	Unmarshal([]byte) error
 }
 
