@@ -60,7 +60,6 @@ func TestCreateGroupScenario(t *testing.T) {
 	fee := types.NewTestStdFee()
 	specs := map[string]struct {
 		src     group.MsgCreateGroup
-		expErr  bool
 		expCode uint32
 	}{
 		"happy path": {
@@ -97,9 +96,10 @@ func TestCreateGroupScenario(t *testing.T) {
 	var seq uint64
 	for msg, spec := range specs {
 		t.Run(msg, func(t *testing.T) {
-			msgs := []sdk.Msg{spec.src}
-			privs, accNums, seqs := []crypto.PrivKey{myKey}, myAccount.GetAccountNumber(), myAccount.GetSequence()
-			tx := types.NewTestTx(ctx, msgs, privs, []uint64{accNums}, []uint64{seqs}, fee)
+			accSeq, err := app.AccountKeeper.GetSequence(ctx, myAddr)
+			require.NoError(t, err)
+			privs, accNums := []crypto.PrivKey{myKey}, myAccount.GetAccountNumber()
+			tx := types.NewTestTx(ctx, []sdk.Msg{spec.src}, privs, []uint64{accNums}, []uint64{accSeq}, fee)
 
 			resp := app.DeliverTx(abci.RequestDeliverTx{Tx: app.Codec().MustMarshalBinaryLengthPrefixed(tx)})
 			// then
@@ -112,7 +112,108 @@ func TestCreateGroupScenario(t *testing.T) {
 			assert.True(t, app.GroupKeeper.HasGroup(ctx, resp.Data))
 		})
 	}
+}
 
+func TestCreateGroupAccountScenario(t *testing.T) {
+	app, ctx := createTestApp(false)
+	myKey, _, myAddr := types.KeyTestPubAddr()
+	myAccount := app.AccountKeeper.NewAccountWithAddress(ctx, myAddr)
+	app.AccountKeeper.SetAccount(ctx, myAccount)
+
+	_, _, otherAddr := types.KeyTestPubAddr()
+
+	balances := sdk.NewCoins(sdk.NewInt64Coin("atom", 10000))
+	require.NoError(t, app.BankKeeper.SetBalances(ctx, myAddr, balances))
+
+	myGroupID, err := app.GroupKeeper.CreateGroup(ctx, myAddr, nil, "integration test")
+	require.NoError(t, err)
+
+	fee := types.NewTestStdFee()
+	specs := map[string]struct {
+		src     group.MsgCreateGroupAccountStd
+		expCode uint32
+	}{
+		"happy path": {
+			src: group.MsgCreateGroupAccountStd{
+				Base: group.MsgCreateGroupAccountBase{
+					Admin:   myAddr,
+					Group:   myGroupID,
+					Comment: "integration test",
+				},
+				DecisionPolicy: group.StdDecisionPolicy{
+					Sum: &group.StdDecisionPolicy_Threshold{Threshold: &group.ThresholdDecisionPolicy{
+						Threshold: sdk.ZeroDec(),
+						Timout:    proto.Duration{Seconds: 1},
+					}}},
+			},
+		},
+		"second account with same group": {
+			src: group.MsgCreateGroupAccountStd{
+				Base: group.MsgCreateGroupAccountBase{
+					Admin:   myAddr,
+					Group:   myGroupID,
+					Comment: "integration test",
+				},
+				DecisionPolicy: group.StdDecisionPolicy{
+					Sum: &group.StdDecisionPolicy_Threshold{Threshold: &group.ThresholdDecisionPolicy{
+						Threshold: sdk.ZeroDec(),
+						Timout:    proto.Duration{Seconds: 1},
+					}}},
+			},
+		},
+		"unknown group in message": {
+			src: group.MsgCreateGroupAccountStd{
+				Base: group.MsgCreateGroupAccountBase{
+					Admin:   myAddr,
+					Group:   99999,
+					Comment: "group id does not exists",
+				},
+				DecisionPolicy: group.StdDecisionPolicy{
+					Sum: &group.StdDecisionPolicy_Threshold{Threshold: &group.ThresholdDecisionPolicy{
+						Threshold: sdk.ZeroDec(),
+						Timout:    proto.Duration{Seconds: 1},
+					}}},
+			},
+			expCode: orm.ErrNotFound.ABCICode(),
+		},
+		"invalid signer": {
+			src: group.MsgCreateGroupAccountStd{
+				Base: group.MsgCreateGroupAccountBase{
+					Admin:   otherAddr,
+					Group:   myGroupID,
+					Comment: "integration test",
+				},
+				DecisionPolicy: group.StdDecisionPolicy{
+					Sum: &group.StdDecisionPolicy_Threshold{Threshold: &group.ThresholdDecisionPolicy{
+						Threshold: sdk.ZeroDec(),
+						Timout:    proto.Duration{Seconds: 1},
+					}}},
+			},
+			expCode: errors.ErrInvalidPubKey.ABCICode(),
+		},
+	}
+
+	var seq uint64
+	for msg, spec := range specs {
+		t.Run(msg, func(t *testing.T) {
+			msgs := []sdk.Msg{spec.src}
+			accSeq, err := app.AccountKeeper.GetSequence(ctx, myAddr)
+			require.NoError(t, err)
+			privs, accNums := []crypto.PrivKey{myKey}, myAccount.GetAccountNumber()
+			t.Logf("using sequence: %d", accSeq)
+			tx := types.NewTestTx(ctx, msgs, privs, []uint64{accNums}, []uint64{accSeq}, fee)
+
+			resp := app.DeliverTx(abci.RequestDeliverTx{Tx: app.Codec().MustMarshalBinaryLengthPrefixed(tx)})
+			// then
+			require.Equal(t, spec.expCode, resp.Code, resp.Log)
+			if spec.expCode != 0 {
+				return
+			}
+			seq++
+			assert.Equal(t, group.AccountCondition(seq).Address().Bytes(), resp.Data)
+			assert.True(t, app.GroupKeeper.HasGroupAccount(ctx, resp.Data))
+		})
+	}
 }
 
 func TestFullProposalWorkflow(t *testing.T) {

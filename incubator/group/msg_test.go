@@ -119,7 +119,6 @@ func TestMsgCreateGroupSigner(t *testing.T) {
 
 func TestMsgCreateGroupAccountStd(t *testing.T) {
 	_, _, myAddr := auth.KeyTestPubAddr()
-	//_, _, myOtherAddr := auth.KeyTestPubAddr()
 
 	specs := map[string]struct {
 		src    MsgCreateGroupAccountStd
