@@ -220,12 +220,15 @@ func (m MsgUpdateGroupMembers) ValidateBasic() error {
 }
 
 func (m *MsgCreateGroupAccountBase) ValidateBasic() error {
+	if m.Admin.Empty() {
+		return sdkerrors.Wrap(ErrEmpty, "admin")
+	}
+	if err := sdk.VerifyAddressFormat(m.Admin); err != nil {
+		return sdkerrors.Wrap(err, "admin")
+	}
+
 	if m.Group == 0 {
 		return sdkerrors.Wrap(ErrEmpty, "group")
-
-	}
-	if len(m.Admin) != sdk.AddrLen {
-		return sdkerrors.Wrap(ErrInvalid, "admin")
 	}
 	return nil
 }
@@ -268,7 +271,13 @@ func (m MsgCreateGroupAccountStd) GetSignBytes() []byte {
 // ValidateBasic does a sanity check on the provided data
 func (m MsgCreateGroupAccountStd) ValidateBasic() error {
 	if err := m.Base.ValidateBasic(); err != nil {
-		return nil
+		return errors.Wrap(err, "base")
+	}
+	if m.DecisionPolicy.GetDecisionPolicy() == nil {
+		return errors.Wrap(ErrEmpty, "decision policy")
+	}
+	if err := m.DecisionPolicy.GetDecisionPolicy().ValidateBasic(); err != nil {
+		return errors.Wrap(err, "decision policy")
 	}
 	return nil
 }
