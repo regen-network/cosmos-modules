@@ -45,11 +45,13 @@ type DecisionPolicyResult struct {
 	Final bool
 }
 
+// DecisionPolicy persistent ruleset to determine the result of election on a proposal.
 type DecisionPolicy interface {
 	orm.Persistent
 	Allow(tally Tally, totalPower sdk.Dec, votingDuration time.Duration) (DecisionPolicyResult, error)
 }
 
+// Allow allow a proposal to pass when the threshold is exceeded by yes votes before the timeout.
 func (p ThresholdDecisionPolicy) Allow(tally Tally, totalPower sdk.Dec, votingDuration time.Duration) (DecisionPolicyResult, error) {
 	timeout, err := types.DurationFromProto(&p.Timout)
 	if err != nil {
@@ -82,7 +84,6 @@ func (p ThresholdDecisionPolicy) ValidateBasic() error {
 
 	if timeout <= time.Nanosecond {
 		return errors.Wrap(ErrInvalid, "timeout")
-
 	}
 	return nil
 }

@@ -113,7 +113,6 @@ message StdDecisionPolicy {
         ThresholdDecisionPolicy threshold = 1;
     }
 }
-// todo: we need to ensure that ThresholdDecisionPolicy can not be modified during a running proposal
 message ThresholdDecisionPolicy {
     // threshold is a fix weight value that must be exceeded for a proposal to succeed.
     string threshold = 1 [(gogoproto.customtype) = "github.com/cosmos/cosmos-sdk/types.Dec", (gogoproto.nullable) = false];
