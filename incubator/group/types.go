@@ -218,38 +218,82 @@ func (m GroupMember) ValidateBasic() error {
 	return nil
 }
 
-func (m *Tally) Sub(vote Vote, weight sdk.Dec) error {
+func (p ProposalBase) ValidateBasic() error {
+	if p.GroupAccount.Empty() {
+		return sdkerrors.Wrap(ErrEmpty, "group account")
+	}
+	if err := sdk.VerifyAddressFormat(p.GroupAccount); err != nil {
+		return sdkerrors.Wrap(err, "group account")
+	}
+	if len(p.Proposers) == 0 {
+		return sdkerrors.Wrap(ErrEmpty, "proposers")
+	}
+	index := make(map[string]struct{}, len(p.Proposers))
+	for _, p := range p.Proposers {
+		if err := sdk.VerifyAddressFormat(p); err != nil {
+			return sdkerrors.Wrap(err, "proposer")
+		}
+		if _, exists := index[string(p)]; exists {
+			return sdkerrors.Wrapf(ErrDuplicate, "proposer %q", p.String())
+		}
+		index[string(p)] = struct{}{}
+	}
+	if p.SubmittedAt.Seconds == 0 && p.SubmittedAt.Nanos == 0 {
+		return sdkerrors.Wrap(ErrEmpty, "submitted at")
+	}
+	if p.GroupVersion == 0 {
+		return sdkerrors.Wrap(ErrEmpty, "group version")
+	}
+	if p.GroupAccountVersion == 0 {
+		return sdkerrors.Wrap(ErrEmpty, "group account version")
+	}
+	if p.Status == ProposalBase_PROPOSAL_STATUS_INVALID {
+		return sdkerrors.Wrap(ErrEmpty, "status")
+	}
+	if p.Result == ProposalBase_PROPOSAL_RESULT_INVALID {
+		return sdkerrors.Wrap(ErrEmpty, "result")
+	}
+	if err := p.VoteState.ValidateBasic(); err != nil {
+		return errors.Wrap(err, "vote state")
+	}
+	if p.Timeout.Seconds == 0 && p.Timeout.Nanos == 0 {
+		return sdkerrors.Wrap(ErrEmpty, "timeout")
+	}
+	return nil
+}
+
+func (t *Tally) Sub(vote Vote, weight sdk.Dec) error {
 	if weight.LTE(sdk.ZeroDec()) {
 		return errors.Wrap(ErrInvalid, "weight must be greater than 0")
 	}
 	switch vote.Choice {
 	case Choice_YES:
-		m.YesCount = m.YesCount.Sub(weight)
+		t.YesCount = t.YesCount.Sub(weight)
 	case Choice_NO:
-		m.NoCount = m.NoCount.Sub(weight)
+		t.NoCount = t.NoCount.Sub(weight)
 	case Choice_ABSTAIN:
-		m.AbstainCount = m.AbstainCount.Sub(weight)
+		t.AbstainCount = t.AbstainCount.Sub(weight)
 	case Choice_VETO:
-		m.VetoCount = m.VetoCount.Sub(weight)
+		t.VetoCount = t.VetoCount.Sub(weight)
 	default:
 		return errors.Wrapf(ErrInvalid, "unknown choice %s", vote.Choice.String())
 	}
 	return nil
 }
 
-func (m *Tally) Add(vote Vote, weight sdk.Dec) error {
+func (t *Tally) Add(vote Vote, weight sdk.Dec) error {
 	if weight.LTE(sdk.ZeroDec()) {
 		return errors.Wrap(ErrInvalid, "weight must be greater than 0")
 	}
 	switch vote.Choice {
 	case Choice_YES:
-		m.YesCount = m.YesCount.Add(weight)
+		t.YesCount = t.YesCount.Add(weight)
 	case Choice_NO:
-		m.NoCount = m.NoCount.Add(weight)
+		t.NoCount = t.NoCount.Add(weight)
 	case Choice_ABSTAIN:
-		m.AbstainCount = m.AbstainCount.Add(weight)
+		t.AbstainCount = t.AbstainCount.Add(weight)
 	case Choice_VETO:
-		m.VetoCount = m.VetoCount.Add(weight)
+		t.VetoCount = t.VetoCount.Add(weight)
 	default:
 		return errors.Wrapf(ErrInvalid, "unknown choice %s", vote.Choice.String())
 	}
@@ -257,8 +301,30 @@ func (m *Tally) Add(vote Vote, weight sdk.Dec) error {
 }
 
 // TotalCounts is the sum of all weights.
-func (m Tally) TotalCounts() sdk.Dec {
-	return m.YesCount.Add(m.NoCount).Add(m.AbstainCount).Add(m.VetoCount)
+func (t Tally) TotalCounts() sdk.Dec {
+	return t.YesCount.Add(t.NoCount).Add(t.AbstainCount).Add(t.VetoCount)
+}
+
+func (t Tally) ValidateBasic() error {
+	switch {
+	case t.YesCount.IsNil():
+		return errors.Wrap(ErrInvalid, "yes count nil")
+	case t.YesCount.LT(sdk.ZeroDec()):
+		return errors.Wrap(ErrInvalid, "yes count negative")
+	case t.NoCount.IsNil():
+		return errors.Wrap(ErrInvalid, "no count nil")
+	case t.NoCount.LT(sdk.ZeroDec()):
+		return errors.Wrap(ErrInvalid, "no count negative")
+	case t.AbstainCount.IsNil():
+		return errors.Wrap(ErrInvalid, "abstain count nil")
+	case t.AbstainCount.LT(sdk.ZeroDec()):
+		return errors.Wrap(ErrInvalid, "abstain count negative")
+	case t.VetoCount.IsNil():
+		return errors.Wrap(ErrInvalid, "veto count nil")
+	case t.VetoCount.LT(sdk.ZeroDec()):
+		return errors.Wrap(ErrInvalid, "veto count negative")
+	}
+	return nil
 }
 
 func (g GenesisState) String() string {

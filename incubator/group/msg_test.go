@@ -112,6 +112,7 @@ func TestMsgCreateGroupValidation(t *testing.T) {
 		})
 	}
 }
+
 func TestMsgCreateGroupSigner(t *testing.T) {
 	_, _, myAddr := auth.KeyTestPubAddr()
 	assert.Equal(t, []sdk.AccAddress{myAddr}, MsgCreateGroup{Admin: myAddr}.GetSigners())
@@ -231,6 +232,63 @@ func TestMsgCreateGroupAccountStd(t *testing.T) {
 						Timout:    proto.Duration{Seconds: 1},
 					}},
 				},
+			},
+			expErr: true,
+		},
+	}
+	for msg, spec := range specs {
+		t.Run(msg, func(t *testing.T) {
+			err := spec.src.ValidateBasic()
+			if spec.expErr {
+				require.Error(t, err)
+			} else {
+				require.NoError(t, err)
+			}
+		})
+	}
+}
+
+func TestMsgProposeBase(t *testing.T) {
+	specs := map[string]struct {
+		src    MsgProposeBase
+		expErr bool
+	}{
+		"all good with minimum fields set": {
+			src: MsgProposeBase{
+				GroupAccount: []byte("valid--group-address"),
+				Proposers:    []sdk.AccAddress{[]byte("valid-member-address")},
+			},
+		},
+		"group account required": {
+			src: MsgProposeBase{
+				Proposers: []sdk.AccAddress{[]byte("valid-member-address")},
+			},
+			expErr: true,
+		},
+		"proposers required": {
+			src: MsgProposeBase{
+				GroupAccount: []byte("valid--group-address"),
+			},
+			expErr: true,
+		},
+		"valid proposer address required": {
+			src: MsgProposeBase{
+				GroupAccount: []byte("valid--group-address"),
+				Proposers:    []sdk.AccAddress{[]byte("invalid-member-address")},
+			},
+			expErr: true,
+		},
+		"no duplicate proposers": {
+			src: MsgProposeBase{
+				GroupAccount: []byte("valid--group-address"),
+				Proposers:    []sdk.AccAddress{[]byte("valid-member-address"), []byte("valid-member-address")},
+			},
+			expErr: true,
+		},
+		"empty proposer address not allowed": {
+			src: MsgProposeBase{
+				GroupAccount: []byte("valid--group-address"),
+				Proposers:    []sdk.AccAddress{[]byte("valid-member-address"), nil, []byte("other-member-address")},
 			},
 			expErr: true,
 		},

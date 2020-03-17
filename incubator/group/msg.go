@@ -234,16 +234,24 @@ func (m *MsgCreateGroupAccountBase) ValidateBasic() error {
 }
 
 func (m *MsgProposeBase) ValidateBasic() error {
-	if len(m.GroupAccount) != sdk.AddrLen {
-		return sdkerrors.Wrap(ErrInvalid, "group account")
+	if m.GroupAccount.Empty() {
+		return sdkerrors.Wrap(ErrEmpty, "group account")
+	}
+	if err := sdk.VerifyAddressFormat(m.GroupAccount); err != nil {
+		return sdkerrors.Wrap(err, "group account")
 	}
 	if len(m.Proposers) == 0 {
 		return sdkerrors.Wrap(ErrEmpty, "proposers")
 	}
-	for i := range m.Proposers {
-		if len(m.Proposers[i]) != sdk.AddrLen {
-			return sdkerrors.Wrap(ErrInvalid, "proposer account")
+	index := make(map[string]struct{}, len(m.Proposers))
+	for _, p := range m.Proposers {
+		if err := sdk.VerifyAddressFormat(p); err != nil {
+			return sdkerrors.Wrap(err, "proposer")
 		}
+		if _, exists := index[string(p)]; exists {
+			return sdkerrors.Wrapf(ErrDuplicate, "proposer %q", p.String())
+		}
+		index[string(p)] = struct{}{}
 	}
 	return nil
 }

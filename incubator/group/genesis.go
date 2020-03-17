@@ -18,6 +18,6 @@ func (s GenesisState) Validate() error {
 // ExportGenesis returns a GenesisState for a given context and Keeper.
 func ExportGenesis(ctx sdk.Context, k Keeper) *GenesisState {
 	return &GenesisState{
-		Params: k.getParams(ctx),
+		Params: k.GetParams(ctx),
 	}
 }
