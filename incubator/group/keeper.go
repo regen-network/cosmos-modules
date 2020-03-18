@@ -294,6 +294,11 @@ func (k Keeper) GetGroupAccount(ctx sdk.Context, accountAddress sdk.AccAddress) 
 	return obj, k.groupAccountTable.GetOne(ctx, accountAddress.Bytes(), &obj)
 }
 
+func (k Keeper) UpdateGroupAccount(ctx sdk.Context, obj *StdGroupAccountMetadata) error {
+	obj.Base.Version++
+	return k.groupAccountTable.Save(ctx, obj)
+}
+
 func (k Keeper) GetGroupByGroupAccount(ctx sdk.Context, accountAddress sdk.AccAddress) (GroupMetadata, error) {
 	obj, err := k.GetGroupAccount(ctx, accountAddress)
 	if err != nil {
@@ -307,9 +312,14 @@ func (k Keeper) GetGroupMembersByGroup(ctx sdk.Context, id GroupID) (orm.Iterato
 }
 
 func (k Keeper) Vote(ctx sdk.Context, id ProposalID, voters []sdk.AccAddress, choice Choice, comment string) error {
-	// voters !=0
-	// comment within range
-	// within voting period
+	maxCommentSize := k.MaxCommentSize(ctx)
+	if len(comment) > maxCommentSize {
+		return errors.Wrap(ErrMaxLimit, "comment")
+	}
+	if len(voters) == 0 {
+		return errors.Wrap(ErrEmpty, "voters")
+	}
+
 	blockTime, err := types.TimestampProto(ctx.BlockTime())
 	if err != nil {
 		return err
@@ -499,7 +509,7 @@ func (k Keeper) ExecProposal(ctx sdk.Context, id ProposalID) error {
 func (k Keeper) GetProposal(ctx sdk.Context, id ProposalID) (ProposalI, error) {
 	loaded := reflect.New(k.proposalModelType).Interface().(ProposalI)
 	if _, err := k.proposalTable.GetOne(ctx, id.Uint64(), loaded); err != nil {
-		return nil, errors.Wrap(err, "load proposal source")
+		return nil, errors.Wrap(err, "load proposal")
 	}
 	return loaded, nil
 }
@@ -572,4 +582,9 @@ func (k Keeper) CreateProposal(ctx sdk.Context, accountAddress sdk.AccAddress, c
 		return 0, errors.Wrap(err, "create proposal")
 	}
 	return ProposalID(id), nil
+}
+
+func (k Keeper) GetVote(ctx sdk.Context, id ProposalID, voter sdk.AccAddress) (Vote, error) {
+	var v Vote
+	return v, k.voteTable.GetOne(ctx, Vote{Proposal: id, Voter: voter}.NaturalKey(), &v)
 }
