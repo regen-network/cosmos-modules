@@ -245,12 +245,12 @@ func TestCreateProposal(t *testing.T) {
 		"all good with good msg payload": {
 			srcAccount:   accountAddr,
 			srcProposers: []sdk.AccAddress{[]byte("valid-member-address")},
-			srcMsgs:      []sdk.Msg{&testdata.MyAppProposalPayloadMsgA{}, &testdata.MyAppProposalPayloadMsgB{}},
+			srcMsgs:      []sdk.Msg{&testdata.MsgAlwaysSucceed{}, &testdata.MsgAlwaysFail{}},
 		},
 		"invalid payload should be rejected": {
 			srcAccount:   accountAddr,
 			srcProposers: []sdk.AccAddress{[]byte("valid-member-address")},
-			srcMsgs:      []sdk.Msg{testdata.MyAppProposalPayloadMsgA{}},
+			srcMsgs:      []sdk.Msg{testdata.MsgAlwaysSucceed{}},
 			srcComment:   "payload not a pointer",
 			expErr:       true,
 		},
@@ -501,7 +501,7 @@ func TestVote(t *testing.T) {
 			srcChoice:     group.Choice_NO,
 			expErr:        true,
 		},
-		"after timeout": {
+		"on timeout": {
 			srcProposalID: myProposalID,
 			srcVoters:     []sdk.AccAddress{[]byte("valid-member-address")},
 			srcChoice:     group.Choice_NO,
@@ -535,7 +535,7 @@ func TestVote(t *testing.T) {
 			doBefore: func(ctx sdk.Context) {
 				g, err := k.GetGroup(ctx, myGroupID)
 				require.NoError(t, err)
-				g.Comment = "modifed"
+				g.Comment = "modified"
 				require.NoError(t, k.UpdateGroup(ctx, &g))
 			},
 			expErr: true,
@@ -547,7 +547,7 @@ func TestVote(t *testing.T) {
 			doBefore: func(ctx sdk.Context) {
 				a, err := k.GetGroupAccount(ctx, accountAddr)
 				require.NoError(t, err)
-				a.Base.Comment = "modifed"
+				a.Base.Comment = "modified"
 				require.NoError(t, k.UpdateGroupAccount(ctx, &a))
 			},
 			expErr: true,
@@ -591,6 +591,198 @@ func TestVote(t *testing.T) {
 			assert.Equal(t, spec.expVoteState, proposal.GetBase().VoteState)
 			assert.Equal(t, spec.expResult, proposal.GetBase().Result)
 			assert.Equal(t, spec.expProposalStatus, proposal.GetBase().Status)
+		})
+	}
+}
+
+func TestExecProposal(t *testing.T) {
+	amino := codec.New()
+	pKey, pTKey := sdk.NewKVStoreKey(params.StoreKey), sdk.NewTransientStoreKey(params.TStoreKey)
+	paramSpace := subspace.NewSubspace(amino, pKey, pTKey, group.DefaultParamspace)
+
+	router := baseapp.NewRouter()
+	groupKey := sdk.NewKVStoreKey(group.StoreKeyName)
+	k := group.NewGroupKeeper(groupKey, paramSpace, router, &testdata.MyAppProposal{})
+	testdataKey := sdk.NewKVStoreKey(testdata.ModuleName)
+	testdataKeeper := testdata.NewKeeper(testdataKey, k)
+	router.AddRoute(testdata.ModuleName, testdata.NewHandler(testdataKeeper))
+
+	blockTime := time.Now().UTC()
+	parentCtx := group.NewContext(pKey, pTKey, groupKey, testdataKey).WithBlockTime(blockTime)
+	defaultParams := group.DefaultParams()
+	paramSpace.SetParamSet(parentCtx, &defaultParams)
+
+	members := []group.Member{
+		{Address: []byte("valid-member-address"), Power: sdk.OneDec()},
+	}
+	myGroupID, err := k.CreateGroup(parentCtx, []byte("valid--admin-address"), members, "test")
+	require.NoError(t, err)
+
+	policy := group.ThresholdDecisionPolicy{
+		Threshold: sdk.OneDec(),
+		Timout:    types.Duration{Seconds: 1},
+	}
+	accountAddr, err := k.CreateGroupAccount(parentCtx, []byte("valid--admin-address"), myGroupID, policy, "test")
+	require.NoError(t, err)
+
+	specs := map[string]struct {
+		srcBlockTime      time.Time
+		setupProposal     func(ctx sdk.Context) group.ProposalID
+		expErr            bool
+		expProposalStatus group.ProposalBase_Status
+		expProposalResult group.ProposalBase_Result
+		expPayloadCounter uint64
+	}{
+		"proposal executed when accepted": {
+			setupProposal: func(ctx sdk.Context) group.ProposalID {
+				member := []sdk.AccAddress{[]byte("valid-member-address")}
+				myProposalID, err := k.CreateProposal(ctx, accountAddr, "test", member, []sdk.Msg{
+					&testdata.MsgIncCounter{},
+				})
+				require.NoError(t, err)
+				require.NoError(t, k.Vote(ctx, myProposalID, member, group.Choice_YES, ""))
+				return myProposalID
+			},
+			expProposalStatus: group.ProposalStatusClosed,
+			expProposalResult: group.ProposalResultAccepted,
+			expPayloadCounter: 1,
+		},
+		"proposal with multiple messages executed when accepted": {
+			setupProposal: func(ctx sdk.Context) group.ProposalID {
+				member := []sdk.AccAddress{[]byte("valid-member-address")}
+				myProposalID, err := k.CreateProposal(ctx, accountAddr, "test", member, []sdk.Msg{
+					&testdata.MsgIncCounter{}, &testdata.MsgIncCounter{},
+				})
+				require.NoError(t, err)
+				require.NoError(t, k.Vote(ctx, myProposalID, member, group.Choice_YES, ""))
+				return myProposalID
+			},
+			expProposalStatus: group.ProposalStatusClosed,
+			expProposalResult: group.ProposalResultAccepted,
+			expPayloadCounter: 2,
+		},
+		"proposal not executed when rejected": {
+			setupProposal: func(ctx sdk.Context) group.ProposalID {
+				member := []sdk.AccAddress{[]byte("valid-member-address")}
+				myProposalID, err := k.CreateProposal(ctx, accountAddr, "test", member, []sdk.Msg{
+					&testdata.MsgAlwaysFail{},
+				})
+				require.NoError(t, err)
+				require.NoError(t, k.Vote(ctx, myProposalID, member, group.Choice_NO, ""))
+				return myProposalID
+			},
+			expProposalStatus: group.ProposalStatusClosed,
+			expProposalResult: group.ProposalResultRejected,
+		},
+		"open proposal must not fail": {
+			setupProposal: func(ctx sdk.Context) group.ProposalID {
+				member := []sdk.AccAddress{[]byte("valid-member-address")}
+				myProposalID, err := k.CreateProposal(ctx, accountAddr, "test", member, []sdk.Msg{
+					&testdata.MsgAlwaysFail{},
+				})
+				require.NoError(t, err)
+				return myProposalID
+			},
+			expProposalStatus: group.ProposalStatusSubmitted,
+			expProposalResult: group.ProposalResultUndefined,
+		},
+		"existing proposal required": {
+			setupProposal: func(ctx sdk.Context) group.ProposalID {
+				return 9999
+			},
+			expErr: true,
+		},
+		"Decision policy also applied on timeout": {
+			setupProposal: func(ctx sdk.Context) group.ProposalID {
+				member := []sdk.AccAddress{[]byte("valid-member-address")}
+				myProposalID, err := k.CreateProposal(ctx, accountAddr, "test", member, []sdk.Msg{
+					&testdata.MsgAlwaysFail{},
+				})
+				require.NoError(t, err)
+				require.NoError(t, k.Vote(ctx, myProposalID, member, group.Choice_NO, ""))
+				return myProposalID
+			},
+			srcBlockTime:      blockTime.Add(time.Second),
+			expProposalStatus: group.ProposalStatusClosed,
+			expProposalResult: group.ProposalResultRejected,
+		},
+		"Decision policy also applied after timeout": {
+			setupProposal: func(ctx sdk.Context) group.ProposalID {
+				member := []sdk.AccAddress{[]byte("valid-member-address")}
+				myProposalID, err := k.CreateProposal(ctx, accountAddr, "test", member, []sdk.Msg{
+					&testdata.MsgAlwaysFail{},
+				})
+				require.NoError(t, err)
+				require.NoError(t, k.Vote(ctx, myProposalID, member, group.Choice_NO, ""))
+				return myProposalID
+			},
+			srcBlockTime:      blockTime.Add(time.Second).Add(time.Millisecond),
+			expProposalStatus: group.ProposalStatusClosed,
+			expProposalResult: group.ProposalResultRejected,
+		},
+		"with group modified": {
+			setupProposal: func(ctx sdk.Context) group.ProposalID {
+				member := []sdk.AccAddress{[]byte("valid-member-address")}
+				myProposalID, err := k.CreateProposal(ctx, accountAddr, "test", member, []sdk.Msg{
+					&testdata.MsgAlwaysFail{},
+				})
+				require.NoError(t, err)
+				// then modify group
+				g, err := k.GetGroup(ctx, myGroupID)
+				require.NoError(t, err)
+				g.Comment = "modified"
+				require.NoError(t, k.UpdateGroup(ctx, &g))
+				return myProposalID
+			},
+			expProposalStatus: group.ProposalStatusAborted,
+			expProposalResult: group.ProposalResultUndefined,
+		},
+		"with group account modified": {
+			setupProposal: func(ctx sdk.Context) group.ProposalID {
+				member := []sdk.AccAddress{[]byte("valid-member-address")}
+				myProposalID, err := k.CreateProposal(ctx, accountAddr, "test", member, []sdk.Msg{
+					&testdata.MsgAlwaysFail{},
+				})
+				require.NoError(t, err)
+				// then modify group account
+				a, err := k.GetGroupAccount(ctx, accountAddr)
+				require.NoError(t, err)
+				a.Base.Comment = "modified"
+				require.NoError(t, k.UpdateGroupAccount(ctx, &a))
+				return myProposalID
+			},
+			expProposalStatus: group.ProposalStatusAborted,
+			expProposalResult: group.ProposalResultUndefined,
+		},
+	}
+	for msg, spec := range specs {
+		t.Run(msg, func(t *testing.T) {
+			ctx, _ := parentCtx.CacheContext()
+			proposalID := spec.setupProposal(ctx)
+
+			if !spec.srcBlockTime.IsZero() {
+				ctx = ctx.WithBlockTime(spec.srcBlockTime)
+			}
+			err := k.ExecProposal(ctx, proposalID)
+			if spec.expErr {
+				require.Error(t, err)
+				return
+			}
+			require.NoError(t, err)
+
+			// and proposal is updated
+			proposal, err := k.GetProposal(ctx, proposalID)
+			require.NoError(t, err)
+			exp := group.ProposalBase_Result_name[int32(spec.expProposalResult)]
+			got := group.ProposalBase_Result_name[int32(proposal.GetBase().Result)]
+			assert.Equal(t, exp, got)
+
+			exp = group.ProposalBase_Status_name[int32(spec.expProposalStatus)]
+			got = group.ProposalBase_Status_name[int32(proposal.GetBase().Status)]
+			assert.Equal(t, exp, got)
+
+			// and proposal messages executed
+			assert.Equal(t, spec.expPayloadCounter, testdataKeeper.GetCounter(ctx))
 		})
 	}
 }

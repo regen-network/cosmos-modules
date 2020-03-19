@@ -7,12 +7,14 @@ import "third_party/proto/cosmos-proto/cosmos.proto";
 import "gogoproto/gogo.proto";
 import "group/types.proto";
 
-// MyAppMsg is the payload stored with a proposal and executed on success
+// MyAppMsg is the payload stored with a proposal and executed when approved
 message MyAppMsg {
     option (cosmos_proto.interface_type) = "*github.com/cosmos/cosmos-sdk/types.Msg";
     oneof sum {
-        MyAppProposalPayloadMsgA A = 1;
-        MyAppProposalPayloadMsgB B = 2;
+        MsgAlwaysSucceed A = 1;
+        MsgAlwaysFail B = 2;
+        MsgSetValue C = 3;
+        MsgIncCounter D = 4;
     }
 }
 
@@ -23,10 +25,19 @@ message MyAppProposal {
     repeated MyAppMsg msgs = 2 [(gogoproto.nullable) = false];
 }
 
-message MyAppProposalPayloadMsgA {
+// MsgAlwaysSucceed is handled without errors
+message MsgAlwaysSucceed {
 }
 
-message MyAppProposalPayloadMsgB {
+// MsgAlwaysFail returns an error by the handler
+message MsgAlwaysFail {
+}
+// MsgSetValue stores a value in the store
+message MsgSetValue {
+    string value = 1;
+}
+// MsgIncCounter increments a counter value
+message MsgIncCounter {
 }
 
 message MsgPropose {

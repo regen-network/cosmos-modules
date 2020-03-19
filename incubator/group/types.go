@@ -57,7 +57,7 @@ func (p ThresholdDecisionPolicy) Allow(tally Tally, totalPower sdk.Dec, votingDu
 	if err != nil {
 		return DecisionPolicyResult{}, err
 	}
-	if timeout < votingDuration {
+	if timeout <= votingDuration {
 		return DecisionPolicyResult{Allow: false, Final: true}, nil
 	}
 	if tally.YesCount.GTE(p.Threshold) {

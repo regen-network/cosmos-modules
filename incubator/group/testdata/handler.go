@@ -15,16 +15,31 @@ func NewHandler(k Keeper) sdk.Handler {
 		switch msg := msg.(type) {
 		case MsgPropose:
 			return handleMsgPropose(ctx, k, msg)
-		case *MyAppProposalPayloadMsgA:
-			logger.Info("executed MyAppProposalPayloadMsgA msg")
+		case *MsgAlwaysSucceed:
+			logger.Info("executed MsgAlwaysSucceed msg")
 			return &sdk.Result{
 				Data:   nil,
-				Log:    "MyAppProposalPayloadMsgA executed",
+				Log:    "MsgAlwaysSucceed executed",
 				Events: ctx.EventManager().Events(),
 			}, nil
-		case *MyAppProposalPayloadMsgB:
-			logger.Info("executed MyAppProposalPayloadMsgB msg")
-			return nil, errors.New("execution of MyAppProposalPayloadMsgB testdata always fails")
+		case *MsgAlwaysFail:
+			logger.Info("executed MsgAlwaysFail msg")
+			return nil, errors.New("execution of MsgAlwaysFail testdata always fails")
+		case *MsgSetValue:
+			logger.Info("executed MsgSetValue msg")
+			k.SetValue(ctx, msg.Value)
+			return &sdk.Result{
+				Data:   []byte(msg.Value),
+				Log:    "MsgSetValue executed",
+				Events: ctx.EventManager().Events(),
+			}, nil
+		case *MsgIncCounter:
+			logger.Info("executed MsgIncCounter msg")
+			return &sdk.Result{
+				Data:   k.IncCounter(ctx),
+				Log:    "MsgIncCounter executed",
+				Events: ctx.EventManager().Events(),
+			}, nil
 		default:
 			return nil, sdkerrors.Wrapf(sdkerrors.ErrUnknownRequest, "unrecognized message type: %T", msg)
 		}
@@ -32,8 +47,6 @@ func NewHandler(k Keeper) sdk.Handler {
 }
 
 func handleMsgPropose(ctx sdk.Context, k Keeper, msg MsgPropose) (*sdk.Result, error) {
-	// todo: vaidate
-	// check execNow
 	id, err := k.CreateProposal(ctx, msg.Base.GroupAccount, msg.Base.Proposers, msg.Base.Comment, msg.Msgs)
 	if err != nil {
 		return nil, err
