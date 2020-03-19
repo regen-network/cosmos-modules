@@ -631,6 +631,7 @@ func TestExecProposal(t *testing.T) {
 		expErr            bool
 		expProposalStatus group.ProposalBase_Status
 		expProposalResult group.ProposalBase_Result
+		expExecutorResult group.ProposalBase_ExecutorResult
 		expPayloadCounter uint64
 	}{
 		"proposal executed when accepted": {
@@ -645,6 +646,7 @@ func TestExecProposal(t *testing.T) {
 			},
 			expProposalStatus: group.ProposalStatusClosed,
 			expProposalResult: group.ProposalResultAccepted,
+			expExecutorResult: group.ProposalBase_Success,
 			expPayloadCounter: 1,
 		},
 		"proposal with multiple messages executed when accepted": {
@@ -659,6 +661,7 @@ func TestExecProposal(t *testing.T) {
 			},
 			expProposalStatus: group.ProposalStatusClosed,
 			expProposalResult: group.ProposalResultAccepted,
+			expExecutorResult: group.ProposalBase_Success,
 			expPayloadCounter: 2,
 		},
 		"proposal not executed when rejected": {
@@ -673,6 +676,7 @@ func TestExecProposal(t *testing.T) {
 			},
 			expProposalStatus: group.ProposalStatusClosed,
 			expProposalResult: group.ProposalResultRejected,
+			expExecutorResult: group.ProposalBase_NotRun,
 		},
 		"open proposal must not fail": {
 			setupProposal: func(ctx sdk.Context) group.ProposalID {
@@ -685,6 +689,7 @@ func TestExecProposal(t *testing.T) {
 			},
 			expProposalStatus: group.ProposalStatusSubmitted,
 			expProposalResult: group.ProposalResultUndefined,
+			expExecutorResult: group.ProposalBase_NotRun,
 		},
 		"existing proposal required": {
 			setupProposal: func(ctx sdk.Context) group.ProposalID {
@@ -705,6 +710,7 @@ func TestExecProposal(t *testing.T) {
 			srcBlockTime:      blockTime.Add(time.Second),
 			expProposalStatus: group.ProposalStatusClosed,
 			expProposalResult: group.ProposalResultRejected,
+			expExecutorResult: group.ProposalBase_NotRun,
 		},
 		"Decision policy also applied after timeout": {
 			setupProposal: func(ctx sdk.Context) group.ProposalID {
@@ -719,6 +725,7 @@ func TestExecProposal(t *testing.T) {
 			srcBlockTime:      blockTime.Add(time.Second).Add(time.Millisecond),
 			expProposalStatus: group.ProposalStatusClosed,
 			expProposalResult: group.ProposalResultRejected,
+			expExecutorResult: group.ProposalBase_NotRun,
 		},
 		"with group modified": {
 			setupProposal: func(ctx sdk.Context) group.ProposalID {
@@ -736,6 +743,7 @@ func TestExecProposal(t *testing.T) {
 			},
 			expProposalStatus: group.ProposalStatusAborted,
 			expProposalResult: group.ProposalResultUndefined,
+			expExecutorResult: group.ProposalBase_NotRun,
 		},
 		"with group account modified": {
 			setupProposal: func(ctx sdk.Context) group.ProposalID {
@@ -753,7 +761,56 @@ func TestExecProposal(t *testing.T) {
 			},
 			expProposalStatus: group.ProposalStatusAborted,
 			expProposalResult: group.ProposalResultUndefined,
+			expExecutorResult: group.ProposalBase_NotRun,
 		},
+		"not executed when was successfully already": {
+			setupProposal: func(ctx sdk.Context) group.ProposalID {
+				member := []sdk.AccAddress{[]byte("valid-member-address")}
+				myProposalID, err := k.CreateProposal(ctx, accountAddr, "test", member, []sdk.Msg{
+					&testdata.MsgIncCounter{},
+				})
+				require.NoError(t, err)
+				require.NoError(t, k.Vote(ctx, myProposalID, member, group.Choice_YES, ""))
+				require.NoError(t, k.ExecProposal(ctx, myProposalID))
+				return myProposalID
+			},
+			expPayloadCounter: 1,
+			expProposalStatus: group.ProposalStatusClosed,
+			expProposalResult: group.ProposalResultAccepted,
+			expExecutorResult: group.ProposalBase_Success,
+		},
+		"set executor status on failure": {
+			setupProposal: func(ctx sdk.Context) group.ProposalID {
+				member := []sdk.AccAddress{[]byte("valid-member-address")}
+				myProposalID, err := k.CreateProposal(ctx, accountAddr, "test", member, []sdk.Msg{
+					&testdata.MsgAlwaysFail{},
+				})
+				require.NoError(t, err)
+				require.NoError(t, k.Vote(ctx, myProposalID, member, group.Choice_YES, ""))
+				return myProposalID
+			},
+			expProposalStatus: group.ProposalStatusClosed,
+			expProposalResult: group.ProposalResultAccepted,
+			expExecutorResult: group.ProposalBase_Failure,
+		},
+		"executable when failed before": {
+			setupProposal: func(ctx sdk.Context) group.ProposalID {
+				member := []sdk.AccAddress{[]byte("valid-member-address")}
+				myProposalID, err := k.CreateProposal(ctx, accountAddr, "test", member, []sdk.Msg{
+					&testdata.MsgConditional{ExpectedCounter: 1}, &testdata.MsgIncCounter{},
+				})
+				require.NoError(t, err)
+				require.NoError(t, k.Vote(ctx, myProposalID, member, group.Choice_YES, ""))
+				require.NoError(t, k.ExecProposal(ctx, myProposalID))
+				testdataKeeper.IncCounter(ctx)
+				return myProposalID
+			},
+			expPayloadCounter: 2,
+			expProposalStatus: group.ProposalStatusClosed,
+			expProposalResult: group.ProposalResultAccepted,
+			expExecutorResult: group.ProposalBase_Success,
+		},
+		// execute with different signer (access different account
 	}
 	for msg, spec := range specs {
 		t.Run(msg, func(t *testing.T) {
@@ -781,8 +838,12 @@ func TestExecProposal(t *testing.T) {
 			got = group.ProposalBase_Status_name[int32(proposal.GetBase().Status)]
 			assert.Equal(t, exp, got)
 
+			exp = group.ProposalBase_ExecutorResult_name[int32(spec.expExecutorResult)]
+			got = group.ProposalBase_ExecutorResult_name[int32(proposal.GetBase().ExecutorResult)]
+			assert.Equal(t, exp, got)
+
 			// and proposal messages executed
-			assert.Equal(t, spec.expPayloadCounter, testdataKeeper.GetCounter(ctx))
+			assert.Equal(t, spec.expPayloadCounter, testdataKeeper.GetCounter(ctx), "counter")
 		})
 	}
 }

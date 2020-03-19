@@ -15,6 +15,7 @@ message MyAppMsg {
         MsgAlwaysFail B = 2;
         MsgSetValue C = 3;
         MsgIncCounter D = 4;
+        MsgConditional E = 5;
     }
 }
 
@@ -38,6 +39,11 @@ message MsgSetValue {
 }
 // MsgIncCounter increments a counter value
 message MsgIncCounter {
+}
+
+// MsgConditional execution depends on persistent counter value. When not equal then execution fails.
+message MsgConditional {
+    uint64 expectedCounter = 1;
 }
 
 message MsgPropose {

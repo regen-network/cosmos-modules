@@ -453,33 +453,43 @@ func (k Keeper) ExecProposal(ctx sdk.Context, id ProposalID) error {
 	}
 
 	// execute proposal payload
-	if base.Status == ProposalStatusClosed && base.Result == ProposalResultAccepted {
+	if base.Status == ProposalStatusClosed && base.Result == ProposalResultAccepted && base.ExecutorResult != ProposalBase_Success {
 		logger := ctx.Logger().With("module", fmt.Sprintf("x/%s", ModuleName))
-		proposalType := reflect.TypeOf(proposal).String()
-
-		msgs := proposal.GetMsgs()
-		results := make([]sdk.Result, len(msgs))
-		for i, msg := range msgs {
-			for _, acct := range msg.GetSigners() {
-				if !accountMetadata.Base.GroupAccount.Equals(acct) {
-					return errors.Wrap(errors.ErrUnauthorized, "proposal msg does not have permission")
-				}
-			}
-
-			handler := k.router.Route(ctx, msg.Route())
-			if handler == nil {
-				logger.Debug("no handler found", "type", proposalType, "proposalID", id, "route", msg.Route(), "pos", i)
-				return errors.Wrap(ErrInvalid, "no message handler found")
-			}
-			r, err := handler(ctx, msg)
-			if err != nil {
-				return errors.Wrapf(err, "message %q at position %d", msg.Type(), i)
-			}
-			results[i] = *r
+		ctx, flush := ctx.CacheContext()
+		_, err := executeMsgs(ctx, k.router, accountMetadata, base, proposal.GetMsgs())
+		if err != nil {
+			base.ExecutorResult = ProposalBase_Failure
+			proposalType := reflect.TypeOf(proposal).String()
+			logger.Info("proposal execution failed", "cause", err, "type", proposalType, "proposalID", id)
+		} else {
+			base.ExecutorResult = ProposalBase_Success
+			flush()
 		}
-		_ = results // todo: merge results
 	}
 	return storeUpdates()
+}
+
+func executeMsgs(ctx sdk.Context, router sdk.Router, accountMetadata StdGroupAccountMetadata, base ProposalBase, msgs []sdk.Msg) ([]sdk.Result, error) {
+	results := make([]sdk.Result, len(msgs))
+	for i, msg := range msgs {
+		for _, acct := range msg.GetSigners() {
+			if !accountMetadata.Base.GroupAccount.Equals(acct) {
+				base.ExecutorResult = ProposalBase_Failure
+				return nil, errors.Wrap(errors.ErrUnauthorized, "proposal msg does not have permission")
+			}
+		}
+
+		handler := router.Route(ctx, msg.Route())
+		if handler == nil {
+			return nil, errors.Wrapf(ErrInvalid, "no message handler found for %q", msg.Route())
+		}
+		r, err := handler(ctx, msg)
+		if err != nil {
+			return nil, errors.Wrapf(err, "message %q at position %d", msg.Type(), i)
+		}
+		results[i] = *r
+	}
+	return results, nil
 }
 
 func (k Keeper) GetProposal(ctx sdk.Context, id ProposalID) (ProposalI, error) {
@@ -541,6 +551,7 @@ func (k Keeper) CreateProposal(ctx sdk.Context, accountAddress sdk.AccAddress, c
 		GroupAccountVersion: account.Base.Version,
 		Result:              ProposalResultUndefined,
 		Status:              ProposalStatusSubmitted,
+		ExecutorResult:      ProposalBase_NotRun,
 		Timeout:             *endTime,
 		VoteState: Tally{
 			YesCount:     sdk.ZeroDec(),

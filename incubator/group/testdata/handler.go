@@ -6,6 +6,7 @@ import (
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
+	"github.com/cosmos/modules/incubator/orm"
 )
 
 func NewHandler(k Keeper) sdk.Handler {
@@ -38,6 +39,16 @@ func NewHandler(k Keeper) sdk.Handler {
 			return &sdk.Result{
 				Data:   k.IncCounter(ctx),
 				Log:    "MsgIncCounter executed",
+				Events: ctx.EventManager().Events(),
+			}, nil
+		case *MsgConditional:
+			logger.Info("executed MsgConditional msg")
+			if k.GetCounter(ctx) != msg.ExpectedCounter {
+				return nil, errors.New("counter condition not matched")
+			}
+			return &sdk.Result{
+				Data:   orm.EncodeSequence(msg.ExpectedCounter),
+				Log:    "MsgConditional executed",
 				Events: ctx.EventManager().Events(),
 			}, nil
 		default:

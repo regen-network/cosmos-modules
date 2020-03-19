@@ -276,6 +276,9 @@ func (p ProposalBase) ValidateBasic() error {
 	if _, ok := ProposalBase_Result_name[int32(p.Result)]; !ok {
 		return sdkerrors.Wrap(ErrInvalid, "result")
 	}
+	if p.ExecutorResult == ProposalBase_PROPOSAL_EXECUTOR_RESULT_INVALID {
+		return sdkerrors.Wrap(ErrEmpty, "executor result")
+	}
 
 	if err := p.VoteState.ValidateBasic(); err != nil {
 		return errors.Wrap(err, "vote state")
