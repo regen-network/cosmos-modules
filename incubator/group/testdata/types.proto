@@ -16,6 +16,7 @@ message MyAppMsg {
         MsgSetValue C = 3;
         MsgIncCounter D = 4;
         MsgConditional E = 5;
+        MsgAuthenticate F = 6;
     }
 }
 
@@ -44,6 +45,11 @@ message MsgIncCounter {
 // MsgConditional execution depends on persistent counter value. When not equal then execution fails.
 message MsgConditional {
     uint64 expectedCounter = 1;
+}
+
+// MsgAuthenticated contains a signer
+message MsgAuthenticate {
+    repeated bytes signers = 1 [(gogoproto.casttype) = "github.com/cosmos/cosmos-sdk/types.AccAddress"];
 }
 
 message MsgPropose {

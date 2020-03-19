@@ -14,6 +14,7 @@ const (
 	msgTypeMyMsgC         = "set_value"
 	msgTypeMyMsgD         = "inc_counter"
 	msgTypeMyMsgE         = "conditional"
+	msgTypeMyMsgF         = "authenticate"
 )
 
 var _ sdk.Msg = &MsgPropose{}
@@ -177,5 +178,26 @@ func (m MsgConditional) GetSignBytes() []byte {
 
 // ValidateBasic does a sanity check on the provided data
 func (m MsgConditional) ValidateBasic() error {
+	return nil
+}
+
+var _ sdk.Msg = &MsgAuthenticate{}
+
+func (m MsgAuthenticate) Route() string { return ModuleName }
+
+func (m MsgAuthenticate) Type() string { return msgTypeMyMsgF }
+
+// GetSignBytes returns the bytes for the message signer to sign on
+func (m MsgAuthenticate) GetSignBytes() []byte {
+	var buf bytes.Buffer
+	enc := jsonpb.Marshaler{}
+	if err := enc.Marshal(&buf, &m); err != nil {
+		panic(err)
+	}
+	return sdk.MustSortJSON(buf.Bytes())
+}
+
+// ValidateBasic does a sanity check on the provided data
+func (m MsgAuthenticate) ValidateBasic() error {
 	return nil
 }

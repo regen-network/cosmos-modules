@@ -456,7 +456,7 @@ func (k Keeper) ExecProposal(ctx sdk.Context, id ProposalID) error {
 	if base.Status == ProposalStatusClosed && base.Result == ProposalResultAccepted && base.ExecutorResult != ProposalBase_Success {
 		logger := ctx.Logger().With("module", fmt.Sprintf("x/%s", ModuleName))
 		ctx, flush := ctx.CacheContext()
-		_, err := executeMsgs(ctx, k.router, accountMetadata, base, proposal.GetMsgs())
+		_, err := doExecuteMsgs(ctx, k.router, accountMetadata.Base.GroupAccount, proposal.GetMsgs())
 		if err != nil {
 			base.ExecutorResult = ProposalBase_Failure
 			proposalType := reflect.TypeOf(proposal).String()
@@ -467,29 +467,6 @@ func (k Keeper) ExecProposal(ctx sdk.Context, id ProposalID) error {
 		}
 	}
 	return storeUpdates()
-}
-
-func executeMsgs(ctx sdk.Context, router sdk.Router, accountMetadata StdGroupAccountMetadata, base ProposalBase, msgs []sdk.Msg) ([]sdk.Result, error) {
-	results := make([]sdk.Result, len(msgs))
-	for i, msg := range msgs {
-		for _, acct := range msg.GetSigners() {
-			if !accountMetadata.Base.GroupAccount.Equals(acct) {
-				base.ExecutorResult = ProposalBase_Failure
-				return nil, errors.Wrap(errors.ErrUnauthorized, "proposal msg does not have permission")
-			}
-		}
-
-		handler := router.Route(ctx, msg.Route())
-		if handler == nil {
-			return nil, errors.Wrapf(ErrInvalid, "no message handler found for %q", msg.Route())
-		}
-		r, err := handler(ctx, msg)
-		if err != nil {
-			return nil, errors.Wrapf(err, "message %q at position %d", msg.Type(), i)
-		}
-		results[i] = *r
-	}
-	return results, nil
 }
 
 func (k Keeper) GetProposal(ctx sdk.Context, id ProposalID) (ProposalI, error) {
@@ -516,10 +493,15 @@ func (k Keeper) CreateProposal(ctx sdk.Context, accountAddress sdk.AccAddress, c
 		return 0, errors.Wrap(err, "get group by account")
 	}
 
+	// only members can propose
 	for i := range proposers {
 		if !k.groupMemberTable.Has(ctx, GroupMember{Group: g.Group, Member: proposers[i]}.NaturalKey()) {
 			return 0, errors.Wrapf(ErrUnauthorized, "not in group: %s", proposers[i])
 		}
+	}
+
+	if err := ensureMsgAuthZ(msgs, account.Base.GroupAccount); err != nil {
+		return 0, err
 	}
 
 	blockTime, err := types.TimestampProto(ctx.BlockTime())

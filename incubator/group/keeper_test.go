@@ -296,6 +296,13 @@ func TestCreateProposal(t *testing.T) {
 			srcProposers: []sdk.AccAddress{[]byte("valid--admin-address")},
 			expErr:       true,
 		},
+		"reject msgs that are not authz by group account": {
+			srcAccount:   accountAddr,
+			srcComment:   "test",
+			srcMsgs:      []sdk.Msg{&testdata.MsgAuthenticate{Signers: []sdk.AccAddress{[]byte("not-group-acct-addrs")}}},
+			srcProposers: []sdk.AccAddress{[]byte("valid-member-address")},
+			expErr:       true,
+		},
 	}
 	for msg, spec := range specs {
 		t.Run(msg, func(t *testing.T) {
@@ -377,7 +384,7 @@ func TestVote(t *testing.T) {
 		srcChoice         group.Choice
 		srcComment        string
 		srcCtx            sdk.Context
-		doBefore          func(ctx sdk.Context)
+		doBefore          func(t *testing.T, ctx sdk.Context)
 		expErr            bool
 		expVoteState      group.Tally
 		expProposalStatus group.ProposalBase_Status
@@ -448,6 +455,15 @@ func TestVote(t *testing.T) {
 			expProposalStatus: group.ProposalStatusClosed,
 			expResult:         group.ProposalResultAccepted,
 		},
+		"reject new votes when final decision is made already": {
+			srcProposalID: myProposalID,
+			srcVoters:     []sdk.AccAddress{[]byte("valid-member-address")},
+			srcChoice:     group.Choice_YES,
+			doBefore: func(t *testing.T, ctx sdk.Context) {
+				require.NoError(t, k.Vote(ctx, myProposalID, []sdk.AccAddress{[]byte("power-member-address")}, group.Choice_VETO, ""))
+			},
+			expErr: true,
+		},
 		"comment too long": {
 			srcProposalID: myProposalID,
 			srcComment:    strings.Repeat("a", 256),
@@ -512,7 +528,7 @@ func TestVote(t *testing.T) {
 			srcProposalID: myProposalID,
 			srcVoters:     []sdk.AccAddress{[]byte("valid-member-address")},
 			srcChoice:     group.Choice_NO,
-			doBefore: func(ctx sdk.Context) {
+			doBefore: func(t *testing.T, ctx sdk.Context) {
 				err := k.Vote(ctx, myProposalID, []sdk.AccAddress{[]byte("power-member-address")}, group.Choice_YES, "")
 				require.NoError(t, err)
 			},
@@ -522,7 +538,7 @@ func TestVote(t *testing.T) {
 			srcProposalID: myProposalID,
 			srcVoters:     []sdk.AccAddress{[]byte("valid-member-address")},
 			srcChoice:     group.Choice_NO,
-			doBefore: func(ctx sdk.Context) {
+			doBefore: func(t *testing.T, ctx sdk.Context) {
 				err := k.Vote(ctx, myProposalID, []sdk.AccAddress{[]byte("valid-member-address")}, group.Choice_YES, "")
 				require.NoError(t, err)
 			},
@@ -532,7 +548,7 @@ func TestVote(t *testing.T) {
 			srcProposalID: myProposalID,
 			srcVoters:     []sdk.AccAddress{[]byte("valid-member-address")},
 			srcChoice:     group.Choice_NO,
-			doBefore: func(ctx sdk.Context) {
+			doBefore: func(t *testing.T, ctx sdk.Context) {
 				g, err := k.GetGroup(ctx, myGroupID)
 				require.NoError(t, err)
 				g.Comment = "modified"
@@ -544,7 +560,7 @@ func TestVote(t *testing.T) {
 			srcProposalID: myProposalID,
 			srcVoters:     []sdk.AccAddress{[]byte("valid-member-address")},
 			srcChoice:     group.Choice_NO,
-			doBefore: func(ctx sdk.Context) {
+			doBefore: func(t *testing.T, ctx sdk.Context) {
 				a, err := k.GetGroupAccount(ctx, accountAddr)
 				require.NoError(t, err)
 				a.Base.Comment = "modified"
@@ -562,7 +578,7 @@ func TestVote(t *testing.T) {
 			ctx, _ = ctx.CacheContext()
 
 			if spec.doBefore != nil {
-				spec.doBefore(ctx)
+				spec.doBefore(t, ctx)
 			}
 			err := k.Vote(ctx, spec.srcProposalID, spec.srcVoters, spec.srcChoice, spec.srcComment)
 			if spec.expErr {
@@ -627,7 +643,7 @@ func TestExecProposal(t *testing.T) {
 
 	specs := map[string]struct {
 		srcBlockTime      time.Time
-		setupProposal     func(ctx sdk.Context) group.ProposalID
+		setupProposal     func(t *testing.T, ctx sdk.Context) group.ProposalID
 		expErr            bool
 		expProposalStatus group.ProposalBase_Status
 		expProposalResult group.ProposalBase_Result
@@ -635,7 +651,7 @@ func TestExecProposal(t *testing.T) {
 		expPayloadCounter uint64
 	}{
 		"proposal executed when accepted": {
-			setupProposal: func(ctx sdk.Context) group.ProposalID {
+			setupProposal: func(t *testing.T, ctx sdk.Context) group.ProposalID {
 				member := []sdk.AccAddress{[]byte("valid-member-address")}
 				myProposalID, err := k.CreateProposal(ctx, accountAddr, "test", member, []sdk.Msg{
 					&testdata.MsgIncCounter{},
@@ -650,7 +666,7 @@ func TestExecProposal(t *testing.T) {
 			expPayloadCounter: 1,
 		},
 		"proposal with multiple messages executed when accepted": {
-			setupProposal: func(ctx sdk.Context) group.ProposalID {
+			setupProposal: func(t *testing.T, ctx sdk.Context) group.ProposalID {
 				member := []sdk.AccAddress{[]byte("valid-member-address")}
 				myProposalID, err := k.CreateProposal(ctx, accountAddr, "test", member, []sdk.Msg{
 					&testdata.MsgIncCounter{}, &testdata.MsgIncCounter{},
@@ -665,7 +681,7 @@ func TestExecProposal(t *testing.T) {
 			expPayloadCounter: 2,
 		},
 		"proposal not executed when rejected": {
-			setupProposal: func(ctx sdk.Context) group.ProposalID {
+			setupProposal: func(t *testing.T, ctx sdk.Context) group.ProposalID {
 				member := []sdk.AccAddress{[]byte("valid-member-address")}
 				myProposalID, err := k.CreateProposal(ctx, accountAddr, "test", member, []sdk.Msg{
 					&testdata.MsgAlwaysFail{},
@@ -679,7 +695,7 @@ func TestExecProposal(t *testing.T) {
 			expExecutorResult: group.ProposalBase_NotRun,
 		},
 		"open proposal must not fail": {
-			setupProposal: func(ctx sdk.Context) group.ProposalID {
+			setupProposal: func(t *testing.T, ctx sdk.Context) group.ProposalID {
 				member := []sdk.AccAddress{[]byte("valid-member-address")}
 				myProposalID, err := k.CreateProposal(ctx, accountAddr, "test", member, []sdk.Msg{
 					&testdata.MsgAlwaysFail{},
@@ -692,13 +708,13 @@ func TestExecProposal(t *testing.T) {
 			expExecutorResult: group.ProposalBase_NotRun,
 		},
 		"existing proposal required": {
-			setupProposal: func(ctx sdk.Context) group.ProposalID {
+			setupProposal: func(t *testing.T, ctx sdk.Context) group.ProposalID {
 				return 9999
 			},
 			expErr: true,
 		},
 		"Decision policy also applied on timeout": {
-			setupProposal: func(ctx sdk.Context) group.ProposalID {
+			setupProposal: func(t *testing.T, ctx sdk.Context) group.ProposalID {
 				member := []sdk.AccAddress{[]byte("valid-member-address")}
 				myProposalID, err := k.CreateProposal(ctx, accountAddr, "test", member, []sdk.Msg{
 					&testdata.MsgAlwaysFail{},
@@ -713,7 +729,7 @@ func TestExecProposal(t *testing.T) {
 			expExecutorResult: group.ProposalBase_NotRun,
 		},
 		"Decision policy also applied after timeout": {
-			setupProposal: func(ctx sdk.Context) group.ProposalID {
+			setupProposal: func(t *testing.T, ctx sdk.Context) group.ProposalID {
 				member := []sdk.AccAddress{[]byte("valid-member-address")}
 				myProposalID, err := k.CreateProposal(ctx, accountAddr, "test", member, []sdk.Msg{
 					&testdata.MsgAlwaysFail{},
@@ -727,8 +743,8 @@ func TestExecProposal(t *testing.T) {
 			expProposalResult: group.ProposalResultRejected,
 			expExecutorResult: group.ProposalBase_NotRun,
 		},
-		"with group modified": {
-			setupProposal: func(ctx sdk.Context) group.ProposalID {
+		"with group modified before tally": {
+			setupProposal: func(t *testing.T, ctx sdk.Context) group.ProposalID {
 				member := []sdk.AccAddress{[]byte("valid-member-address")}
 				myProposalID, err := k.CreateProposal(ctx, accountAddr, "test", member, []sdk.Msg{
 					&testdata.MsgAlwaysFail{},
@@ -745,8 +761,8 @@ func TestExecProposal(t *testing.T) {
 			expProposalResult: group.ProposalResultUndefined,
 			expExecutorResult: group.ProposalBase_NotRun,
 		},
-		"with group account modified": {
-			setupProposal: func(ctx sdk.Context) group.ProposalID {
+		"with group account modified before tally": {
+			setupProposal: func(t *testing.T, ctx sdk.Context) group.ProposalID {
 				member := []sdk.AccAddress{[]byte("valid-member-address")}
 				myProposalID, err := k.CreateProposal(ctx, accountAddr, "test", member, []sdk.Msg{
 					&testdata.MsgAlwaysFail{},
@@ -763,8 +779,45 @@ func TestExecProposal(t *testing.T) {
 			expProposalResult: group.ProposalResultUndefined,
 			expExecutorResult: group.ProposalBase_NotRun,
 		},
-		"not executed when was successfully already": {
-			setupProposal: func(ctx sdk.Context) group.ProposalID {
+		"with group modified after tally": {
+			setupProposal: func(t *testing.T, ctx sdk.Context) group.ProposalID {
+				member := []sdk.AccAddress{[]byte("valid-member-address")}
+				myProposalID, err := k.CreateProposal(ctx, accountAddr, "test", member, []sdk.Msg{
+					&testdata.MsgAlwaysFail{},
+				})
+				require.NoError(t, err)
+				require.NoError(t, k.Vote(ctx, myProposalID, member, group.Choice_YES, ""))
+				// then modify group after tally on vote
+				g, err := k.GetGroup(ctx, myGroupID)
+				require.NoError(t, err)
+				g.Comment = "modified"
+				require.NoError(t, k.UpdateGroup(ctx, &g))
+				return myProposalID
+			},
+			expProposalStatus: group.ProposalStatusClosed,
+			expProposalResult: group.ProposalResultAccepted,
+			expExecutorResult: group.ProposalBase_Failure,
+		},
+		"with group account modified after tally": {
+			setupProposal: func(t *testing.T, ctx sdk.Context) group.ProposalID {
+				member := []sdk.AccAddress{[]byte("valid-member-address")}
+				myProposalID, err := k.CreateProposal(ctx, accountAddr, "test", member, []sdk.Msg{
+					&testdata.MsgAlwaysFail{},
+				})
+				require.NoError(t, err)
+				// then modify group account
+				a, err := k.GetGroupAccount(ctx, accountAddr)
+				require.NoError(t, err)
+				a.Base.Comment = "modified"
+				require.NoError(t, k.UpdateGroupAccount(ctx, &a))
+				return myProposalID
+			},
+			expProposalStatus: group.ProposalStatusAborted,
+			expProposalResult: group.ProposalResultUndefined,
+			expExecutorResult: group.ProposalBase_NotRun,
+		},
+		"prevent double execution when successful": {
+			setupProposal: func(t *testing.T, ctx sdk.Context) group.ProposalID {
 				member := []sdk.AccAddress{[]byte("valid-member-address")}
 				myProposalID, err := k.CreateProposal(ctx, accountAddr, "test", member, []sdk.Msg{
 					&testdata.MsgIncCounter{},
@@ -779,11 +832,11 @@ func TestExecProposal(t *testing.T) {
 			expProposalResult: group.ProposalResultAccepted,
 			expExecutorResult: group.ProposalBase_Success,
 		},
-		"set executor status on failure": {
-			setupProposal: func(ctx sdk.Context) group.ProposalID {
+		"rollback all msg updates on failure": {
+			setupProposal: func(t *testing.T, ctx sdk.Context) group.ProposalID {
 				member := []sdk.AccAddress{[]byte("valid-member-address")}
 				myProposalID, err := k.CreateProposal(ctx, accountAddr, "test", member, []sdk.Msg{
-					&testdata.MsgAlwaysFail{},
+					&testdata.MsgIncCounter{}, &testdata.MsgAlwaysFail{},
 				})
 				require.NoError(t, err)
 				require.NoError(t, k.Vote(ctx, myProposalID, member, group.Choice_YES, ""))
@@ -794,7 +847,7 @@ func TestExecProposal(t *testing.T) {
 			expExecutorResult: group.ProposalBase_Failure,
 		},
 		"executable when failed before": {
-			setupProposal: func(ctx sdk.Context) group.ProposalID {
+			setupProposal: func(t *testing.T, ctx sdk.Context) group.ProposalID {
 				member := []sdk.AccAddress{[]byte("valid-member-address")}
 				myProposalID, err := k.CreateProposal(ctx, accountAddr, "test", member, []sdk.Msg{
 					&testdata.MsgConditional{ExpectedCounter: 1}, &testdata.MsgIncCounter{},
@@ -810,12 +863,11 @@ func TestExecProposal(t *testing.T) {
 			expProposalResult: group.ProposalResultAccepted,
 			expExecutorResult: group.ProposalBase_Success,
 		},
-		// execute with different signer (access different account
 	}
 	for msg, spec := range specs {
 		t.Run(msg, func(t *testing.T) {
 			ctx, _ := parentCtx.CacheContext()
-			proposalID := spec.setupProposal(ctx)
+			proposalID := spec.setupProposal(t, ctx)
 
 			if !spec.srcBlockTime.IsZero() {
 				ctx = ctx.WithBlockTime(spec.srcBlockTime)

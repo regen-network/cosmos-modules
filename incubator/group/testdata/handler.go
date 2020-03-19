@@ -51,6 +51,13 @@ func NewHandler(k Keeper) sdk.Handler {
 				Log:    "MsgConditional executed",
 				Events: ctx.EventManager().Events(),
 			}, nil
+		case *MsgAuthenticate:
+			logger.Info("executed MsgAuthenticate msg")
+			return &sdk.Result{
+				Data:   nil,
+				Log:    "MsgAuthenticate executed",
+				Events: ctx.EventManager().Events(),
+			}, nil
 		default:
 			return nil, sdkerrors.Wrapf(sdkerrors.ErrUnknownRequest, "unrecognized message type: %T", msg)
 		}
