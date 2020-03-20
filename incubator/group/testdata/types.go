@@ -4,6 +4,7 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/types/errors"
 	"github.com/cosmos/modules/incubator/group"
+	"github.com/cosmos/modules/incubator/orm"
 )
 
 func (m *MyAppProposal) GetBase() group.ProposalBase {
@@ -32,7 +33,9 @@ func (m *MyAppProposal) SetMsgs(new []sdk.Msg) error {
 	return nil
 }
 
-func (m *MyAppProposal) ValidateBasic() error {
+var _ orm.Validateable = MyAppProposal{}
+
+func (m MyAppProposal) ValidateBasic() error {
 	if err:=m.Base.ValidateBasic(); err!=nil{
 		return errors.Wrap(err, "base")
 	}
