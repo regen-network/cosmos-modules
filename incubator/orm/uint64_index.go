@@ -5,12 +5,12 @@ type UInt64IndexerFunc func(value interface{}) ([]uint64, error)
 
 // UInt64MultiKeyAdapter converts UInt64IndexerFunc to IndexerFunc
 func UInt64MultiKeyAdapter(indexer UInt64IndexerFunc) IndexerFunc {
-	return func(value interface{}) ([]RowID, error) {
+	return func(value interface{}) ([][]byte, error) {
 		d, err := indexer(value)
 		if err != nil {
 			return nil, err
 		}
-		r := make([]RowID, len(d))
+		r := make([][]byte, len(d))
 		for i, v := range d {
 			r[i] = EncodeSequence(v)
 		}

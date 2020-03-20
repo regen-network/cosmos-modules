@@ -55,18 +55,18 @@ type Keeper struct {
 	// Group Table
 	groupSeq          orm.Sequence
 	groupTable        orm.Table
-	groupByAdminIndex orm.Index
+	GroupByAdminIndex orm.Index
 
 	// Group Member Table
 	groupMemberTable         orm.NaturalKeyTable
-	groupMemberByGroupIndex  orm.UInt64Index
-	groupMemberByMemberIndex orm.Index
+	GroupMemberByGroupIndex  orm.UInt64Index
+	GroupMemberByMemberIndex orm.Index
 
 	// Group Account Table
 	groupAccountSeq          orm.Sequence
 	groupAccountTable        orm.NaturalKeyTable
-	groupAccountByGroupIndex orm.UInt64Index
-	groupAccountByAdminIndex orm.Index
+	GroupAccountByGroupIndex orm.UInt64Index
+	GroupAccountByAdminIndex orm.Index
 
 	// ProposalBase Table
 	proposalTable             orm.AutoUInt64Table
@@ -75,8 +75,8 @@ type Keeper struct {
 
 	// Vote Table
 	voteTable               orm.NaturalKeyTable
-	voteByProposalBaseIndex orm.UInt64Index
-	voteByVoterIndex        orm.Index
+	VoteByProposalBaseIndex orm.UInt64Index
+	VoteByVoterIndex        orm.Index
 
 	paramSpace params.Subspace
 	router     sdk.Router
@@ -109,8 +109,8 @@ func NewGroupKeeper(storeKey sdk.StoreKey, paramSpace params.Subspace, router sd
 	//
 	groupTableBuilder := orm.NewTableBuilder(GroupTablePrefix, storeKey, &GroupMetadata{}, orm.FixLengthIndexKeys(orm.EncodedSeqLength))
 	k.groupSeq = orm.NewSequence(storeKey, GroupTableSeqPrefix)
-	k.groupByAdminIndex = orm.NewIndex(groupTableBuilder, GroupByAdminIndexPrefix, func(val interface{}) ([]orm.RowID, error) {
-		return []orm.RowID{val.(*GroupMetadata).Admin.Bytes()}, nil
+	k.GroupByAdminIndex = orm.NewIndex(groupTableBuilder, GroupByAdminIndexPrefix, func(val interface{}) ([][]byte, error) {
+		return [][]byte{val.(*GroupMetadata).Admin.Bytes()}, nil
 	})
 	k.groupTable = groupTableBuilder.Build()
 
@@ -118,13 +118,13 @@ func NewGroupKeeper(storeKey sdk.StoreKey, paramSpace params.Subspace, router sd
 	// Group Member Table
 	//
 	groupMemberTableBuilder := orm.NewNaturalKeyTableBuilder(GroupMemberTablePrefix, storeKey, &GroupMember{}, orm.Max255DynamicLengthIndexKeyCodec{})
-	k.groupMemberByGroupIndex = orm.NewUInt64Index(groupMemberTableBuilder, GroupMemberByGroupIndexPrefix, func(val interface{}) ([]uint64, error) {
+	k.GroupMemberByGroupIndex = orm.NewUInt64Index(groupMemberTableBuilder, GroupMemberByGroupIndexPrefix, func(val interface{}) ([]uint64, error) {
 		group := val.(*GroupMember).Group
 		return []uint64{uint64(group)}, nil
 	})
-	k.groupMemberByMemberIndex = orm.NewIndex(groupMemberTableBuilder, GroupMemberByMemberIndexPrefix, func(val interface{}) ([]orm.RowID, error) {
+	k.GroupMemberByMemberIndex = orm.NewIndex(groupMemberTableBuilder, GroupMemberByMemberIndexPrefix, func(val interface{}) ([][]byte, error) {
 		member := val.(*GroupMember).Member
-		return []orm.RowID{member.Bytes()}, nil
+		return [][]byte{member.Bytes()}, nil
 	})
 	k.groupMemberTable = groupMemberTableBuilder.Build()
 
@@ -133,26 +133,26 @@ func NewGroupKeeper(storeKey sdk.StoreKey, paramSpace params.Subspace, router sd
 	//
 	k.groupAccountSeq = orm.NewSequence(storeKey, GroupAccountTableSeqPrefix)
 	groupAccountTableBuilder := orm.NewNaturalKeyTableBuilder(GroupAccountTablePrefix, storeKey, &StdGroupAccountMetadata{}, orm.Max255DynamicLengthIndexKeyCodec{})
-	k.groupAccountByGroupIndex = orm.NewUInt64Index(groupAccountTableBuilder, GroupAccountByGroupIndexPrefix, func(value interface{}) ([]uint64, error) {
+	k.GroupAccountByGroupIndex = orm.NewUInt64Index(groupAccountTableBuilder, GroupAccountByGroupIndexPrefix, func(value interface{}) ([]uint64, error) {
 		group := value.(*StdGroupAccountMetadata).Base.Group
 		return []uint64{uint64(group)}, nil
 	})
-	k.groupAccountByAdminIndex = orm.NewIndex(groupAccountTableBuilder, GroupAccountByAdminIndexPrefix, func(value interface{}) ([]orm.RowID, error) {
+	k.GroupAccountByAdminIndex = orm.NewIndex(groupAccountTableBuilder, GroupAccountByAdminIndexPrefix, func(value interface{}) ([][]byte, error) {
 		admin := value.(*StdGroupAccountMetadata).Base.Admin
-		return []orm.RowID{admin.Bytes()}, nil
+		return [][]byte{admin.Bytes()}, nil
 	})
 	k.groupAccountTable = groupAccountTableBuilder.Build()
 
 	// Proposal Table
 	proposalTableBuilder := orm.NewAutoUInt64TableBuilder(ProposalBaseTablePrefix, ProposalBaseTableSeqPrefix, storeKey, proposalModel)
-	k.ProposalGroupAccountIndex = orm.NewIndex(proposalTableBuilder, ProposalBaseByGroupAccountIndexPrefix, func(value interface{}) ([]orm.RowID, error) {
+	k.ProposalGroupAccountIndex = orm.NewIndex(proposalTableBuilder, ProposalBaseByGroupAccountIndexPrefix, func(value interface{}) ([][]byte, error) {
 		account := value.(ProposalI).GetBase().GroupAccount
-		return []orm.RowID{account.Bytes()}, nil
+		return [][]byte{account.Bytes()}, nil
 
 	})
-	k.ProposalByProposerIndex = orm.NewIndex(proposalTableBuilder, ProposalBaseByProposerIndexPrefix, func(value interface{}) ([]orm.RowID, error) {
+	k.ProposalByProposerIndex = orm.NewIndex(proposalTableBuilder, ProposalBaseByProposerIndexPrefix, func(value interface{}) ([][]byte, error) {
 		proposers := value.(ProposalI).GetBase().Proposers
-		r := make([]orm.RowID, len(proposers))
+		r := make([][]byte, len(proposers))
 		for i := range proposers {
 			r[i] = proposers[i].Bytes()
 		}
@@ -164,11 +164,11 @@ func NewGroupKeeper(storeKey sdk.StoreKey, paramSpace params.Subspace, router sd
 	// Vote Table
 	//
 	voteTableBuilder := orm.NewNaturalKeyTableBuilder(VoteTablePrefix, storeKey, &Vote{}, orm.Max255DynamicLengthIndexKeyCodec{})
-	k.voteByProposalBaseIndex = orm.NewUInt64Index(voteTableBuilder, VoteByProposalBaseIndexPrefix, func(value interface{}) ([]uint64, error) {
+	k.VoteByProposalBaseIndex = orm.NewUInt64Index(voteTableBuilder, VoteByProposalBaseIndexPrefix, func(value interface{}) ([]uint64, error) {
 		return []uint64{uint64(value.(*Vote).Proposal)}, nil
 	})
-	k.voteByVoterIndex = orm.NewIndex(voteTableBuilder, VoteByVoterIndexPrefix, func(value interface{}) ([]orm.RowID, error) {
-		return []orm.RowID{value.(*Vote).Voter.Bytes()}, nil
+	k.VoteByVoterIndex = orm.NewIndex(voteTableBuilder, VoteByVoterIndexPrefix, func(value interface{}) ([][]byte, error) {
+		return [][]byte{value.(*Vote).Voter.Bytes()}, nil
 	})
 	k.voteTable = voteTableBuilder.Build()
 
@@ -308,7 +308,7 @@ func (k Keeper) GetGroupByGroupAccount(ctx sdk.Context, accountAddress sdk.AccAd
 }
 
 func (k Keeper) GetGroupMembersByGroup(ctx sdk.Context, id GroupID) (orm.Iterator, error) {
-	return k.groupMemberByGroupIndex.Get(ctx, id.Uint64())
+	return k.GroupMemberByGroupIndex.Get(ctx, id.Uint64())
 }
 
 func (k Keeper) Vote(ctx sdk.Context, id ProposalID, voters []sdk.AccAddress, choice Choice, comment string) error {
@@ -357,8 +357,8 @@ func (k Keeper) Vote(ctx sdk.Context, id ProposalID, voters []sdk.AccAddress, ch
 
 	// count and store votes
 	for _, voterAddr := range voters {
-		voter := GroupMember{Group: electorate.Group, Member: voterAddr}
-		if err := k.groupMemberTable.GetOne(ctx, voter.NaturalKey(), &voter); err != nil {
+		voter, err := k.GetGroupMember(ctx, electorate.Group, voterAddr)
+		if err != nil {
 			return errors.Wrapf(err, "address: %s", voterAddr)
 		}
 		newVote := Vote{
@@ -556,4 +556,24 @@ func (k Keeper) CreateProposal(ctx sdk.Context, accountAddress sdk.AccAddress, c
 func (k Keeper) GetVote(ctx sdk.Context, id ProposalID, voter sdk.AccAddress) (Vote, error) {
 	var v Vote
 	return v, k.voteTable.GetOne(ctx, Vote{Proposal: id, Voter: voter}.NaturalKey(), &v)
+}
+
+func (k Keeper) GetGroupMember(ctx sdk.Context, group GroupID, addr sdk.AccAddress) (GroupMember, error) {
+	m := GroupMember{Group: group, Member: addr}
+	return m, k.groupMemberTable.GetOne(ctx, m.NaturalKey(), &m)
+}
+
+// GetGroupSeqValue returns the current value of the group sequence
+func (k Keeper) GetGroupSeqValue(ctx orm.HasKVStore) uint64 {
+	return k.groupSeq.CurVal(ctx)
+}
+
+// GetGroupAccountSeqValue returns the current value of the group account sequence
+func (k Keeper) GetGroupAccountSeqValue(ctx orm.HasKVStore) uint64 {
+	return k.groupAccountSeq.CurVal(ctx)
+}
+
+// GetProposalSeqValue returns the current value of the proposal sequence
+func (k Keeper) GetProposalSeqValue(ctx orm.HasKVStore) uint64 {
+	return k.proposalTable.Sequence().CurVal(ctx)
 }

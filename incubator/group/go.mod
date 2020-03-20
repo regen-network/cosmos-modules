@@ -6,6 +6,7 @@ require (
 	github.com/cosmos/cosmos-sdk v0.34.4-0.20200211145837-56c586897525
 	github.com/cosmos/modules/incubator/orm v0.0.0-20200117100147-88228b5fa693
 	github.com/gogo/protobuf v1.3.1
+	github.com/google/gofuzz v1.0.0
 	github.com/gorilla/mux v1.7.3
 	github.com/pkg/errors v0.9.1
 	github.com/regen-network/cosmos-proto v0.1.1-0.20200213154359-02baa11ea7c2

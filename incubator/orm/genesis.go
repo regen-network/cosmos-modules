@@ -52,6 +52,9 @@ func ExportTableData(ctx HasKVStore, t TableExportable) (json.RawMessage, uint64
 	if st, ok := t.(SequenceExportable); ok {
 		seqValue = st.Sequence().CurVal(ctx)
 	}
+	if r == nil {
+		return nil, seqValue, nil
+	}
 	b, err := json.Marshal(r)
 	return b, seqValue, err
 }
@@ -59,13 +62,22 @@ func ExportTableData(ctx HasKVStore, t TableExportable) (json.RawMessage, uint64
 // ImportTableData initializes a table and attached indexers from the given json encoded `[]Model`s.
 // The seqValue is optional and only used with tables that implement the `SequenceExportable` interface.
 func ImportTableData(ctx HasKVStore, t TableExportable, src json.RawMessage, seqValue uint64) error {
-	dec := json.NewDecoder(bytes.NewReader(src))
-	if _, err := dec.Token(); err != nil {
-		return errors.Wrap(err, "open bracket")
-	}
 	table := t.Table()
 	if err := clearAllInTable(ctx, table); err != nil {
 		return errors.Wrap(err, "clear old entries")
+	}
+	if st, ok := t.(SequenceExportable); ok {
+		if err := st.Sequence().InitVal(ctx, seqValue); err != nil {
+			return errors.Wrap(err, "sequence")
+		}
+	}
+
+	if src == nil {
+		return nil
+	}
+	dec := json.NewDecoder(bytes.NewReader(src))
+	if _, err := dec.Token(); err != nil {
+		return errors.Wrap(err, "open bracket")
 	}
 	for dec.More() {
 		var m Model
@@ -78,11 +90,6 @@ func ImportTableData(ctx HasKVStore, t TableExportable, src json.RawMessage, seq
 	}
 	if _, err := dec.Token(); err != nil {
 		return errors.Wrap(err, "closing bracket")
-	}
-	if st, ok := t.(SequenceExportable); ok {
-		if err := st.Sequence().InitVal(ctx, seqValue); err != nil {
-			return errors.Wrap(err, "sequence")
-		}
 	}
 	return nil
 }

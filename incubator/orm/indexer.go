@@ -6,10 +6,10 @@ import (
 )
 
 // IndexerFunc creates one or multiple index keys for the source object.
-type IndexerFunc func(value interface{}) ([]RowID, error)
+type IndexerFunc func(value interface{}) ([][]byte, error)
 
 // IndexerFunc creates exactly one index key for the source object.
-type UniqueIndexerFunc func(value interface{}) (RowID, error)
+type UniqueIndexerFunc func(value interface{}) ([]byte, error)
 
 // Indexer manages the persistence for an Index based on searchable keys and operations.
 type Indexer struct {
@@ -39,9 +39,9 @@ func NewUniqueIndexer(f UniqueIndexerFunc, codec IndexKeyCodec) *Indexer {
 		panic("indexer func must not be nil")
 	}
 	adaptor := func(indexerFunc UniqueIndexerFunc) IndexerFunc {
-		return func(v interface{}) ([]RowID, error) {
+		return func(v interface{}) ([][]byte, error) {
 			k, err := indexerFunc(v)
-			return []RowID{k}, err
+			return [][]byte{k}, err
 		}
 	}
 	idx := NewIndexer(adaptor(f), codec)
@@ -126,7 +126,7 @@ func multiKeyAddFunc(store sdk.KVStore, codec IndexKeyCodec, secondaryIndexKey [
 }
 
 // difference returns the list of elements that are in a but not in b.
-func difference(a []RowID, b []RowID) []RowID {
+func difference(a [][]byte, b [][]byte) []RowID {
 	set := make(map[string]struct{}, len(b))
 	for _, v := range b {
 		set[string(v)] = struct{}{}
@@ -142,12 +142,12 @@ func difference(a []RowID, b []RowID) []RowID {
 
 // pruneEmptyKeys drops any empty key from IndexerFunc f returned
 func pruneEmptyKeys(f IndexerFunc) IndexerFunc {
-	return func(v interface{}) ([]RowID, error) {
+	return func(v interface{}) ([][]byte, error) {
 		keys, err := f(v)
 		if err != nil || keys == nil {
 			return keys, err
 		}
-		r := make([]RowID, 0, len(keys))
+		r := make([][]byte, 0, len(keys))
 		for i := range keys {
 			if len(keys[i]) != 0 {
 				r = append(r, keys[i])

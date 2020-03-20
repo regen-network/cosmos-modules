@@ -265,8 +265,12 @@ func (p ProposalBase) ValidateBasic() error {
 	if err := AccAddresses(p.Proposers).ValidateBasic(); err != nil {
 		return sdkerrors.Wrap(err, "proposers")
 	}
-	if p.SubmittedAt.Seconds == 0 && p.SubmittedAt.Nanos == 0 {
-		return sdkerrors.Wrap(ErrEmpty, "submitted at")
+	t, err := types.TimestampFromProto(&p.SubmittedAt)
+	if err != nil {
+		return errors.Wrap(err, "submitted at")
+	}
+	if t.IsZero() {
+		return errors.Wrap(ErrEmpty, "submitted at")
 	}
 	if p.GroupVersion == 0 {
 		return sdkerrors.Wrap(ErrEmpty, "group version")
@@ -295,8 +299,12 @@ func (p ProposalBase) ValidateBasic() error {
 	if err := p.VoteState.ValidateBasic(); err != nil {
 		return errors.Wrap(err, "vote state")
 	}
-	if p.Timeout.Seconds == 0 && p.Timeout.Nanos == 0 {
-		return sdkerrors.Wrap(ErrEmpty, "timeout")
+	t, err = types.TimestampFromProto(&p.Timeout)
+	if err != nil {
+		return errors.Wrap(err, "timeout")
+	}
+	if t.IsZero() {
+		return errors.Wrap(ErrEmpty, "timeout")
 	}
 	return nil
 }
