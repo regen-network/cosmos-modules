@@ -19,6 +19,10 @@ func (p GroupID) Uint64() uint64 {
 	return uint64(p)
 }
 
+func (p GroupID) Empty() bool {
+	return p == 0
+}
+
 func (g GroupID) Bytes() []byte {
 	return orm.EncodeSequence(uint64(g))
 }
@@ -31,6 +35,9 @@ func (p ProposalID) Bytes() []byte {
 
 func (p ProposalID) Uint64() uint64 {
 	return uint64(p)
+}
+func (p ProposalID) Empty() bool {
+	return p == 0
 }
 
 type DecisionPolicyResult struct {
@@ -71,8 +78,15 @@ func (g GroupAccountMetadataBase) NaturalKey() []byte {
 	return g.GroupAccount
 }
 
+func (g GroupAccountMetadataBase) ValidateBasic() error {
+	return nil
+}
 func (g StdGroupAccountMetadata) NaturalKey() []byte {
 	return g.Base.NaturalKey()
+}
+
+func (g StdGroupAccountMetadata) ValidateBasic() error {
+	return nil
 }
 
 func (v Vote) NaturalKey() []byte {
@@ -82,10 +96,7 @@ func (v Vote) NaturalKey() []byte {
 	return result
 }
 
-func (m Member) ValidateBasic() error {
-	if m.Address.Empty() {
-		return sdkerrors.Wrap(ErrEmpty, "address")
-	}
+func (g Vote) ValidateBasic() error {
 	return nil
 }
 
@@ -120,6 +131,41 @@ func (p Params) Validate() error {
 
 func noopValidator() subspace.ValueValidatorFn {
 	return func(value interface{}) error { return nil }
+}
+
+func (m GroupMetadata) ValidateBasic() error {
+	if m.Group.Empty() {
+		return sdkerrors.Wrap(ErrEmpty, "group")
+	}
+	if m.Admin.Empty() {
+		return sdkerrors.Wrap(ErrEmpty, "admin")
+	}
+	if err := sdk.VerifyAddressFormat(m.Admin); err != nil {
+		return sdkerrors.Wrap(err, "admin")
+	}
+	if m.TotalWeight.IsNil() || m.TotalWeight.LT(sdk.ZeroDec()) {
+		return sdkerrors.Wrap(ErrInvalid, "total weight")
+	}
+	if m.Version == 0 {
+		return sdkerrors.Wrap(ErrEmpty, "version")
+	}
+	return nil
+}
+
+func (m GroupMember) ValidateBasic() error {
+	if m.Group.Empty() {
+		return sdkerrors.Wrap(ErrEmpty, "group")
+	}
+	if m.Member.Empty() {
+		return sdkerrors.Wrap(ErrEmpty, "address")
+	}
+	if m.Weight.IsNil() || m.Weight.LTE(sdk.ZeroDec()) {
+		return sdkerrors.Wrap(ErrInvalid, "member power")
+	}
+	if err := sdk.VerifyAddressFormat(m.Member); err != nil {
+		return sdkerrors.Wrap(err, "address")
+	}
+	return nil
 }
 
 func (m *Tally) Sub(vote Vote, weight sdk.Dec) error {

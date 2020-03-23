@@ -92,3 +92,7 @@ func (n alwaysPanicPersistenceTarget) Marshal() ([]byte, error) {
 func (n alwaysPanicPersistenceTarget) Unmarshal([]byte) error {
 	panic("implement me")
 }
+
+func (n alwaysPanicPersistenceTarget) ValidateBasic() error {
+	panic("implement me")
+}

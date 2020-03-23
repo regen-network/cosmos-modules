@@ -64,3 +64,7 @@ func (m MockProposalI) GetMsgs() []sdk.Msg {
 func (m MockProposalI) SetMsgs([]sdk.Msg) error {
 	panic("implement me")
 }
+
+func (m MockProposalI) ValidateBasic() error {
+	panic("implement me")
+}

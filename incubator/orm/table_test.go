@@ -13,34 +13,51 @@ import (
 
 func TestCreate(t *testing.T) {
 	specs := map[string]struct {
-		srcObj Persistent
+		src    Persistent
 		expErr *errors.Error
 	}{
 		"happy path": {
-			srcObj: &testdata.GroupMember{
+			src: &testdata.GroupMetadata{
+				Description: "my group",
+				Admin:       sdk.AccAddress([]byte("my-admin-address")),
+			},
+		},
+		"wrong type": {
+			src: &testdata.GroupMember{
 				Group:  sdk.AccAddress(EncodeSequence(1)),
 				Member: sdk.AccAddress([]byte("member-address")),
 				Weight: 10,
 			},
-		},
-		"wrong type": {
-			srcObj: &testdata.GroupMetadata{},
 			expErr: ErrType,
+		},
+		"model validation fails": {
+			src:    &testdata.GroupMetadata{Description: "invalid"},
+			expErr: testdata.ErrTest,
 		},
 	}
 	for msg, spec := range specs {
 		t.Run(msg, func(t *testing.T) {
 			storeKey := sdk.NewKVStoreKey("test")
 			const anyPrefix = 0x10
-			tableBuilder := NewTableBuilder(anyPrefix, storeKey, &testdata.GroupMember{}, Max255DynamicLengthIndexKeyCodec{})
+			tableBuilder := NewTableBuilder(anyPrefix, storeKey, &testdata.GroupMetadata{}, Max255DynamicLengthIndexKeyCodec{})
 			myTable := tableBuilder.Build()
 
 			ctx := NewMockContext()
-			err := myTable.Create(ctx, []byte("any-id"), spec.srcObj)
+			err := myTable.Create(ctx, []byte("my-id"), spec.src)
 
 			require.True(t, spec.expErr.Is(err), err)
 			shouldExists := spec.expErr == nil
-			assert.Equal(t, shouldExists, myTable.Has(ctx, []byte("any-id")), fmt.Sprintf("expected %v", shouldExists))
+			assert.Equal(t, shouldExists, myTable.Has(ctx, []byte("my-id")), fmt.Sprintf("expected %v", shouldExists))
+
+			// then
+			var loaded testdata.GroupMetadata
+			err = myTable.GetOne(ctx, []byte("my-id"), &loaded)
+			if spec.expErr != nil {
+				require.True(t, ErrNotFound.Is(err))
+				return
+			}
+			require.NoError(t, err)
+			assert.Equal(t, spec.src, &loaded)
 		})
 	}
 
@@ -51,40 +68,46 @@ func TestUpdate(t *testing.T) {
 		expErr *errors.Error
 	}{
 		"happy path": {
+			src: &testdata.GroupMetadata{
+				Description: "my group",
+				Admin:       sdk.AccAddress([]byte("my-admin-address")),
+			},
+		},
+		"wrong type": {
 			src: &testdata.GroupMember{
 				Group:  sdk.AccAddress(EncodeSequence(1)),
 				Member: sdk.AccAddress([]byte("member-address")),
 				Weight: 9999,
 			},
-		},
-		"wrong type": {
-			src:    &testdata.GroupMetadata{},
 			expErr: ErrType,
+		},
+		"model validation fails": {
+			src:    &testdata.GroupMetadata{Description: "invalid"},
+			expErr: testdata.ErrTest,
 		},
 	}
 	for msg, spec := range specs {
 		t.Run(msg, func(t *testing.T) {
 			storeKey := sdk.NewKVStoreKey("test")
 			const anyPrefix = 0x10
-			tableBuilder := NewTableBuilder(anyPrefix, storeKey, &testdata.GroupMember{}, Max255DynamicLengthIndexKeyCodec{})
+			tableBuilder := NewTableBuilder(anyPrefix, storeKey, &testdata.GroupMetadata{}, Max255DynamicLengthIndexKeyCodec{})
 			myTable := tableBuilder.Build()
 
-			initValue := testdata.GroupMember{
-				Group:  sdk.AccAddress(EncodeSequence(1)),
-				Member: sdk.AccAddress([]byte("member-address")),
-				Weight: 10,
+			initValue := testdata.GroupMetadata{
+				Description: "my old group description",
+				Admin:       sdk.AccAddress([]byte("my-old-admin-address")),
 			}
 			ctx := NewMockContext()
-			err := myTable.Create(ctx, []byte("any-id"), &initValue)
+			err := myTable.Create(ctx, []byte("my-id"), &initValue)
 			require.NoError(t, err)
 
 			// when
-			err = myTable.Save(ctx, []byte("any-id"), spec.src)
+			err = myTable.Save(ctx, []byte("my-id"), spec.src)
 			require.True(t, spec.expErr.Is(err), "got ", err)
 
 			// then
-			var loaded testdata.GroupMember
-			require.NoError(t, myTable.GetOne(ctx, []byte("any-id"), &loaded))
+			var loaded testdata.GroupMetadata
+			require.NoError(t, myTable.GetOne(ctx, []byte("my-id"), &loaded))
 			if spec.expErr == nil {
 				assert.Equal(t, spec.src, &loaded)
 			} else {

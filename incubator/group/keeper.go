@@ -182,9 +182,11 @@ func (k Keeper) MaxCommentSize(ctx sdk.Context) int {
 	return int(result)
 }
 
-func (k Keeper) CreateGroup(ctx sdk.Context, admin sdk.AccAddress, members []Member, comment string) (GroupID, error) {
-	// todo: validate
-	// deduplicate
+func (k Keeper) CreateGroup(ctx sdk.Context, admin sdk.AccAddress, members Members, comment string) (GroupID, error) {
+	if err := members.ValidateBasic(); err != nil {
+		return 0, err
+	}
+
 	maxCommentSize := k.MaxCommentSize(ctx)
 	if len(comment) > maxCommentSize {
 		return 0, errors.Wrap(ErrMaxLimit, "group comment")
@@ -194,14 +196,13 @@ func (k Keeper) CreateGroup(ctx sdk.Context, admin sdk.AccAddress, members []Mem
 	for i := range members {
 		m := members[i]
 		if len(m.Comment) > maxCommentSize {
-			return 0, errors.Wrap(ErrMaxLimit, "group comment")
+			return 0, errors.Wrap(ErrMaxLimit, "member comment")
 		}
 		totalWeight = totalWeight.Add(m.Power)
 	}
 
-	id := k.groupSeq.NextVal(ctx)
-	var groupID = GroupID(id)
-	err := k.groupTable.Create(ctx, orm.EncodeSequence(id), &GroupMetadata{
+	groupID := GroupID(k.groupSeq.NextVal(ctx))
+	err := k.groupTable.Create(ctx, groupID.Bytes(), &GroupMetadata{
 		Group:       groupID,
 		Admin:       admin,
 		Comment:     comment,

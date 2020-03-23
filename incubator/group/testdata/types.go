@@ -32,6 +32,10 @@ func (m *MyAppProposal) SetMsgs(new []sdk.Msg) error {
 	return nil
 }
 
+func (m *MyAppProposal) ValidateBasic() error {
+	return nil
+}
+
 type MyAppMsgs []MyAppMsg
 
 // AsSDKMsgs type conversion to sdk.Msg.

@@ -7,6 +7,7 @@ import (
 
 	"github.com/cosmos/cosmos-sdk/codec"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	"github.com/cosmos/cosmos-sdk/types/errors"
 	"github.com/cosmos/cosmos-sdk/x/auth/types"
 	"github.com/cosmos/modules/incubator/group"
 	"github.com/cosmos/modules/incubator/group/testdata"
@@ -51,29 +52,67 @@ func TestCreateGroupScenario(t *testing.T) {
 	myAccount := app.AccountKeeper.NewAccountWithAddress(ctx, myAddr)
 	app.AccountKeeper.SetAccount(ctx, myAccount)
 
+	_, _, otherAddr := types.KeyTestPubAddr()
+
 	balances := sdk.NewCoins(sdk.NewInt64Coin("atom", 1000))
 	require.NoError(t, app.BankKeeper.SetBalances(ctx, myAddr, balances))
 
 	fee := types.NewTestStdFee()
+	specs := map[string]struct {
+		src     group.MsgCreateGroup
+		expErr  bool
+		expCode uint32
+	}{
+		"happy path": {
+			src: group.MsgCreateGroup{
+				Admin: myAddr,
+				Members: []group.Member{{
+					Address: myAddr,
+					Power:   sdk.NewDec(1),
+					Comment: "foo",
+				}},
+				Comment: "integration test",
+			},
+		},
+		"invalid message": {
+			src: group.MsgCreateGroup{
+				Admin: myAddr,
+				Members: []group.Member{{
+					Address: myAddr,
+					Power:   sdk.NewDec(0),
+					Comment: "invalid power",
+				}},
+				Comment: "integration test",
+			},
+			expCode: group.ErrEmpty.ABCICode(),
+		},
+		"invalid signer": {
+			src: group.MsgCreateGroup{
+				Admin:   otherAddr,
+				Comment: "admin and signer do not match",
+			},
+			expCode: errors.ErrInvalidPubKey.ABCICode(),
+		},
+	}
+	var seq uint64
+	for msg, spec := range specs {
+		t.Run(msg, func(t *testing.T) {
+			msgs := []sdk.Msg{spec.src}
+			privs, accNums, seqs := []crypto.PrivKey{myKey}, myAccount.GetAccountNumber(), myAccount.GetSequence()
+			tx := types.NewTestTx(ctx, msgs, privs, []uint64{accNums}, []uint64{seqs}, fee)
 
-	msgs := []sdk.Msg{group.MsgCreateGroup{
-		Admin: myAddr,
-		Members: []group.Member{{
-			Address: myAddr,
-			Power:   sdk.NewDec(1),
-			Comment: "foo",
-		}},
-		Comment: "integration test",
-	}}
+			resp := app.DeliverTx(abci.RequestDeliverTx{Tx: app.Codec().MustMarshalBinaryLengthPrefixed(tx)})
+			// then
+			require.Equal(t, spec.expCode, resp.Code, resp.Log)
+			if spec.expCode != 0 {
+				return
+			}
+			seq++
+			assert.Equal(t, orm.EncodeSequence(seq), resp.Data)
+			assert.True(t, app.GroupKeeper.HasGroup(ctx, resp.Data))
+		})
+	}
 
-	privs, accNums, seqs := []crypto.PrivKey{myKey}, myAccount.GetAccountNumber(), myAccount.GetSequence()
-	tx := types.NewTestTx(ctx, msgs, privs, []uint64{accNums}, []uint64{seqs}, fee)
-
-	resp := app.DeliverTx(abci.RequestDeliverTx{Tx: app.Codec().MustMarshalBinaryLengthPrefixed(tx)})
-
-	require.Equal(t, uint32(0), resp.Code, resp.Log)
-	assert.Equal(t, orm.EncodeSequence(1), resp.Data)
-	assert.True(t, app.GroupKeeper.HasGroup(ctx, resp.Data))
 }
 
 func TestFullProposalWorkflow(t *testing.T) {

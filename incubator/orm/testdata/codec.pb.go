@@ -27,7 +27,6 @@ type GroupMetadata struct {
 	Description string                                        `protobuf:"bytes,1,opt,name=description,proto3" json:"description,omitempty"`
 	Admin       github_com_cosmos_cosmos_sdk_types.AccAddress `protobuf:"bytes,2,opt,name=admin,proto3,casttype=github.com/cosmos/cosmos-sdk/types.AccAddress" json:"admin,omitempty"`
 }
-
 func (m *GroupMetadata) Reset()         { *m = GroupMetadata{} }
 func (m *GroupMetadata) String() string { return proto.CompactTextString(m) }
 func (*GroupMetadata) ProtoMessage()    {}

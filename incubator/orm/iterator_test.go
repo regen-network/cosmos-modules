@@ -155,3 +155,7 @@ func (p *persistentString) Unmarshal(b []byte) error {
 	p = &s
 	return nil
 }
+
+func (p persistentString) ValidateBasic() error {
+	return nil
+}
