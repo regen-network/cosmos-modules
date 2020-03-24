@@ -316,7 +316,7 @@ service Query {
     rpc GetGroupAccountsByGroup(ByGroupRequest) returns (GroupAccountsList);
     rpc GetGroupAccountsByOwner(ByAddressRequest) returns (GroupAccountsList);
     rpc GetProposal(ProposalRequest) returns (AnyProposal)
-    rpc GetProposalByGroupAccount(ByGroupAccountRequest) returns (ProposalList)
+    rpc GetProposalsByGroupAccount(ByGroupAccountRequest) returns (ProposalList)
     rpc GetVotes(VotesRequest) returns (VoteList)
 }
 
