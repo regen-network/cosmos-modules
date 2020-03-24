@@ -7,8 +7,8 @@ option go_package = "github.com/cosmos/modules/incubator/group";
 import "gogoproto/gogo.proto";
 import "google/protobuf/duration.proto";
 import "google/protobuf/timestamp.proto";
+import "google/protobuf/any.proto";
 import "third_party/proto/cosmos-proto/cosmos.proto";
-
 
 message Msg {
     oneof sum {
@@ -303,4 +303,83 @@ message GenesisState {
     option (gogoproto.equal) = true;
     option (gogoproto.goproto_stringer) = false;
     Params Params = 1 [(gogoproto.nullable)=false];
+}
+
+//
+// Queries
+//
+service Query {
+    rpc GetGroupMetadata(GroupMetadataRequest) returns (GroupMetadata);
+    rpc GetGroupAccountMetadata(GroupAccountMetadataRequest) returns (AnyGroupAccountMetadata);
+    rpc GetGroupsByMember(ByAddressRequest) returns (GroupsList);
+    rpc GetGroupsByOwner(ByAddressRequest) returns (GroupsList);
+    rpc GetGroupAccountsByGroup(ByGroupRequest) returns (GroupAccountsList);
+    rpc GetGroupAccountsByOwner(ByAddressRequest) returns (GroupAccountsList);
+    rpc GetProposal(ProposalRequest) returns (AnyProposal)
+    rpc GetProposalByGroupAccount(ByGroupAccountRequest) returns (ProposalList)
+    rpc GetVotes(VotesRequest) returns (VoteList)
+}
+
+message GroupMetadataRequest {
+    uint64 group = 1; // GroupID
+}
+
+message GroupAccountMetadataRequest {
+    bytes group_account = 1;
+}
+
+// AnyGroupAccountMetadata wraps its decision policy in Any for a consistent querier interface
+message AnyGroupAccountMetadata {
+    GroupAccountMetadataBase base = 1 [(gogoproto.nullable) = false];
+    google.protobuf.Any decision_policy = 2;
+}
+
+message ByAddressRequest {
+    bytes address = 1 [(gogoproto.casttype) = "github.com/cosmos/cosmos-sdk/types.AccAddress"];
+    uint64 offset = 2;
+    uint64 limit = 3;
+}
+
+message ByGroupRequest {
+    uint64 group = 1; // GroupID
+    uint64 offset = 2;
+    uint64 limit = 3;
+}
+
+message GroupsList {
+    repeated uint64 groups = 1;
+}
+
+message GroupAccountsList {
+    repeated AnyGroupAccountMetadata group_accounts = 1;
+}
+
+message ProposalRequest {
+    uint64 proposal = 1;
+}
+
+message AnyProposal {
+    ProposalBase base = 1;
+    repeated google.protobuf.Any msgs = 2;
+}
+
+message ByGroupAccountRequest {
+    bytes group_account = 1 [(gogoproto.casttype) = "github.com/cosmos/cosmos-sdk/types.AccAddress"];
+    uint64 offset = 2;
+    uint64 limit = 3;
+}
+
+message ProposalList {
+    repeated AnyProposal proposals = 1;
+}
+
+message VotesRequest {
+    uint64 proposal = 1;
+    bytes voter = 2 [(gogoproto.casttype) = "github.com/cosmos/cosmos-sdk/types.AccAddress"];
+    uint64 offset = ;
+    uint64 limit = 3;
+}
+
+message VoteList {
+    repeated Vote votes = 1;
 }
