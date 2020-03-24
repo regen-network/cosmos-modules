@@ -315,9 +315,9 @@ service Query {
     rpc GetGroupsByOwner(ByAddressRequest) returns (GroupsList);
     rpc GetGroupAccountsByGroup(ByGroupRequest) returns (GroupAccountsList);
     rpc GetGroupAccountsByOwner(ByAddressRequest) returns (GroupAccountsList);
-    rpc GetProposal(ProposalRequest) returns (AnyProposal)
-    rpc GetProposalsByGroupAccount(ByGroupAccountRequest) returns (ProposalList)
-    rpc GetVotes(VotesRequest) returns (VoteList)
+    rpc GetProposal(ProposalRequest) returns (AnyProposal);
+    rpc GetProposalsByGroupAccount(ByGroupAccountRequest) returns (ProposalList);
+    rpc GetVotes(VotesRequest) returns (VoteList);
 }
 
 message GroupMetadataRequest {
@@ -376,8 +376,8 @@ message ProposalList {
 message VotesRequest {
     uint64 proposal = 1;
     bytes voter = 2 [(gogoproto.casttype) = "github.com/cosmos/cosmos-sdk/types.AccAddress"];
-    uint64 offset = ;
-    uint64 limit = 3;
+    uint64 offset = 3;
+    uint64 limit = 4;
 }
 
 message VoteList {
