@@ -118,7 +118,7 @@ func splitPath(path string) (queryArgs, error) {
 }
 
 type RangeQueryParam struct {
-	start, end []byte
+	Start, End []byte
 }
 
 func DoQuery(ctx HasKVStore, index Index, mod string, cursor Cursor, data []byte) (Iterator, error) {
@@ -141,10 +141,10 @@ func DoQuery(ctx HasKVStore, index Index, mod string, cursor Cursor, data []byte
 				return nil, errors.Wrap(err, "unmarshal param")
 			}
 		}
-		if !cursor.InRange(param.start, param.end) {
+		if !cursor.InRange(param.Start, param.End) {
 			return nil, errors.Wrap(ErrArgument, "cursor not in range")
 		}
-		return index.PrefixScan(ctx, cursor.Move(param.start), param.end)
+		return index.PrefixScan(ctx, cursor.Move(param.Start), param.End)
 	default:
 		return nil, errors.Wrapf(ErrArgument, "unknown mod: %s", mod)
 	}
