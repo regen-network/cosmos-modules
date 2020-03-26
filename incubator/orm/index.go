@@ -69,7 +69,7 @@ func (i MultiKeyIndex) Has(ctx HasKVStore, key []byte) bool {
 func (i MultiKeyIndex) Get(ctx HasKVStore, searchKey []byte) (Iterator, error) {
 	store := prefix.NewStore(ctx.KVStore(i.storeKey), []byte{i.prefix})
 	it := store.Iterator(prefixRange(searchKey))
-	return indexIterator{ctx: ctx, it: it, rowGetter: i.rowGetter, keyCodec: i.indexKeyCodec}, nil
+	return &indexIterator{ctx: ctx, it: it, rowGetter: i.rowGetter, keyCodec: i.indexKeyCodec}, nil
 }
 
 // PrefixScan returns an Iterator over a domain of keys in ascending order. End is exclusive.
@@ -94,7 +94,7 @@ func (i MultiKeyIndex) PrefixScan(ctx HasKVStore, start []byte, end []byte) (Ite
 	}
 	store := prefix.NewStore(ctx.KVStore(i.storeKey), []byte{i.prefix})
 	it := store.Iterator(start, end)
-	return indexIterator{ctx: ctx, it: it, rowGetter: i.rowGetter, keyCodec: i.indexKeyCodec}, nil
+	return &indexIterator{ctx: ctx, it: it, rowGetter: i.rowGetter, keyCodec: i.indexKeyCodec}, nil
 }
 
 // ReversePrefixScan returns an Iterator over a domain of keys in descending order. End is exclusive.
@@ -112,7 +112,7 @@ func (i MultiKeyIndex) ReversePrefixScan(ctx HasKVStore, start []byte, end []byt
 	}
 	store := prefix.NewStore(ctx.KVStore(i.storeKey), []byte{i.prefix})
 	it := store.ReverseIterator(start, end)
-	return indexIterator{ctx: ctx, it: it, rowGetter: i.rowGetter, keyCodec: i.indexKeyCodec}, nil
+	return &indexIterator{ctx: ctx, it: it, rowGetter: i.rowGetter, keyCodec: i.indexKeyCodec}, nil
 }
 
 func (i MultiKeyIndex) onSave(ctx HasKVStore, rowID RowID, newValue, oldValue Persistent) error {
@@ -158,6 +158,14 @@ func (i indexIterator) LoadNext(dest Persistent) (RowID, error) {
 	rowID := i.keyCodec.StripRowID(indexPrefixKey)
 	i.it.Next()
 	return rowID, i.rowGetter.Get(i.ctx, rowID, dest)
+}
+
+// NextPosition return the current position
+func (i indexIterator) NextPosition() Cursor {
+	if !i.it.Valid() {
+		return nil
+	}
+	return i.it.Key()
 }
 
 // Close releases the iterator and should be called at the end of iteration

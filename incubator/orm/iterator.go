@@ -21,6 +21,10 @@ func (i IteratorFunc) LoadNext(dest Persistent) (RowID, error) {
 func (i IteratorFunc) Close() error {
 	return nil
 }
+// NextPosition return the current position
+func (i IteratorFunc) NextPosition() Cursor {
+	return nil
+}
 
 func NewRawValueIterator(rowID RowID, val []byte) Iterator {
 	var closed bool
@@ -86,6 +90,10 @@ func (i *LimitedIterator) LoadNext(dest Persistent) (RowID, error) {
 	}
 	i.remainingCount--
 	return i.parentIterator.LoadNext(dest)
+}
+
+func (i LimitedIterator) NextPosition() Cursor {
+	return i.parentIterator.NextPosition()
 }
 
 // Close releases the iterator and should be called at the end of iteration

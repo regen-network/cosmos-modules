@@ -1,7 +1,9 @@
 package group
 
 import (
+	"encoding/base64"
 	"encoding/json"
+	"fmt"
 	"testing"
 
 	"github.com/cosmos/cosmos-sdk/baseapp"
@@ -11,6 +13,7 @@ import (
 	"github.com/cosmos/cosmos-sdk/x/params"
 	"github.com/cosmos/cosmos-sdk/x/params/subspace"
 	"github.com/cosmos/modules/incubator/orm"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	abci "github.com/tendermint/tendermint/abci/types"
 )
@@ -31,11 +34,15 @@ func TestQuerier(t *testing.T) {
 	require.NoError(t, err)
 
 	q := NewQuerier(k)
+	encoding := base64.RawURLEncoding
 	specs := map[string]struct {
 		srcPath     string
 		srcData     []byte
+		srcCursor   string
 		expModelLen int
 		expErr      *errors.Error
+		expMore     bool
+		expCursor   string
 	}{
 		"query table for single entry": {
 			srcPath:     "xgroup",
@@ -65,6 +72,28 @@ func TestQuerier(t *testing.T) {
 			srcData:     []byte("o"),
 			expModelLen: 2,
 		},
+		"query table with limit": {
+			srcPath:     "xgroup?range&limit=1",
+			expModelLen: 1,
+			expMore:     true,
+			expCursor:   encoding.EncodeToString(orm.EncodeSequence(2)),
+		},
+		"query index with limit": {
+			srcPath:     "xgroup/admin?prefix&limit=1",
+			srcData:     []byte("o"),
+			expModelLen: 1,
+			expMore:     true,
+			expCursor:   encoding.EncodeToString(append([]byte("other-admin-address"), orm.EncodeSequence(2)...)),
+		},
+		"query index with cursor": {
+			srcPath:     fmt.Sprintf("xgroup/admin?prefix&cursor=%s", encoding.EncodeToString(append([]byte("other-admin-address"), orm.EncodeSequence(2)...))),
+			srcData:     []byte("o"),
+			expModelLen: 1,
+		},
+		"query table with cursor": {
+			srcPath:     fmt.Sprintf("xgroup?range&cursor=%s", encoding.EncodeToString(orm.EncodeSequence(2))),
+			expModelLen: 1,
+		},
 	}
 	for msg, spec := range specs {
 		t.Run(msg, func(t *testing.T) {
@@ -75,6 +104,12 @@ func TestQuerier(t *testing.T) {
 			require.NoError(t, json.Unmarshal(data, &res))
 			require.Contains(t, res, "data")
 			require.Len(t, res["data"], spec.expModelLen)
+			assert.Equal(t, spec.expMore, res["has_more"])
+			if spec.expCursor != "" {
+				assert.Equal(t, spec.expCursor, res["cursor"])
+			} else {
+				assert.NotContains(t, res, "cursor")
+			}
 		},
 		)
 	}

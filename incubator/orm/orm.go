@@ -100,6 +100,9 @@ type Iterator interface {
 	// are no more items the ErrIteratorDone error is returned
 	// The key is the rowID and not any MultiKeyIndex key.
 	LoadNext(dest Persistent) (RowID, error)
+
+	// NextPosition return a cursor to the next value
+	NextPosition() Cursor
 	// Close releases the iterator and should be called at the end of iteration
 	io.Closer
 }

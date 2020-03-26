@@ -248,13 +248,20 @@ type typeSafeIterator struct {
 	it        types.Iterator
 }
 
-func (i typeSafeIterator) LoadNext(dest Persistent) (RowID, error) {
+func (i *typeSafeIterator) LoadNext(dest Persistent) (RowID, error) {
 	if !i.it.Valid() {
 		return nil, ErrIteratorDone
 	}
 	rowID := i.it.Key()
 	i.it.Next()
 	return rowID, i.rowGetter.Get(i.ctx, rowID, dest)
+}
+
+func (i typeSafeIterator) NextPosition() Cursor {
+	if !i.it.Valid() {
+		return nil
+	}
+	return i.it.Key()
 }
 
 func (i typeSafeIterator) Close() error {

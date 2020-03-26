@@ -1,6 +1,9 @@
 package orm
 
 import (
+	"bytes"
+	"encoding/base64"
+	"encoding/json"
 	"fmt"
 	"reflect"
 )
@@ -11,12 +14,55 @@ const (
 	// PrefixQueryMod means to query for anything with this prefix
 	PrefixQueryMod = "prefix"
 	// RangeQueryMod means to expect complex range query
-	// TODO: implement
 	RangeQueryMod = "range"
 )
 
-const maxQueryResult = 50
+const maxQueryResult = 25
 
+const CursorQueryArg = "cursor"
+
+// NextPosition to navigate through a result set
+type Cursor []byte
+
+func ParseCursor(s string) (Cursor, error) {
+	if s == "" {
+		return nil, nil
+	}
+	return base64.RawURLEncoding.DecodeString(s)
+}
+
+func (c *Cursor) IsEmpty() bool {
+	return c == nil || len(*c) == 0
+}
+
+func (c *Cursor) InRange(start []byte, end []byte) bool {
+	switch {
+	case c.IsEmpty():
+		return true
+	case start != nil && bytes.Compare(start, *c) >= 0:
+		return false
+	case end != nil && bytes.Compare(end, *c) <= 0:
+		return false
+	}
+	return true
+}
+
+func (c Cursor) MarshalJSON() ([]byte, error) {
+	if c.IsEmpty() {
+		return nil, nil
+	}
+	out := make([]byte, base64.RawURLEncoding.EncodedLen(len(c)))
+	base64.RawURLEncoding.Encode(out, c)
+
+	return json.Marshal(string(out))
+}
+
+func (c *Cursor) Move(start []byte) []byte {
+	if c.IsEmpty() {
+		return start
+	}
+	return *c
+}
 
 type queryTableAdapter struct {
 	table Table
@@ -59,7 +105,7 @@ func (t queryIndexAdapter) GetModelType() reflect.Type {
 }
 
 // ModelTypeExportable this is an extension point for custom index implementations
-type ModelTypeExportable interface{
+type ModelTypeExportable interface {
 	Type() reflect.Type
 }
 
