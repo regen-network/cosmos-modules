@@ -2810,11 +2810,16 @@ type QueryClient interface {
 	GetVotes(ctx context.Context, in *VotesRequest, opts ...grpc.CallOption) (*VoteList, error)
 }
 
-type queryClient struct {
-	cc *grpc.ClientConn
+type ClientConn interface {
+	Invoke(ctx context.Context, method string, args, reply interface{}, opts ...grpc.CallOption) error
+	NewStream(ctx context.Context, desc *grpc.StreamDesc, method string, opts ...grpc.CallOption) (grpc.ClientStream, error)
 }
 
-func NewQueryClient(cc *grpc.ClientConn) QueryClient {
+type queryClient struct {
+	cc ClientConn
+}
+
+func NewQueryClient(cc ClientConn) QueryClient {
 	return &queryClient{cc}
 }
 
@@ -2944,7 +2949,11 @@ func (*UnimplementedQueryServer) GetVotes(ctx context.Context, req *VotesRequest
 	return nil, status.Errorf(codes.Unimplemented, "method GetVotes not implemented")
 }
 
-func RegisterQueryServer(s *grpc.Server, srv QueryServer) {
+type Server interface {
+	RegisterService(sd *grpc.ServiceDesc, ss interface{})
+}
+
+func RegisterQueryServer(s Server, srv QueryServer) {
 	s.RegisterService(&_Query_serviceDesc, srv)
 }
 

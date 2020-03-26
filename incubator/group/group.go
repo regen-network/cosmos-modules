@@ -26,9 +26,6 @@ const (
 	// RouterKey defines the module's message routing key
 	RouterKey = ModuleName
 
-	// QuerierRoute defines the module's query routing key
-	QuerierRoute = ModuleName
-
 	DefaultParamspace = ModuleName
 )
 
@@ -126,11 +123,13 @@ func (a AppModule) NewHandler() sdk.Handler {
 }
 
 func (a AppModule) QuerierRoute() string {
-	return QuerierRoute
+	return _Query_serviceDesc.ServiceName
 }
 
 func (a AppModule) NewQuerierHandler() sdk.Querier {
-	return NewQuerier(a.keeper)
+	qs := &QuerierServer{}
+	RegisterQueryServer(qs, Querier{a.keeper})
+	return qs.Querier()
 }
 
 func (a AppModule) BeginBlock(sdk.Context, abci.RequestBeginBlock) {}
