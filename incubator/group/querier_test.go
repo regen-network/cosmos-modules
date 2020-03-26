@@ -28,7 +28,7 @@ func TestQuerier(t *testing.T) {
 	ctx := NewContext(pKey, pTKey, groupKey)
 	k.setParams(ctx, DefaultParams())
 
-	_, err := k.CreateGroup(ctx, []byte("one-admin-address"), nil, "example1")
+	_, err := k.CreateGroup(ctx, []byte("one--admin--address"), nil, "example1")
 	require.NoError(t, err)
 	_, err = k.CreateGroup(ctx, []byte("other-admin-address"), nil, "example2")
 	require.NoError(t, err)
@@ -60,7 +60,7 @@ func TestQuerier(t *testing.T) {
 		},
 		"query index for single entity": {
 			srcPath:     "xgroup/admin",
-			srcData:     []byte("one-admin-address"),
+			srcData:     []byte("one--admin--address"),
 			expModelLen: 1,
 		},
 		"query index to find all in range": {
