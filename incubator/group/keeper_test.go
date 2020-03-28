@@ -82,12 +82,12 @@ func TestCreateGroup(t *testing.T) {
 			assert.Equal(t, group.GroupID(seq), id)
 
 			// then all data persisted
-			loaded, err := k.GetGroup(ctx, id)
+			loadedGroup, err := k.GetGroup(ctx, id)
 			require.NoError(t, err)
-			assert.Equal(t, sdk.AccAddress([]byte(spec.srcAdmin)), loaded.Admin)
-			assert.Equal(t, spec.srcComment, loaded.Comment)
-			assert.Equal(t, id, loaded.Group)
-			assert.Equal(t, uint64(1), loaded.Version)
+			assert.Equal(t, sdk.AccAddress([]byte(spec.srcAdmin)), loadedGroup.Admin)
+			assert.Equal(t, spec.srcComment, loadedGroup.Comment)
+			assert.Equal(t, id, loadedGroup.Group)
+			assert.Equal(t, uint64(1), loadedGroup.Version)
 
 			// and members are stored as well
 			it, err := k.GetGroupMemberByGroup(ctx, id)
@@ -186,14 +186,14 @@ func TestCreateGroupAccount(t *testing.T) {
 			require.NoError(t, err)
 
 			// then all data persisted
-			loaded, err := k.GetGroupAccount(ctx, addr)
+			groupAccount, err := k.GetGroupAccount(ctx, addr)
 			require.NoError(t, err)
-			assert.Equal(t, addr, loaded.Base.GroupAccount)
-			assert.Equal(t, myGroupID, loaded.Base.Group)
-			assert.Equal(t, sdk.AccAddress([]byte(spec.srcAdmin)), loaded.Base.Admin)
-			assert.Equal(t, spec.srcComment, loaded.Base.Comment)
-			assert.Equal(t, uint64(1), loaded.Base.Version)
-			assert.Equal(t, &spec.srcPolicy, loaded.DecisionPolicy.GetDecisionPolicy())
+			assert.Equal(t, addr, groupAccount.Base.GroupAccount)
+			assert.Equal(t, myGroupID, groupAccount.Base.Group)
+			assert.Equal(t, sdk.AccAddress([]byte(spec.srcAdmin)), groupAccount.Base.Admin)
+			assert.Equal(t, spec.srcComment, groupAccount.Base.Comment)
+			assert.Equal(t, uint64(1), groupAccount.Base.Version)
+			assert.Equal(t, &spec.srcPolicy, groupAccount.DecisionPolicy.GetDecisionPolicy())
 		})
 	}
 }
@@ -307,10 +307,10 @@ func TestCreateProposal(t *testing.T) {
 			require.NoError(t, err)
 
 			// then all data persisted
-			loaded, err := k.GetProposal(ctx, id)
+			proposal, err := k.GetProposal(ctx, id)
 			require.NoError(t, err)
 
-			base := loaded.GetBase()
+			base := proposal.GetBase()
 			assert.Equal(t, accountAddr, base.GroupAccount)
 			assert.Equal(t, spec.srcComment, base.Comment)
 			assert.Equal(t, spec.srcProposers, base.Proposers)
@@ -335,9 +335,9 @@ func TestCreateProposal(t *testing.T) {
 			assert.Equal(t, blockTime.Add(time.Second).UTC(), timout)
 
 			if spec.srcMsgs == nil { // then empty list is ok
-				assert.Len(t, loaded.GetMsgs(), 0)
+				assert.Len(t, proposal.GetMsgs(), 0)
 			} else {
-				assert.Equal(t, spec.srcMsgs, loaded.GetMsgs())
+				assert.Equal(t, spec.srcMsgs, proposal.GetMsgs())
 			}
 		})
 	}
