@@ -94,11 +94,11 @@ func TestCreateGroupScenario(t *testing.T) {
 		},
 	}
 	var seq uint64
+	privs, accNums := []crypto.PrivKey{myKey}, myAccount.GetAccountNumber()
 	for msg, spec := range specs {
 		t.Run(msg, func(t *testing.T) {
 			accSeq, err := app.AccountKeeper.GetSequence(ctx, myAddr)
 			require.NoError(t, err)
-			privs, accNums := []crypto.PrivKey{myKey}, myAccount.GetAccountNumber()
 			tx := types.NewTestTx(ctx, []sdk.Msg{spec.src}, privs, []uint64{accNums}, []uint64{accSeq}, fee)
 
 			resp := app.DeliverTx(abci.RequestDeliverTx{Tx: app.Codec().MustMarshalBinaryLengthPrefixed(tx)})
@@ -194,13 +194,12 @@ func TestCreateGroupAccountScenario(t *testing.T) {
 	}
 
 	var seq uint64
+	privs, accNums := []crypto.PrivKey{myKey}, myAccount.GetAccountNumber()
 	for msg, spec := range specs {
 		t.Run(msg, func(t *testing.T) {
 			msgs := []sdk.Msg{spec.src}
 			accSeq, err := app.AccountKeeper.GetSequence(ctx, myAddr)
 			require.NoError(t, err)
-			privs, accNums := []crypto.PrivKey{myKey}, myAccount.GetAccountNumber()
-			t.Logf("using sequence: %d", accSeq)
 			tx := types.NewTestTx(ctx, msgs, privs, []uint64{accNums}, []uint64{accSeq}, fee)
 
 			resp := app.DeliverTx(abci.RequestDeliverTx{Tx: app.Codec().MustMarshalBinaryLengthPrefixed(tx)})
