@@ -46,6 +46,7 @@ type DecisionPolicyResult struct {
 }
 
 type DecisionPolicy interface {
+	orm.Persistent
 	Allow(tally Tally, totalPower sdk.Dec, votingDuration time.Duration) (DecisionPolicyResult, error)
 }
 
@@ -67,6 +68,25 @@ func (p ThresholdDecisionPolicy) Allow(tally Tally, totalPower sdk.Dec, votingDu
 	return DecisionPolicyResult{Allow: false, Final: false}, nil
 }
 
+func (p ThresholdDecisionPolicy) ValidateBasic() error {
+	if p.Threshold.IsNil() {
+		return errors.Wrap(ErrEmpty, "threshold")
+	}
+	if p.Threshold.LT(sdk.ZeroDec()) {
+		return errors.Wrap(ErrInvalid, "threshold")
+	}
+	timeout, err := types.DurationFromProto(&p.Timout)
+	if err != nil {
+		return errors.Wrap(err, "timeout")
+	}
+
+	if timeout <= time.Nanosecond {
+		return errors.Wrap(ErrInvalid, "timeout")
+
+	}
+	return nil
+}
+
 func (g GroupMember) NaturalKey() []byte {
 	result := make([]byte, 8, 8+len(g.Member))
 	copy(result[0:8], g.Group.Bytes())
@@ -79,13 +99,43 @@ func (g GroupAccountMetadataBase) NaturalKey() []byte {
 }
 
 func (g GroupAccountMetadataBase) ValidateBasic() error {
+	if g.Admin.Empty() {
+		return sdkerrors.Wrap(ErrEmpty, "admin")
+	}
+	if err := sdk.VerifyAddressFormat(g.Admin); err != nil {
+		return sdkerrors.Wrap(err, "admin")
+	}
+	if g.GroupAccount.Empty() {
+		return sdkerrors.Wrap(ErrEmpty, "group account")
+	}
+	if err := sdk.VerifyAddressFormat(g.GroupAccount); err != nil {
+		return sdkerrors.Wrap(err, "group account")
+	}
+
+	if g.Group == 0 {
+		return sdkerrors.Wrap(ErrEmpty, "group")
+	}
+	if g.Version == 0 {
+		return sdkerrors.Wrap(ErrEmpty, "version")
+	}
+
 	return nil
 }
-func (g StdGroupAccountMetadata) NaturalKey() []byte {
-	return g.Base.NaturalKey()
+func (s StdGroupAccountMetadata) NaturalKey() []byte {
+	return s.Base.NaturalKey()
 }
 
-func (g StdGroupAccountMetadata) ValidateBasic() error {
+func (s StdGroupAccountMetadata) ValidateBasic() error {
+	if err := s.Base.ValidateBasic(); err != nil {
+		return errors.Wrap(err, "base")
+	}
+	policy := s.DecisionPolicy.GetDecisionPolicy()
+	if policy == nil {
+		return errors.Wrap(ErrEmpty, "policy")
+	}
+	if err := policy.ValidateBasic(); err != nil {
+		return errors.Wrap(err, "policy")
+	}
 	return nil
 }
 

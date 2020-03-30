@@ -257,12 +257,17 @@ func (k Keeper) setParams(ctx sdk.Context, params Params) {
 func (k Keeper) CreateGroupAccount(ctx sdk.Context, admin sdk.AccAddress, groupID GroupID, policy ThresholdDecisionPolicy, comment string) (sdk.AccAddress, error) {
 	maxCommentSize := k.MaxCommentSize(ctx)
 	if len(comment) > maxCommentSize {
-		return nil, errors.Wrap(ErrMaxLimit, "group account comment")
+		return nil, errors.Wrap(ErrMaxLimit,
+			"group account comment")
 	}
 
-	// todo: other validations
-	// todo: where to store decision policy?
-
+	g, err := k.GetGroup(ctx, groupID)
+	if err != nil {
+		return nil, err
+	}
+	if !g.Admin.Equals(admin) {
+		return nil, errors.Wrap(errors.ErrUnauthorized, "not group admin")
+	}
 	accountAddr := AccountCondition(k.groupAccountSeq.NextVal(ctx)).Address()
 	groupAccount := StdGroupAccountMetadata{
 		Base: GroupAccountMetadataBase{
@@ -518,6 +523,8 @@ func (k Keeper) CreateProposal(ctx sdk.Context, accountAddress sdk.AccAddress, c
 	if err != nil {
 		return 0, errors.Wrap(err, "end time conversion")
 	}
+
+	// todo: prevent impossible case case with threshold >= group total
 
 	m := reflect.New(k.proposalModelType).Interface().(ProposalI)
 	m.SetBase(ProposalBase{

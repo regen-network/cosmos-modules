@@ -108,7 +108,7 @@ message MsgUpdateGroupAccountComment {
 // MyAppDecisionPolicy should include all the existing StdDecisionPolicy types with the same field number and then
 // add custom DecisionPolicy types afterwards.
 message StdDecisionPolicy {
-    option (cosmos_proto.interface_type) = "DecisionPolicy";
+    option (cosmos_proto.interface_type) = "*DecisionPolicy";
     oneof sum {
         ThresholdDecisionPolicy threshold = 1;
     }
