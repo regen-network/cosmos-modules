@@ -302,22 +302,49 @@ message Params {
 message GenesisState {
     option (gogoproto.equal) = true;
     option (gogoproto.goproto_stringer) = false;
-    Params Params = 1 [(gogoproto.nullable)=false];
+    Params Params = 1 [(gogoproto.nullable) = false];
 }
 
 //
 // Queries
 //
 service Query {
-    rpc GetGroupMetadata(GroupMetadataRequest) returns (GroupMetadata);
-    rpc GetGroupAccountMetadata(GroupAccountMetadataRequest) returns (AnyGroupAccountMetadata);
-    rpc GetGroupsByMember(ByAddressRequest) returns (GroupsList);
-    rpc GetGroupsByOwner(ByAddressRequest) returns (GroupsList);
-    rpc GetGroupAccountsByGroup(ByGroupRequest) returns (GroupAccountsList);
-    rpc GetGroupAccountsByOwner(ByAddressRequest) returns (GroupAccountsList);
-    rpc GetProposal(ProposalRequest) returns (AnyProposal);
-    rpc GetProposalsByGroupAccount(ByGroupAccountRequest) returns (ProposalList);
-    rpc GetVotes(VotesRequest) returns (VoteList);
+    rpc GetGroupMetadata (GroupMetadataRequest) returns (GroupMetadata);
+    rpc GetGroupAccountMetadata (GroupAccountMetadataRequest) returns (AnyGroupAccountMetadata);
+
+    rpc GetGroupsByMember (ByAddressRequest) returns (GroupsList);
+    rpc GetGroupsByOwner (ByAddressRequest) returns (GroupsList);
+    rpc GetGroupAccountsByGroup (ByGroupRequest) returns (GroupAccountsList);
+    rpc GetGroupAccountsByOwner (ByAddressRequest) returns (GroupAccountsList);
+    rpc GetProposal (ProposalRequest) returns (AnyProposal);
+    // with generic result type
+    rpc GetProposalsByGroupAccount (ByGroupAccountRequest) returns (QueryResult);
+    // with custom result type
+    rpc GetVotes (VotesRequest) returns (VoteList);
+}
+
+message QueryArgs {
+    string cursor = 1;
+    uint32 limit = 2;
+}
+
+message Model {
+    bytes key = 1; // raw RowID
+    oneof value{
+        GroupMetadata group = 2;
+        AnyGroupAccountMetadata group_account = 3;
+        AnyProposal proposal = 4;
+        Vote vote = 5;
+    }
+}
+
+message Pagination {
+    string cursor = 1;
+    bool has_more = 2;
+}
+message QueryResult {
+    repeated Model model = 1;
+    Pagination pagination = 2;
 }
 
 message GroupMetadataRequest {
@@ -335,15 +362,13 @@ message AnyGroupAccountMetadata {
 }
 
 message ByAddressRequest {
-    bytes address = 1 [(gogoproto.casttype) = "github.com/cosmos/cosmos-sdk/types.AccAddress"];
-    uint64 offset = 2;
-    uint64 limit = 3;
+    QueryArgs query_args = 1;
+    bytes address = 2 [(gogoproto.casttype) = "github.com/cosmos/cosmos-sdk/types.AccAddress"];
 }
 
 message ByGroupRequest {
-    uint64 group = 1; // GroupID
-    uint64 offset = 2;
-    uint64 limit = 3;
+    QueryArgs query_args = 1;
+    uint64 group = 2; // GroupID
 }
 
 message GroupsList {
@@ -364,22 +389,23 @@ message AnyProposal {
 }
 
 message ByGroupAccountRequest {
-    bytes group_account = 1 [(gogoproto.casttype) = "github.com/cosmos/cosmos-sdk/types.AccAddress"];
-    uint64 offset = 2;
-    uint64 limit = 3;
+    QueryArgs query_args = 1;
+    bytes group_account = 2 [(gogoproto.casttype) = "github.com/cosmos/cosmos-sdk/types.AccAddress"];
 }
 
 message ProposalList {
+    // ProposalBase does not contain the ID. It would be required for other actions like vote, msgExec,...
     repeated AnyProposal proposals = 1;
 }
 
 message VotesRequest {
-    uint64 proposal = 1;
-    bytes voter = 2 [(gogoproto.casttype) = "github.com/cosmos/cosmos-sdk/types.AccAddress"];
-    uint64 offset = 3;
-    uint64 limit = 4;
+    QueryArgs query_args = 1;
+    uint64 proposal = 2; // q: is this optional or mandatory?
+    bytes voter = 3 [(gogoproto.casttype) = "github.com/cosmos/cosmos-sdk/types.AccAddress"]; // q: is this optional or mandatory?
 }
 
 message VoteList {
+    // votes to do not contain any ID in the object but there are no actions you can do with a vote object so far
     repeated Vote votes = 1;
+    Pagination pagination = 2;
 }
