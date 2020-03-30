@@ -28,9 +28,9 @@ func TestQuerier(t *testing.T) {
 	ctx := NewContext(pKey, pTKey, groupKey)
 	k.setParams(ctx, DefaultParams())
 
-	_, err := k.CreateGroup(ctx, []byte("one--admin--address"), nil, "example1")
+	_, err := k.CreateGroup(ctx, []byte("one---admin--address"), nil, "example1")
 	require.NoError(t, err)
-	_, err = k.CreateGroup(ctx, []byte("other-admin-address"), nil, "example2")
+	_, err = k.CreateGroup(ctx,  []byte("other--admin-address"), nil, "example2")
 	require.NoError(t, err)
 
 	q := NewQuerier(k)
@@ -60,7 +60,7 @@ func TestQuerier(t *testing.T) {
 		},
 		"query index for single entity": {
 			srcPath:     "xgroup/admin",
-			srcData:     []byte("one--admin--address"),
+			srcData:     []byte("one---admin--address"),
 			expModelLen: 1,
 		},
 		"query index to find all in range": {
@@ -83,10 +83,10 @@ func TestQuerier(t *testing.T) {
 			srcData:     []byte("o"),
 			expModelLen: 1,
 			expMore:     true,
-			expCursor:   encoding.EncodeToString(append([]byte("other-admin-address"), orm.EncodeSequence(2)...)),
+			expCursor:   encoding.EncodeToString(append([]byte("other--admin-address"), orm.EncodeSequence(2)...)),
 		},
 		"query index with cursor": {
-			srcPath:     fmt.Sprintf("xgroup/admin?prefix&cursor=%s", encoding.EncodeToString(append([]byte("other-admin-address"), orm.EncodeSequence(2)...))),
+			srcPath:     fmt.Sprintf("xgroup/admin?prefix&cursor=%s", encoding.EncodeToString(append([]byte("other--admin-address"), orm.EncodeSequence(2)...))),
 			srcData:     []byte("o"),
 			expModelLen: 1,
 		},
