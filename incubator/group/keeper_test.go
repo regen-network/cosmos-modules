@@ -90,7 +90,7 @@ func TestCreateGroup(t *testing.T) {
 			assert.Equal(t, uint64(1), loadedGroup.Version)
 
 			// and members are stored as well
-			it, err := k.GetGroupMemberByGroup(ctx, id)
+			it, err := k.GetGroupMembersByGroup(ctx, id)
 			require.NoError(t, err)
 			var loadedMembers []group.GroupMember
 			_, err = orm.ReadAll(it, &loadedMembers)
