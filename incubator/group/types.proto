@@ -139,9 +139,6 @@ message MsgProposeBase {
     // Proposers signatures will be counted as yes votes
     repeated bytes proposers = 2 [(gogoproto.casttype) = "github.com/cosmos/cosmos-sdk/types.AccAddress"];
     string comment = 3;
-    // ExecNow will attempt to execute the proposal immediately based on
-    // the proposers signing the transaction
-    bool exec_now = 4;
 }
 
 enum Choice {

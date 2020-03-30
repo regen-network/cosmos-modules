@@ -242,7 +242,7 @@ func (k Keeper) UpdateGroup(ctx sdk.Context, g *GroupMetadata) error {
 	return k.groupTable.Save(ctx, g.Group.Bytes(), g)
 }
 
-func (k Keeper) getParams(ctx sdk.Context) Params {
+func (k Keeper) GetParams(ctx sdk.Context) Params {
 	var p Params
 	k.paramSpace.GetParamSet(ctx, &p)
 	return p
@@ -300,6 +300,10 @@ func (k Keeper) GetGroupByGroupAccount(ctx sdk.Context, accountAddress sdk.AccAd
 		return GroupMetadata{}, errors.Wrap(err, "load group account")
 	}
 	return k.GetGroup(ctx, obj.Base.Group)
+}
+
+func (k Keeper) GetGroupMembersByGroup(ctx sdk.Context, id GroupID) (orm.Iterator, error) {
+	return k.groupMemberByGroupIndex.Get(ctx, id.Uint64())
 }
 
 func (k Keeper) Vote(ctx sdk.Context, id ProposalID, voters []sdk.AccAddress, choice Choice, comment string) error {
@@ -501,6 +505,11 @@ func (k Keeper) GetProposal(ctx sdk.Context, id ProposalID) (ProposalI, error) {
 }
 
 func (k Keeper) CreateProposal(ctx sdk.Context, accountAddress sdk.AccAddress, comment string, proposers []sdk.AccAddress, msgs []sdk.Msg) (ProposalID, error) {
+	maxCommentSize := k.MaxCommentSize(ctx)
+	if len(comment) > maxCommentSize {
+		return 0, errors.Wrap(ErrMaxLimit, "comment")
+	}
+
 	account, err := k.GetGroupAccount(ctx, accountAddress.Bytes())
 	if err != nil {
 		return 0, errors.Wrap(err, "load group account")
@@ -510,6 +519,13 @@ func (k Keeper) CreateProposal(ctx sdk.Context, accountAddress sdk.AccAddress, c
 	if err != nil {
 		return 0, errors.Wrap(err, "get group by account")
 	}
+
+	for i := range proposers {
+		if !k.groupMemberTable.Has(ctx, GroupMember{Group: g.Group, Member: proposers[i]}.NaturalKey()) {
+			return 0, errors.Wrapf(ErrUnauthorized, "not in group: %s", proposers[i])
+		}
+	}
+
 	blockTime, err := types.TimestampProto(ctx.BlockTime())
 	if err != nil {
 		return 0, errors.Wrap(err, "block time conversion")
@@ -524,7 +540,10 @@ func (k Keeper) CreateProposal(ctx sdk.Context, accountAddress sdk.AccAddress, c
 		return 0, errors.Wrap(err, "end time conversion")
 	}
 
-	// todo: prevent impossible case case with threshold >= group total
+	// prevent proposal that can not succeed
+	if policy.GetThreshold() != nil && policy.GetThreshold().Threshold.GTE(g.TotalWeight) {
+		return 0, errors.Wrap(ErrInvalid, "policy threshold should not be greater than the total group weight")
+	}
 
 	m := reflect.New(k.proposalModelType).Interface().(ProposalI)
 	m.SetBase(ProposalBase{
@@ -537,6 +556,12 @@ func (k Keeper) CreateProposal(ctx sdk.Context, accountAddress sdk.AccAddress, c
 		Result:              ProposalBase_Undefined,
 		Status:              ProposalBase_Submitted,
 		Timeout:             *endTime,
+		VoteState: Tally{
+			YesCount:     sdk.ZeroDec(),
+			NoCount:      sdk.ZeroDec(),
+			AbstainCount: sdk.ZeroDec(),
+			VetoCount:    sdk.ZeroDec(),
+		},
 	})
 	if err := m.SetMsgs(msgs); err != nil {
 		return 0, errors.Wrap(err, "create proposal")
@@ -547,31 +572,4 @@ func (k Keeper) CreateProposal(ctx sdk.Context, accountAddress sdk.AccAddress, c
 		return 0, errors.Wrap(err, "create proposal")
 	}
 	return ProposalID(id), nil
-}
-
-type KeeperDELME interface { // obsolete when Keeper implements all functions
-	// Groups
-	CreateGroup(ctx orm.HasKVStore, admin sdk.AccAddress, members []Member, comment string) (GroupID, error)
-	UpdateGroupMembers(ctx orm.HasKVStore, group GroupID, membersUpdates []Member) error
-	UpdateGroupAdmin(ctx orm.HasKVStore, group GroupID, newAdmin sdk.AccAddress) error
-	UpdateGroupComment(ctx orm.HasKVStore, group GroupID, newComment string) error
-
-	// Group Accounts
-	CreateGroupAccount(ctx orm.HasKVStore, admin sdk.AccAddress, group GroupID, policy DecisionPolicy, comment string) (sdk.AccAddress, error)
-	UpdateGroupAccountAdmin(ctx orm.HasKVStore, groupAcc sdk.AccAddress, newAdmin sdk.AccAddress) error
-	UpdateGroupAccountDecisionPolicy(ctx orm.HasKVStore, groupAcc sdk.AccAddress, newPolicy DecisionPolicy) error
-	UpdateGroupAccountComment(ctx orm.HasKVStore, groupAcc sdk.AccAddress, newComment string) error
-
-	// ProposalBases
-
-	// Propose returns a new ProposalBase ID and a populated sdk.Result which could return an error
-	// or the result of execution if execNow was set to true
-	Propose(ctx orm.HasKVStore, groupAcc sdk.AccAddress, approvers []sdk.AccAddress, msgs []sdk.Msg, comment string, execNow bool) (id ProposalID, execResult sdk.Result)
-
-	Vote(ctx orm.HasKVStore, id ProposalID, voters []sdk.AccAddress, choice Choice) error
-
-	// Exec attempts to execute the specified ProposalBase. If the ProposalBase is in a valid
-	// state and has enough approvals, then it will be executed and its result will be
-	// returned, otherwise the result will contain an error
-	Exec(ctx orm.HasKVStore, id ProposalID) sdk.Result
 }
