@@ -135,7 +135,7 @@ func mockIter(rowID RowID, val Persistent) Iterator {
 	if err != nil {
 		panic(err)
 	}
-	return NewSingleValueIterator(rowID, b)
+	return NewRawValueIterator(rowID, b)
 }
 
 func noopIter() Iterator {

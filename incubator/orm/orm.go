@@ -100,6 +100,9 @@ type Iterator interface {
 	// are no more items the ErrIteratorDone error is returned
 	// The key is the rowID and not any MultiKeyIndex key.
 	LoadNext(dest Persistent) (RowID, error)
+
+	// NextPosition return a cursor to the next value
+	NextPosition() Cursor
 	// Close releases the iterator and should be called at the end of iteration
 	io.Closer
 }
@@ -131,26 +134,47 @@ type AfterDeleteInterceptor func(ctx HasKVStore, rowID RowID, value Persistent) 
 
 // RowGetter loads a persistent object by row ID into the destination object. The dest parameter must therefore be a pointer.
 // Any implementation must return `ErrNotFound` when no object for the rowID exists
-type RowGetter func(ctx HasKVStore, rowID RowID, dest Persistent) error
+type RowGetter interface {
+	Get(ctx HasKVStore, rowID RowID, dest Persistent) error
+	Type() reflect.Type
+}
+
+type TypeSafeRowGetter struct {
+	storeKey  sdk.StoreKey
+	prefixKey byte
+	model     reflect.Type
+}
+
+// TableRowGetter returns a type safe `RowGetter` for the table.
+func TableRowGetter(table Table) TypeSafeRowGetter {
+	return NewTypeSafeRowGetter(table.storeKey, table.prefix, table.model)
+}
 
 // NewTypeSafeRowGetter returns a `RowGetter` with type check on the dest parameter.
-func NewTypeSafeRowGetter(storeKey sdk.StoreKey, prefixKey byte, model reflect.Type) RowGetter {
-	return func(ctx HasKVStore, rowID RowID, dest Persistent) error {
-		if len(rowID) == 0 {
-			return errors.Wrap(ErrArgument, "key must not be nil")
-		}
-		if err := assertCorrectType(model, dest); err != nil {
-			return err
-		}
+func NewTypeSafeRowGetter(storeKey sdk.StoreKey, prefixKey byte, model reflect.Type) TypeSafeRowGetter {
+	return TypeSafeRowGetter{storeKey, prefixKey, model}
+}
 
-		store := prefix.NewStore(ctx.KVStore(storeKey), []byte{prefixKey})
-		it := store.Iterator(prefixRange(rowID))
-		defer it.Close()
-		if !it.Valid() {
-			return ErrNotFound
-		}
-		return dest.Unmarshal(it.Value())
+func (t TypeSafeRowGetter) Get(ctx HasKVStore, rowID RowID, dest Persistent) error {
+	if len(rowID) == 0 {
+		return errors.Wrap(ErrArgument, "key must not be nil")
 	}
+	if err := assertCorrectType(t.model, dest); err != nil {
+		return err
+	}
+
+	store := prefix.NewStore(ctx.KVStore(t.storeKey), []byte{t.prefixKey})
+	it := store.Iterator(prefixRange(rowID))
+	defer it.Close()
+	if !it.Valid() {
+		return ErrNotFound
+	}
+	return dest.Unmarshal(it.Value())
+
+}
+
+func (t TypeSafeRowGetter) Type() reflect.Type {
+	return t.model
 }
 
 func assertCorrectType(model reflect.Type, obj Persistent) error {
