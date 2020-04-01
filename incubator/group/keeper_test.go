@@ -363,7 +363,7 @@ func TestVote(t *testing.T) {
 	require.NoError(t, err)
 
 	policy := group.ThresholdDecisionPolicy{
-		Threshold: sdk.OneDec(),
+		Threshold: sdk.NewDec(2),
 		Timout:    types.Duration{Seconds: 1},
 	}
 	accountAddr, err := k.CreateGroupAccount(parentCtx, []byte("valid--admin-address"), myGroupID, policy, "test")

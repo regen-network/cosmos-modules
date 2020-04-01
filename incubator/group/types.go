@@ -163,9 +163,6 @@ func (v Vote) ValidateBasic() error {
 	if _, ok := Choice_name[int32(v.Choice)]; !ok {
 		return errors.Wrap(ErrInvalid, "choice")
 	}
-	if _, ok := Choice_name[int32(v.Choice)]; !ok {
-		return errors.Wrap(ErrInvalid, "choice")
-	}
 	t, err := types.TimestampFromProto(&v.SubmittedAt)
 	if err != nil {
 		return errors.Wrap(err, "submitted at")
