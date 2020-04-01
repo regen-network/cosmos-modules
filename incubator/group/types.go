@@ -264,13 +264,13 @@ func (p ProposalBase) ValidateBasic() error {
 	if p.GroupAccountVersion == 0 {
 		return sdkerrors.Wrap(ErrEmpty, "group account version")
 	}
-	if p.Status == ProposalBase_PROPOSAL_STATUS_INVALID {
+	if p.Status == ProposalStatusInvalid {
 		return sdkerrors.Wrap(ErrEmpty, "status")
 	}
 	if _, ok := ProposalBase_Status_name[int32(p.Status)]; !ok {
 		return sdkerrors.Wrap(ErrInvalid, "status")
 	}
-	if p.Result == ProposalBase_PROPOSAL_RESULT_INVALID {
+	if p.Result == ProposalResultInvalid {
 		return sdkerrors.Wrap(ErrEmpty, "result")
 	}
 	if _, ok := ProposalBase_Result_name[int32(p.Result)]; !ok {

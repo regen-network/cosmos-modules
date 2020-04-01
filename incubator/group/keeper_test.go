@@ -321,8 +321,8 @@ func TestCreateProposal(t *testing.T) {
 
 			assert.Equal(t, uint64(1), base.GroupVersion)
 			assert.Equal(t, uint64(1), base.GroupAccountVersion)
-			assert.Equal(t, group.ProposalBase_Submitted, base.Status)
-			assert.Equal(t, group.ProposalBase_Undefined, base.Result)
+			assert.Equal(t, group.ProposalStatusSubmitted, base.Status)
+			assert.Equal(t, group.ProposalResultUndefined, base.Result)
 			assert.Equal(t, group.Tally{
 				YesCount:     sdk.ZeroDec(),
 				NoCount:      sdk.ZeroDec(),
@@ -393,8 +393,8 @@ func TestVote(t *testing.T) {
 				AbstainCount: sdk.ZeroDec(),
 				VetoCount:    sdk.ZeroDec(),
 			},
-			expProposalStatus: group.ProposalBase_Submitted,
-			expResult:         group.ProposalBase_Undefined,
+			expProposalStatus: group.ProposalStatusSubmitted,
+			expResult:         group.ProposalResultUndefined,
 		},
 		"vote no": {
 			srcProposalID: myProposalID,
@@ -406,8 +406,8 @@ func TestVote(t *testing.T) {
 				AbstainCount: sdk.ZeroDec(),
 				VetoCount:    sdk.ZeroDec(),
 			},
-			expProposalStatus: group.ProposalBase_Submitted,
-			expResult:         group.ProposalBase_Undefined,
+			expProposalStatus: group.ProposalStatusSubmitted,
+			expResult:         group.ProposalResultUndefined,
 		},
 		"vote abstain": {
 			srcProposalID: myProposalID,
@@ -419,8 +419,8 @@ func TestVote(t *testing.T) {
 				AbstainCount: sdk.OneDec(),
 				VetoCount:    sdk.ZeroDec(),
 			},
-			expProposalStatus: group.ProposalBase_Submitted,
-			expResult:         group.ProposalBase_Undefined,
+			expProposalStatus: group.ProposalStatusSubmitted,
+			expResult:         group.ProposalResultUndefined,
 		},
 		"vote veto": {
 			srcProposalID: myProposalID,
@@ -432,8 +432,8 @@ func TestVote(t *testing.T) {
 				AbstainCount: sdk.ZeroDec(),
 				VetoCount:    sdk.OneDec(),
 			},
-			expProposalStatus: group.ProposalBase_Submitted,
-			expResult:         group.ProposalBase_Undefined,
+			expProposalStatus: group.ProposalStatusSubmitted,
+			expResult:         group.ProposalResultUndefined,
 		},
 		"apply decision policy early": {
 			srcProposalID: myProposalID,
@@ -445,8 +445,8 @@ func TestVote(t *testing.T) {
 				AbstainCount: sdk.ZeroDec(),
 				VetoCount:    sdk.ZeroDec(),
 			},
-			expProposalStatus: group.ProposalBase_Closed,
-			expResult:         group.ProposalBase_Accepted,
+			expProposalStatus: group.ProposalStatusClosed,
+			expResult:         group.ProposalResultAccepted,
 		},
 		"comment too long": {
 			srcProposalID: myProposalID,
