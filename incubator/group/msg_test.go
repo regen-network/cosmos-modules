@@ -136,7 +136,7 @@ func TestMsgCreateGroupAccountStd(t *testing.T) {
 				},
 			},
 		},
-		"zero threshold allowed": {
+		"zero threshold not allowed": {
 			src: MsgCreateGroupAccountStd{
 				Base: MsgCreateGroupAccountBase{Admin: myAddr, Group: 1},
 				DecisionPolicy: StdDecisionPolicy{
@@ -146,6 +146,7 @@ func TestMsgCreateGroupAccountStd(t *testing.T) {
 					}},
 				},
 			},
+			expErr: true,
 		},
 		"admin required": {
 			src: MsgCreateGroupAccountStd{

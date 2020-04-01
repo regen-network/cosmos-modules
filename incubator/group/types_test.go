@@ -29,7 +29,7 @@ func TestThresholdDecisionPolicy(t *testing.T) {
 			srcVotingDuration: time.Second,
 			expResult:         DecisionPolicyResult{Allow: true, Final: true},
 		},
-		"reject when yes count equal to threshold": {
+		"accept when yes count equal to threshold": {
 			srcPolicy: ThresholdDecisionPolicy{
 				Threshold: sdk.OneDec(),
 				Timout:    proto.Duration{Seconds: 1},
@@ -37,7 +37,7 @@ func TestThresholdDecisionPolicy(t *testing.T) {
 			srcTally:          Tally{YesCount: sdk.OneDec(), NoCount: sdk.ZeroDec(), AbstainCount: sdk.ZeroDec(), VetoCount: sdk.ZeroDec()},
 			srcTotalPower:     sdk.NewDec(3),
 			srcVotingDuration: time.Second,
-			expResult:         DecisionPolicyResult{Allow: false, Final: false},
+			expResult:         DecisionPolicyResult{Allow: true, Final: true},
 		},
 		"reject when yes count lower to threshold": {
 			srcPolicy: ThresholdDecisionPolicy{
@@ -51,7 +51,7 @@ func TestThresholdDecisionPolicy(t *testing.T) {
 		},
 		"reject as final when remaining votes can't cross threshold": {
 			srcPolicy: ThresholdDecisionPolicy{
-				Threshold: sdk.OneDec(),
+				Threshold: sdk.NewDec(2),
 				Timout:    proto.Duration{Seconds: 1},
 			},
 			srcTally:          Tally{YesCount: sdk.ZeroDec(), NoCount: sdk.NewDec(2), AbstainCount: sdk.ZeroDec(), VetoCount: sdk.ZeroDec()},
@@ -69,9 +69,9 @@ func TestThresholdDecisionPolicy(t *testing.T) {
 			srcVotingDuration: time.Second + time.Nanosecond,
 			expResult:         DecisionPolicyResult{Allow: false, Final: true},
 		},
-		"abstain has not impact": {
+		"abstain has no impact": {
 			srcPolicy: ThresholdDecisionPolicy{
-				Threshold: sdk.ZeroDec(),
+				Threshold: sdk.OneDec(),
 				Timout:    proto.Duration{Seconds: 1},
 			},
 			srcTally:          Tally{YesCount: sdk.ZeroDec(), NoCount: sdk.ZeroDec(), AbstainCount: sdk.OneDec(), VetoCount: sdk.ZeroDec()},
@@ -81,7 +81,7 @@ func TestThresholdDecisionPolicy(t *testing.T) {
 		},
 		"veto same as no": {
 			srcPolicy: ThresholdDecisionPolicy{
-				Threshold: sdk.ZeroDec(),
+				Threshold: sdk.OneDec(),
 				Timout:    proto.Duration{Seconds: 1},
 			},
 			srcTally:          Tally{YesCount: sdk.ZeroDec(), NoCount: sdk.ZeroDec(), AbstainCount: sdk.ZeroDec(), VetoCount: sdk.NewDec(2)},
@@ -110,7 +110,7 @@ func TestThresholdDecisionPolicyValidation(t *testing.T) {
 		expErr bool
 	}{
 		"all good": {src: ThresholdDecisionPolicy{
-			Threshold: sdk.ZeroDec(),
+			Threshold: sdk.OneDec(),
 			Timout:    proto.Duration{Seconds: 1},
 		}},
 		"threshold missing": {src: ThresholdDecisionPolicy{
@@ -119,12 +119,12 @@ func TestThresholdDecisionPolicyValidation(t *testing.T) {
 			expErr: true,
 		},
 		"timeout missing": {src: ThresholdDecisionPolicy{
-			Threshold: sdk.ZeroDec(),
+			Threshold: sdk.OneDec(),
 		},
 			expErr: true,
 		},
 		"duration out of limit": {src: ThresholdDecisionPolicy{
-			Threshold: sdk.ZeroDec(),
+			Threshold: sdk.OneDec(),
 			Timout:    proto.Duration{Seconds: maxSeconds + 1},
 		},
 			expErr: true,
@@ -135,8 +135,19 @@ func TestThresholdDecisionPolicyValidation(t *testing.T) {
 		},
 			expErr: true,
 		},
-		"no negative timeouts": {src: ThresholdDecisionPolicy{
+		"no empty thresholds": {src: ThresholdDecisionPolicy{
+			Timout: proto.Duration{Seconds: 1},
+		},
+			expErr: true,
+		},
+		"no zero thresholds": {src: ThresholdDecisionPolicy{
+			Timout:    proto.Duration{Seconds: 1},
 			Threshold: sdk.ZeroDec(),
+		},
+			expErr: true,
+		},
+		"no negative timeouts": {src: ThresholdDecisionPolicy{
+			Threshold: sdk.OneDec(),
 			Timout:    proto.Duration{Seconds: -1},
 		},
 			expErr: true,
@@ -400,7 +411,7 @@ func TestStdGroupAccountMetadata(t *testing.T) {
 					Version:      1,
 				},
 				DecisionPolicy: StdDecisionPolicy{Sum: &StdDecisionPolicy_Threshold{&ThresholdDecisionPolicy{
-					Threshold: sdk.ZeroDec(),
+					Threshold: sdk.OneDec(),
 					Timout:    proto.Duration{Seconds: 1},
 				}}},
 			},
@@ -409,7 +420,7 @@ func TestStdGroupAccountMetadata(t *testing.T) {
 			src: StdGroupAccountMetadata{
 				Base: GroupAccountMetadataBase{},
 				DecisionPolicy: StdDecisionPolicy{Sum: &StdDecisionPolicy_Threshold{&ThresholdDecisionPolicy{
-					Threshold: sdk.ZeroDec(),
+					Threshold: sdk.OneDec(),
 					Timout:    proto.Duration{Seconds: 1},
 				}}},
 			},
@@ -418,7 +429,7 @@ func TestStdGroupAccountMetadata(t *testing.T) {
 		"missing base": {
 			src: StdGroupAccountMetadata{
 				DecisionPolicy: StdDecisionPolicy{Sum: &StdDecisionPolicy_Threshold{&ThresholdDecisionPolicy{
-					Threshold: sdk.ZeroDec(),
+					Threshold: sdk.OneDec(),
 					Timout:    proto.Duration{Seconds: 1},
 				}}},
 			},

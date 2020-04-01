@@ -142,7 +142,7 @@ func TestCreateGroupAccountScenario(t *testing.T) {
 				},
 				DecisionPolicy: group.StdDecisionPolicy{
 					Sum: &group.StdDecisionPolicy_Threshold{Threshold: &group.ThresholdDecisionPolicy{
-						Threshold: sdk.ZeroDec(),
+						Threshold: sdk.OneDec(),
 						Timout:    proto.Duration{Seconds: 1},
 					}}},
 			},
@@ -156,7 +156,7 @@ func TestCreateGroupAccountScenario(t *testing.T) {
 				},
 				DecisionPolicy: group.StdDecisionPolicy{
 					Sum: &group.StdDecisionPolicy_Threshold{Threshold: &group.ThresholdDecisionPolicy{
-						Threshold: sdk.ZeroDec(),
+						Threshold: sdk.OneDec(),
 						Timout:    proto.Duration{Seconds: 1},
 					}}},
 			},
@@ -170,7 +170,7 @@ func TestCreateGroupAccountScenario(t *testing.T) {
 				},
 				DecisionPolicy: group.StdDecisionPolicy{
 					Sum: &group.StdDecisionPolicy_Threshold{Threshold: &group.ThresholdDecisionPolicy{
-						Threshold: sdk.ZeroDec(),
+						Threshold: sdk.OneDec(),
 						Timout:    proto.Duration{Seconds: 1},
 					}}},
 			},
@@ -185,7 +185,7 @@ func TestCreateGroupAccountScenario(t *testing.T) {
 				},
 				DecisionPolicy: group.StdDecisionPolicy{
 					Sum: &group.StdDecisionPolicy_Threshold{Threshold: &group.ThresholdDecisionPolicy{
-						Threshold: sdk.ZeroDec(),
+						Threshold: sdk.OneDec(),
 						Timout:    proto.Duration{Seconds: 1},
 					}}},
 			},
@@ -232,7 +232,7 @@ func TestFullProposalWorkflow(t *testing.T) {
 			Admin: myAddr,
 			Members: []group.Member{{
 				Address: myAddr,
-				Power:   sdk.NewDec(1),
+				Power:   sdk.OneDec(),
 				Comment: "me",
 			}},
 			Comment: "integration test",
@@ -247,7 +247,7 @@ func TestFullProposalWorkflow(t *testing.T) {
 			DecisionPolicy: group.StdDecisionPolicy{
 				Sum: &group.StdDecisionPolicy_Threshold{
 					Threshold: &group.ThresholdDecisionPolicy{
-						Threshold: sdk.ZeroDec(),
+						Threshold: sdk.OneDec(),
 						Timout:    *proto.DurationProto(time.Second),
 					},
 				},
@@ -263,7 +263,7 @@ func TestFullProposalWorkflow(t *testing.T) {
 			DecisionPolicy: group.StdDecisionPolicy{
 				Sum: &group.StdDecisionPolicy_Threshold{
 					Threshold: &group.ThresholdDecisionPolicy{
-						Threshold: sdk.ZeroDec(),
+						Threshold: sdk.OneDec(),
 						Timout:    *proto.DurationProto(time.Second),
 					},
 				},
