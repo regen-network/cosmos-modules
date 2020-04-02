@@ -45,7 +45,7 @@ type DecisionPolicyResult struct {
 	Final bool
 }
 
-// DecisionPolicy is persistent set of rules to determine the result of election on a proposal.
+// DecisionPolicy is the persistent set of rules to determine the result of election on a proposal.
 type DecisionPolicy interface {
 	orm.Persistent
 	Allow(tally Tally, totalPower sdk.Dec, votingDuration time.Duration) (DecisionPolicyResult, error)
