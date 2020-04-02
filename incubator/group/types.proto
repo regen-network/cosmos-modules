@@ -274,14 +274,15 @@ message ProposalBase {
     google.protobuf.Timestamp timeout = 10 [(gogoproto.nullable) = false];
 
     enum ExecutorResult {
+        option (gogoproto.goproto_enum_prefix) = false;
         // An empty value is not allowed
-        PROPOSAL_EXECUTOR_RESULT_INVALID = 0;
+        PROPOSAL_EXECUTOR_RESULT_INVALID = 0  [(gogoproto.enumvalue_customname) = "ProposalExecutorResultInvalid"];
         // We have not yet run the executor
-        PROPOSAL_EXECUTOR_RESULT_NOT_RUN = 1 [(gogoproto.enumvalue_customname) = "NotRun"];
+        PROPOSAL_EXECUTOR_RESULT_NOT_RUN = 1 [(gogoproto.enumvalue_customname) = "ProposalExecutorResultNotRun"];
         // The executor was successful and proposed action updated state
-        PROPOSAL_EXECUTOR_RESULT_SUCCESS = 2 [(gogoproto.enumvalue_customname) = "Success"];
+        PROPOSAL_EXECUTOR_RESULT_SUCCESS = 2 [(gogoproto.enumvalue_customname) = "ProposalExecutorResultSuccess"];
         // The executor returned an error and proposed action didn't update state
-        PROPOSAL_EXECUTOR_RESULT_FAILURE = 3 [(gogoproto.enumvalue_customname) = "Failure"];
+        PROPOSAL_EXECUTOR_RESULT_FAILURE = 3 [(gogoproto.enumvalue_customname) = "ProposalExecutorResultFailure"];
     }
     // Result is the final result based on the votes and election rule. Initial value is NotRun.
     ExecutorResult executor_result = 11;

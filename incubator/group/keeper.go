@@ -453,16 +453,16 @@ func (k Keeper) ExecProposal(ctx sdk.Context, id ProposalID) error {
 	}
 
 	// execute proposal payload
-	if base.Status == ProposalStatusClosed && base.Result == ProposalResultAccepted && base.ExecutorResult != ProposalBase_Success {
+	if base.Status == ProposalStatusClosed && base.Result == ProposalResultAccepted && base.ExecutorResult != ProposalExecutorResultSuccess {
 		logger := ctx.Logger().With("module", fmt.Sprintf("x/%s", ModuleName))
 		ctx, flush := ctx.CacheContext()
 		_, err := doExecuteMsgs(ctx, k.router, accountMetadata.Base.GroupAccount, proposal.GetMsgs())
 		if err != nil {
-			base.ExecutorResult = ProposalBase_Failure
+			base.ExecutorResult = ProposalExecutorResultFailure
 			proposalType := reflect.TypeOf(proposal).String()
 			logger.Info("proposal execution failed", "cause", err, "type", proposalType, "proposalID", id)
 		} else {
-			base.ExecutorResult = ProposalBase_Success
+			base.ExecutorResult = ProposalExecutorResultSuccess
 			flush()
 		}
 	}
@@ -533,7 +533,7 @@ func (k Keeper) CreateProposal(ctx sdk.Context, accountAddress sdk.AccAddress, c
 		GroupAccountVersion: account.Base.Version,
 		Result:              ProposalResultUndefined,
 		Status:              ProposalStatusSubmitted,
-		ExecutorResult:      ProposalBase_NotRun,
+		ExecutorResult:      ProposalExecutorResultNotRun,
 		Timeout:             *endTime,
 		VoteState: Tally{
 			YesCount:     sdk.ZeroDec(),

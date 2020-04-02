@@ -254,7 +254,6 @@ func (p ProposalBase) ValidateBasic() error {
 	if err := AccAddresses(p.Proposers).ValidateBasic(); err != nil {
 		return sdkerrors.Wrap(err, "proposers")
 	}
-
 	if p.SubmittedAt.Seconds == 0 && p.SubmittedAt.Nanos == 0 {
 		return sdkerrors.Wrap(ErrEmpty, "submitted at")
 	}
@@ -276,10 +275,12 @@ func (p ProposalBase) ValidateBasic() error {
 	if _, ok := ProposalBase_Result_name[int32(p.Result)]; !ok {
 		return sdkerrors.Wrap(ErrInvalid, "result")
 	}
-	if p.ExecutorResult == ProposalBase_PROPOSAL_EXECUTOR_RESULT_INVALID {
+	if p.ExecutorResult == ProposalExecutorResultInvalid {
 		return sdkerrors.Wrap(ErrEmpty, "executor result")
 	}
-
+	if _, ok := ProposalBase_ExecutorResult_name[int32(p.ExecutorResult)]; !ok {
+		return sdkerrors.Wrap(ErrInvalid, "executor result")
+	}
 	if err := p.VoteState.ValidateBasic(); err != nil {
 		return errors.Wrap(err, "vote state")
 	}

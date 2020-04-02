@@ -305,6 +305,7 @@ func TestMsgProposeBase(t *testing.T) {
 		})
 	}
 }
+
 func TestMsgVote(t *testing.T) {
 	specs := map[string]struct {
 		src    MsgVote

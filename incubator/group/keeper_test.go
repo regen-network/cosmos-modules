@@ -662,7 +662,7 @@ func TestExecProposal(t *testing.T) {
 			},
 			expProposalStatus: group.ProposalStatusClosed,
 			expProposalResult: group.ProposalResultAccepted,
-			expExecutorResult: group.ProposalBase_Success,
+			expExecutorResult: group.ProposalExecutorResultSuccess,
 			expPayloadCounter: 1,
 		},
 		"proposal with multiple messages executed when accepted": {
@@ -677,7 +677,7 @@ func TestExecProposal(t *testing.T) {
 			},
 			expProposalStatus: group.ProposalStatusClosed,
 			expProposalResult: group.ProposalResultAccepted,
-			expExecutorResult: group.ProposalBase_Success,
+			expExecutorResult: group.ProposalExecutorResultSuccess,
 			expPayloadCounter: 2,
 		},
 		"proposal not executed when rejected": {
@@ -692,7 +692,7 @@ func TestExecProposal(t *testing.T) {
 			},
 			expProposalStatus: group.ProposalStatusClosed,
 			expProposalResult: group.ProposalResultRejected,
-			expExecutorResult: group.ProposalBase_NotRun,
+			expExecutorResult: group.ProposalExecutorResultNotRun,
 		},
 		"open proposal must not fail": {
 			setupProposal: func(t *testing.T, ctx sdk.Context) group.ProposalID {
@@ -705,7 +705,7 @@ func TestExecProposal(t *testing.T) {
 			},
 			expProposalStatus: group.ProposalStatusSubmitted,
 			expProposalResult: group.ProposalResultUndefined,
-			expExecutorResult: group.ProposalBase_NotRun,
+			expExecutorResult: group.ProposalExecutorResultNotRun,
 		},
 		"existing proposal required": {
 			setupProposal: func(t *testing.T, ctx sdk.Context) group.ProposalID {
@@ -726,7 +726,7 @@ func TestExecProposal(t *testing.T) {
 			srcBlockTime:      blockTime.Add(time.Second),
 			expProposalStatus: group.ProposalStatusClosed,
 			expProposalResult: group.ProposalResultRejected,
-			expExecutorResult: group.ProposalBase_NotRun,
+			expExecutorResult: group.ProposalExecutorResultNotRun,
 		},
 		"Decision policy also applied after timeout": {
 			setupProposal: func(t *testing.T, ctx sdk.Context) group.ProposalID {
@@ -741,7 +741,7 @@ func TestExecProposal(t *testing.T) {
 			srcBlockTime:      blockTime.Add(time.Second).Add(time.Millisecond),
 			expProposalStatus: group.ProposalStatusClosed,
 			expProposalResult: group.ProposalResultRejected,
-			expExecutorResult: group.ProposalBase_NotRun,
+			expExecutorResult: group.ProposalExecutorResultNotRun,
 		},
 		"with group modified before tally": {
 			setupProposal: func(t *testing.T, ctx sdk.Context) group.ProposalID {
@@ -759,7 +759,7 @@ func TestExecProposal(t *testing.T) {
 			},
 			expProposalStatus: group.ProposalStatusAborted,
 			expProposalResult: group.ProposalResultUndefined,
-			expExecutorResult: group.ProposalBase_NotRun,
+			expExecutorResult: group.ProposalExecutorResultNotRun,
 		},
 		"with group account modified before tally": {
 			setupProposal: func(t *testing.T, ctx sdk.Context) group.ProposalID {
@@ -777,7 +777,7 @@ func TestExecProposal(t *testing.T) {
 			},
 			expProposalStatus: group.ProposalStatusAborted,
 			expProposalResult: group.ProposalResultUndefined,
-			expExecutorResult: group.ProposalBase_NotRun,
+			expExecutorResult: group.ProposalExecutorResultNotRun,
 		},
 		"with group modified after tally": {
 			setupProposal: func(t *testing.T, ctx sdk.Context) group.ProposalID {
@@ -796,7 +796,7 @@ func TestExecProposal(t *testing.T) {
 			},
 			expProposalStatus: group.ProposalStatusClosed,
 			expProposalResult: group.ProposalResultAccepted,
-			expExecutorResult: group.ProposalBase_Failure,
+			expExecutorResult: group.ProposalExecutorResultFailure,
 		},
 		"with group account modified after tally": {
 			setupProposal: func(t *testing.T, ctx sdk.Context) group.ProposalID {
@@ -814,7 +814,7 @@ func TestExecProposal(t *testing.T) {
 			},
 			expProposalStatus: group.ProposalStatusAborted,
 			expProposalResult: group.ProposalResultUndefined,
-			expExecutorResult: group.ProposalBase_NotRun,
+			expExecutorResult: group.ProposalExecutorResultNotRun,
 		},
 		"prevent double execution when successful": {
 			setupProposal: func(t *testing.T, ctx sdk.Context) group.ProposalID {
@@ -830,7 +830,7 @@ func TestExecProposal(t *testing.T) {
 			expPayloadCounter: 1,
 			expProposalStatus: group.ProposalStatusClosed,
 			expProposalResult: group.ProposalResultAccepted,
-			expExecutorResult: group.ProposalBase_Success,
+			expExecutorResult: group.ProposalExecutorResultSuccess,
 		},
 		"rollback all msg updates on failure": {
 			setupProposal: func(t *testing.T, ctx sdk.Context) group.ProposalID {
@@ -844,7 +844,7 @@ func TestExecProposal(t *testing.T) {
 			},
 			expProposalStatus: group.ProposalStatusClosed,
 			expProposalResult: group.ProposalResultAccepted,
-			expExecutorResult: group.ProposalBase_Failure,
+			expExecutorResult: group.ProposalExecutorResultFailure,
 		},
 		"executable when failed before": {
 			setupProposal: func(t *testing.T, ctx sdk.Context) group.ProposalID {
@@ -861,7 +861,7 @@ func TestExecProposal(t *testing.T) {
 			expPayloadCounter: 2,
 			expProposalStatus: group.ProposalStatusClosed,
 			expProposalResult: group.ProposalResultAccepted,
-			expExecutorResult: group.ProposalBase_Success,
+			expExecutorResult: group.ProposalExecutorResultSuccess,
 		},
 	}
 	for msg, spec := range specs {
