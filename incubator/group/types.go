@@ -45,11 +45,13 @@ type DecisionPolicyResult struct {
 	Final bool
 }
 
+// DecisionPolicy is the persistent set of rules to determine the result of election on a proposal.
 type DecisionPolicy interface {
 	orm.Persistent
 	Allow(tally Tally, totalPower sdk.Dec, votingDuration time.Duration) (DecisionPolicyResult, error)
 }
 
+// Allow allows a proposal to pass when the tally of yes votes equals or exceeds the threshold before the timeout.
 func (p ThresholdDecisionPolicy) Allow(tally Tally, totalPower sdk.Dec, votingDuration time.Duration) (DecisionPolicyResult, error) {
 	timeout, err := types.DurationFromProto(&p.Timout)
 	if err != nil {
@@ -58,11 +60,11 @@ func (p ThresholdDecisionPolicy) Allow(tally Tally, totalPower sdk.Dec, votingDu
 	if timeout < votingDuration {
 		return DecisionPolicyResult{Allow: false, Final: true}, nil
 	}
-	if tally.YesCount.GT(p.Threshold) {
+	if tally.YesCount.GTE(p.Threshold) {
 		return DecisionPolicyResult{Allow: true, Final: true}, nil
 	}
 	undecided := totalPower.Sub(tally.TotalCounts())
-	if tally.YesCount.Add(undecided).LTE(p.Threshold) {
+	if tally.YesCount.Add(undecided).LT(p.Threshold) {
 		return DecisionPolicyResult{Allow: false, Final: true}, nil
 	}
 	return DecisionPolicyResult{Allow: false, Final: false}, nil
@@ -72,7 +74,7 @@ func (p ThresholdDecisionPolicy) ValidateBasic() error {
 	if p.Threshold.IsNil() {
 		return errors.Wrap(ErrEmpty, "threshold")
 	}
-	if p.Threshold.LT(sdk.ZeroDec()) {
+	if p.Threshold.LT(sdk.OneDec()) {
 		return errors.Wrap(ErrInvalid, "threshold")
 	}
 	timeout, err := types.DurationFromProto(&p.Timout)
@@ -82,7 +84,6 @@ func (p ThresholdDecisionPolicy) ValidateBasic() error {
 
 	if timeout <= time.Nanosecond {
 		return errors.Wrap(ErrInvalid, "timeout")
-
 	}
 	return nil
 }

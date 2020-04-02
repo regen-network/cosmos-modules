@@ -2,12 +2,164 @@ package group
 
 import (
 	"testing"
+	"time"
 
-	"github.com/cosmos/cosmos-sdk/types"
+	sdk "github.com/cosmos/cosmos-sdk/types"
 	proto "github.com/gogo/protobuf/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+func TestThresholdDecisionPolicy(t *testing.T) {
+	specs := map[string]struct {
+		srcPolicy         ThresholdDecisionPolicy
+		srcTally          Tally
+		srcTotalPower     sdk.Dec
+		srcVotingDuration time.Duration
+		expResult         DecisionPolicyResult
+		expErr            error
+	}{
+		"accept when yes count greater than threshold": {
+			srcPolicy: ThresholdDecisionPolicy{
+				Threshold: sdk.OneDec(),
+				Timout:    proto.Duration{Seconds: 1},
+			},
+			srcTally:          Tally{YesCount: sdk.NewDec(2)},
+			srcTotalPower:     sdk.NewDec(3),
+			srcVotingDuration: time.Second,
+			expResult:         DecisionPolicyResult{Allow: true, Final: true},
+		},
+		"accept when yes count equal to threshold": {
+			srcPolicy: ThresholdDecisionPolicy{
+				Threshold: sdk.OneDec(),
+				Timout:    proto.Duration{Seconds: 1},
+			},
+			srcTally:          Tally{YesCount: sdk.OneDec(), NoCount: sdk.ZeroDec(), AbstainCount: sdk.ZeroDec(), VetoCount: sdk.ZeroDec()},
+			srcTotalPower:     sdk.NewDec(3),
+			srcVotingDuration: time.Second,
+			expResult:         DecisionPolicyResult{Allow: true, Final: true},
+		},
+		"reject when yes count lower to threshold": {
+			srcPolicy: ThresholdDecisionPolicy{
+				Threshold: sdk.OneDec(),
+				Timout:    proto.Duration{Seconds: 1},
+			},
+			srcTally:          Tally{YesCount: sdk.ZeroDec(), NoCount: sdk.ZeroDec(), AbstainCount: sdk.ZeroDec(), VetoCount: sdk.ZeroDec()},
+			srcTotalPower:     sdk.NewDec(3),
+			srcVotingDuration: time.Second,
+			expResult:         DecisionPolicyResult{Allow: false, Final: false},
+		},
+		"reject as final when remaining votes can't cross threshold": {
+			srcPolicy: ThresholdDecisionPolicy{
+				Threshold: sdk.NewDec(2),
+				Timout:    proto.Duration{Seconds: 1},
+			},
+			srcTally:          Tally{YesCount: sdk.ZeroDec(), NoCount: sdk.NewDec(2), AbstainCount: sdk.ZeroDec(), VetoCount: sdk.ZeroDec()},
+			srcTotalPower:     sdk.NewDec(3),
+			srcVotingDuration: time.Second,
+			expResult:         DecisionPolicyResult{Allow: false, Final: true},
+		},
+		"reject when expired": {
+			srcPolicy: ThresholdDecisionPolicy{
+				Threshold: sdk.OneDec(),
+				Timout:    proto.Duration{Seconds: 1},
+			},
+			srcTally:          Tally{YesCount: sdk.NewDec(2)},
+			srcTotalPower:     sdk.NewDec(3),
+			srcVotingDuration: time.Second + time.Nanosecond,
+			expResult:         DecisionPolicyResult{Allow: false, Final: true},
+		},
+		"abstain has no impact": {
+			srcPolicy: ThresholdDecisionPolicy{
+				Threshold: sdk.OneDec(),
+				Timout:    proto.Duration{Seconds: 1},
+			},
+			srcTally:          Tally{YesCount: sdk.ZeroDec(), NoCount: sdk.ZeroDec(), AbstainCount: sdk.OneDec(), VetoCount: sdk.ZeroDec()},
+			srcTotalPower:     sdk.NewDec(3),
+			srcVotingDuration: time.Second,
+			expResult:         DecisionPolicyResult{Allow: false, Final: false},
+		},
+		"veto same as no": {
+			srcPolicy: ThresholdDecisionPolicy{
+				Threshold: sdk.OneDec(),
+				Timout:    proto.Duration{Seconds: 1},
+			},
+			srcTally:          Tally{YesCount: sdk.ZeroDec(), NoCount: sdk.ZeroDec(), AbstainCount: sdk.ZeroDec(), VetoCount: sdk.NewDec(2)},
+			srcTotalPower:     sdk.NewDec(3),
+			srcVotingDuration: time.Second,
+			expResult:         DecisionPolicyResult{Allow: false, Final: false},
+		},
+	}
+	for msg, spec := range specs {
+		t.Run(msg, func(t *testing.T) {
+			res, err := spec.srcPolicy.Allow(spec.srcTally, spec.srcTotalPower, spec.srcVotingDuration)
+			if spec.expErr != nil {
+				require.Error(t, err)
+				return
+			}
+			require.NoError(t, err)
+			assert.Equal(t, spec.expResult, res)
+		})
+	}
+}
+
+func TestThresholdDecisionPolicyValidation(t *testing.T) {
+	maxSeconds := int64(10000 * 365.25 * 24 * 60 * 60)
+	specs := map[string]struct {
+		src    ThresholdDecisionPolicy
+		expErr bool
+	}{
+		"all good": {src: ThresholdDecisionPolicy{
+			Threshold: sdk.OneDec(),
+			Timout:    proto.Duration{Seconds: 1},
+		}},
+		"threshold missing": {src: ThresholdDecisionPolicy{
+			Timout: proto.Duration{Seconds: 1},
+		},
+			expErr: true,
+		},
+		"timeout missing": {src: ThresholdDecisionPolicy{
+			Threshold: sdk.OneDec(),
+		},
+			expErr: true,
+		},
+		"duration out of limit": {src: ThresholdDecisionPolicy{
+			Threshold: sdk.OneDec(),
+			Timout:    proto.Duration{Seconds: maxSeconds + 1},
+		},
+			expErr: true,
+		},
+		"no negative thresholds": {src: ThresholdDecisionPolicy{
+			Threshold: sdk.NewDec(-1),
+			Timout:    proto.Duration{Seconds: 1},
+		},
+			expErr: true,
+		},
+		"no empty thresholds": {src: ThresholdDecisionPolicy{
+			Timout: proto.Duration{Seconds: 1},
+		},
+			expErr: true,
+		},
+		"no zero thresholds": {src: ThresholdDecisionPolicy{
+			Timout:    proto.Duration{Seconds: 1},
+			Threshold: sdk.ZeroDec(),
+		},
+			expErr: true,
+		},
+		"no negative timeouts": {src: ThresholdDecisionPolicy{
+			Threshold: sdk.OneDec(),
+			Timout:    proto.Duration{Seconds: -1},
+		},
+			expErr: true,
+		},
+	}
+	for msg, spec := range specs {
+		t.Run(msg, func(t *testing.T) {
+			err := spec.src.ValidateBasic()
+			assert.Equal(t, spec.expErr, err != nil, err)
+		})
+	}
+}
 
 func TestVoteNaturalKey(t *testing.T) {
 	v := Vote{
@@ -28,7 +180,7 @@ func TestGroupMetadataValidation(t *testing.T) {
 				Admin:       []byte("valid--admin-address"),
 				Comment:     "any",
 				Version:     1,
-				TotalWeight: types.ZeroDec(),
+				TotalWeight: sdk.ZeroDec(),
 			},
 		},
 		"invalid group": {
@@ -36,7 +188,7 @@ func TestGroupMetadataValidation(t *testing.T) {
 				Admin:       []byte("valid--admin-address"),
 				Comment:     "any",
 				Version:     1,
-				TotalWeight: types.ZeroDec(),
+				TotalWeight: sdk.ZeroDec(),
 			},
 			expErr: true,
 		},
@@ -46,7 +198,7 @@ func TestGroupMetadataValidation(t *testing.T) {
 				Admin:       []byte("invalid"),
 				Comment:     "any",
 				Version:     1,
-				TotalWeight: types.ZeroDec(),
+				TotalWeight: sdk.ZeroDec(),
 			},
 			expErr: true,
 		},
@@ -55,7 +207,7 @@ func TestGroupMetadataValidation(t *testing.T) {
 				Group:       1,
 				Admin:       []byte("valid--admin-address"),
 				Comment:     "any",
-				TotalWeight: types.ZeroDec(),
+				TotalWeight: sdk.ZeroDec(),
 			},
 			expErr: true,
 		},
@@ -74,7 +226,7 @@ func TestGroupMetadataValidation(t *testing.T) {
 				Admin:       []byte("valid--admin-address"),
 				Comment:     "any",
 				Version:     1,
-				TotalWeight: types.NewDec(-1),
+				TotalWeight: sdk.NewDec(-1),
 			},
 			expErr: true,
 		},
@@ -100,7 +252,7 @@ func TestGroupMemberValidation(t *testing.T) {
 			src: GroupMember{
 				Group:   1,
 				Member:  []byte("valid-member-address"),
-				Weight:  types.OneDec(),
+				Weight:  sdk.OneDec(),
 				Comment: "any",
 			},
 		},
@@ -108,7 +260,7 @@ func TestGroupMemberValidation(t *testing.T) {
 			src: GroupMember{
 				Group:   0,
 				Member:  []byte("valid-member-address"),
-				Weight:  types.OneDec(),
+				Weight:  sdk.OneDec(),
 				Comment: "any",
 			},
 			expErr: true,
@@ -117,7 +269,7 @@ func TestGroupMemberValidation(t *testing.T) {
 			src: GroupMember{
 				Group:   1,
 				Member:  []byte("invalid-member-address"),
-				Weight:  types.OneDec(),
+				Weight:  sdk.OneDec(),
 				Comment: "any",
 			},
 			expErr: true,
@@ -125,7 +277,7 @@ func TestGroupMemberValidation(t *testing.T) {
 		"empy address": {
 			src: GroupMember{
 				Group:   1,
-				Weight:  types.OneDec(),
+				Weight:  sdk.OneDec(),
 				Comment: "any",
 			},
 			expErr: true,
@@ -134,7 +286,7 @@ func TestGroupMemberValidation(t *testing.T) {
 			src: GroupMember{
 				Group:   1,
 				Member:  []byte("valid-member-address"),
-				Weight:  types.ZeroDec(),
+				Weight:  sdk.ZeroDec(),
 				Comment: "any",
 			},
 			expErr: true,
@@ -259,7 +411,7 @@ func TestStdGroupAccountMetadata(t *testing.T) {
 					Version:      1,
 				},
 				DecisionPolicy: StdDecisionPolicy{Sum: &StdDecisionPolicy_Threshold{&ThresholdDecisionPolicy{
-					Threshold: types.ZeroDec(),
+					Threshold: sdk.OneDec(),
 					Timout:    proto.Duration{Seconds: 1},
 				}}},
 			},
@@ -268,7 +420,7 @@ func TestStdGroupAccountMetadata(t *testing.T) {
 			src: StdGroupAccountMetadata{
 				Base: GroupAccountMetadataBase{},
 				DecisionPolicy: StdDecisionPolicy{Sum: &StdDecisionPolicy_Threshold{&ThresholdDecisionPolicy{
-					Threshold: types.ZeroDec(),
+					Threshold: sdk.OneDec(),
 					Timout:    proto.Duration{Seconds: 1},
 				}}},
 			},
@@ -277,7 +429,7 @@ func TestStdGroupAccountMetadata(t *testing.T) {
 		"missing base": {
 			src: StdGroupAccountMetadata{
 				DecisionPolicy: StdDecisionPolicy{Sum: &StdDecisionPolicy_Threshold{&ThresholdDecisionPolicy{
-					Threshold: types.ZeroDec(),
+					Threshold: sdk.OneDec(),
 					Timout:    proto.Duration{Seconds: 1},
 				}}},
 			},

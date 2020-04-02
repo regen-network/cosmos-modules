@@ -132,7 +132,7 @@ func TestCreateGroupAccount(t *testing.T) {
 			srcComment: "test",
 			srcGroupID: myGroupID,
 			srcPolicy: group.ThresholdDecisionPolicy{
-				Threshold: sdk.ZeroDec(),
+				Threshold: sdk.OneDec(),
 				Timout:    types.Duration{Seconds: 1},
 			},
 		},
@@ -170,7 +170,7 @@ func TestCreateGroupAccount(t *testing.T) {
 			srcComment: strings.Repeat("a", 256),
 			srcGroupID: myGroupID,
 			srcPolicy: group.ThresholdDecisionPolicy{
-				Threshold: sdk.ZeroDec(),
+				Threshold: sdk.OneDec(),
 				Timout:    types.Duration{Seconds: 1},
 			},
 			expErr: true,
@@ -218,7 +218,7 @@ func TestCreateProposal(t *testing.T) {
 	require.NoError(t, err)
 
 	policy := group.ThresholdDecisionPolicy{
-		Threshold: sdk.ZeroDec(),
+		Threshold: sdk.OneDec(),
 		Timout:    types.Duration{Seconds: 1},
 	}
 	accountAddr, err := k.CreateGroupAccount(ctx, []byte("valid--admin-address"), myGroupID, policy, "test")

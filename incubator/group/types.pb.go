@@ -1018,7 +1018,6 @@ func (*StdDecisionPolicy) XXX_OneofWrappers() []interface{} {
 	}
 }
 
-// todo: we need to ensure that ThresholdDecisionPolicy can not be modified during a running proposal
 type ThresholdDecisionPolicy struct {
 	// threshold is a fix weight value that must be exceeded for a proposal to succeed.
 	Threshold github_com_cosmos_cosmos_sdk_types.Dec `protobuf:"bytes,1,opt,name=threshold,proto3,customtype=github.com/cosmos/cosmos-sdk/types.Dec" json:"threshold"`

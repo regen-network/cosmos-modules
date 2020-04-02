@@ -541,7 +541,7 @@ func (k Keeper) CreateProposal(ctx sdk.Context, accountAddress sdk.AccAddress, c
 	}
 
 	// prevent proposal that can not succeed
-	if policy.GetThreshold() != nil && policy.GetThreshold().Threshold.GTE(g.TotalWeight) {
+	if policy.GetThreshold() != nil && policy.GetThreshold().Threshold.GT(g.TotalWeight) {
 		return 0, errors.Wrap(ErrInvalid, "policy threshold should not be greater than the total group weight")
 	}
 
