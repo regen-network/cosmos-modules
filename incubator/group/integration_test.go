@@ -327,8 +327,8 @@ func TestFullProposalWorkflow(t *testing.T) {
 	// then verify proposal got accepted
 	proposal, err := app.GroupKeeper.GetProposal(ctx, 1)
 	require.NoError(t, err)
-	assert.Equal(t, group.ProposalBase_Accepted, proposal.GetBase().Result, proposal.GetBase().Result.String())
-	assert.Equal(t, group.ProposalBase_Closed, proposal.GetBase().Status, proposal.GetBase().Status.String())
+	assert.Equal(t, group.ProposalResultAccepted, proposal.GetBase().Result, proposal.GetBase().Result.String())
+	assert.Equal(t, group.ProposalStatusClosed, proposal.GetBase().Status, proposal.GetBase().Status.String())
 	expTally := group.Tally{YesCount: sdk.OneDec(), NoCount: sdk.ZeroDec(), AbstainCount: sdk.ZeroDec(), VetoCount: sdk.ZeroDec()}
 	assert.Equal(t, expTally, proposal.GetBase().VoteState)
 
@@ -349,8 +349,8 @@ func TestFullProposalWorkflow(t *testing.T) {
 	// verify second  proposal
 	proposal, err = app.GroupKeeper.GetProposal(ctx, 2)
 	require.NoError(t, err)
-	assert.Equal(t, group.ProposalBase_Rejected, proposal.GetBase().Result, proposal.GetBase().Result.String())
-	assert.Equal(t, group.ProposalBase_Closed, proposal.GetBase().Status, proposal.GetBase().Status.String())
+	assert.Equal(t, group.ProposalResultRejected, proposal.GetBase().Result, proposal.GetBase().Result.String())
+	assert.Equal(t, group.ProposalStatusClosed, proposal.GetBase().Status, proposal.GetBase().Status.String())
 	expTally = group.Tally{YesCount: sdk.ZeroDec(), NoCount: sdk.ZeroDec(), AbstainCount: sdk.ZeroDec(), VetoCount: sdk.OneDec()}
 	assert.Equal(t, expTally, proposal.GetBase().VoteState)
 }

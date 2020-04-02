@@ -233,14 +233,15 @@ message ProposalBase {
     uint64 group_account_version = 6;
 
     enum Status {
+        option (gogoproto.goproto_enum_prefix) = false;
         // An empty value is invalid and not allowed
-        PROPOSAL_STATUS_INVALID = 0;
+        PROPOSAL_STATUS_INVALID = 0 [(gogoproto.enumvalue_customname) = "ProposalStatusInvalid"];
         // Initial status of a proposal when persisted.
-        PROPOSAL_STATUS_SUBMITTED = 1 [(gogoproto.enumvalue_customname) = "Submitted"];
+        PROPOSAL_STATUS_SUBMITTED = 1 [(gogoproto.enumvalue_customname) = "ProposalStatusSubmitted"];
         // Final status of a proposal when the final tally was executed
-        PROPOSAL_STATUS_CLOSED = 2 [(gogoproto.enumvalue_customname) = "Closed"];
+        PROPOSAL_STATUS_CLOSED = 2 [(gogoproto.enumvalue_customname) = "ProposalStatusClosed"];
         // Final status of a proposal when the group was modified before the final tally.
-        PROPOSAL_STATUS_ABORTED = 3 [(gogoproto.enumvalue_customname) = "Aborted"];
+        PROPOSAL_STATUS_ABORTED = 3 [(gogoproto.enumvalue_customname) = "ProposalStatusAborted"];
 
         // TODO: do we want to support a withdrawn operation?
         // A proposal can be deleted before the voting start time by the owner. When this happens the final status
@@ -250,14 +251,15 @@ message ProposalBase {
     // Status represents the high level position in the life cycle of the proposal. Initial value is Submitted.
     Status status = 7;
     enum Result {
+        option (gogoproto.goproto_enum_prefix) = false;
         // An empty value is invalid and not allowed
-        PROPOSAL_RESULT_INVALID = 0;
+        PROPOSAL_RESULT_INVALID = 0 [(gogoproto.enumvalue_customname) = "ProposalResultInvalid"];
         // Until a final tally has happened the status is undefined
-        PROPOSAL_RESULT_UNDEFINED = 1 [(gogoproto.enumvalue_customname) = "Undefined"];
+        PROPOSAL_RESULT_UNDEFINED = 1 [(gogoproto.enumvalue_customname) = "ProposalResultUndefined"];
         // Final result of the tally
-        PROPOSAL_RESULT_ACCEPTED = 2 [(gogoproto.enumvalue_customname) = "Accepted"];
+        PROPOSAL_RESULT_ACCEPTED = 2 [(gogoproto.enumvalue_customname) = "ProposalResultAccepted"];
         // Final result of the tally
-        PROPOSAL_RESULT_REJECTED = 3 [(gogoproto.enumvalue_customname) = "Rejected"];
+        PROPOSAL_RESULT_REJECTED = 3 [(gogoproto.enumvalue_customname) = "ProposalResultRejected"];
     }
     // Result is the final result based on the votes and election rule. Initial value is Undefined.
     // The result is persisted so that clients can always rely on this state and not have to replicate the logic.
