@@ -14,14 +14,14 @@ func NewHandler(k Keeper) sdk.Handler {
 		ctx = ctx.WithEventManager(sdk.NewEventManager())
 		logger := ctx.Logger().With("module", fmt.Sprintf("x/%s", ModuleName))
 		switch msg := msg.(type) {
-		case MsgPropose:
-			return handleMsgPropose(ctx, k, msg)
+		case *MsgPropose:
+			return handleMsgPropose(ctx, k, *msg)
 		case *MsgAlwaysSucceed:
 			logger.Info("executed MsgAlwaysSucceed msg")
 			return &sdk.Result{
 				Data:   nil,
 				Log:    "MsgAlwaysSucceed executed",
-				Events: ctx.EventManager().Events(),
+				Events: ctx.EventManager().Events().ToABCIEvents(),
 			}, nil
 		case *MsgAlwaysFail:
 			logger.Info("executed MsgAlwaysFail msg")
@@ -32,14 +32,14 @@ func NewHandler(k Keeper) sdk.Handler {
 			return &sdk.Result{
 				Data:   []byte(msg.Value),
 				Log:    "MsgSetValue executed",
-				Events: ctx.EventManager().Events(),
+				Events: ctx.EventManager().Events().ToABCIEvents(),
 			}, nil
 		case *MsgIncCounter:
 			logger.Info("executed MsgIncCounter msg")
 			return &sdk.Result{
 				Data:   k.IncCounter(ctx),
 				Log:    "MsgIncCounter executed",
-				Events: ctx.EventManager().Events(),
+				Events: ctx.EventManager().Events().ToABCIEvents(),
 			}, nil
 		case *MsgConditional:
 			logger.Info("executed MsgConditional msg")
@@ -49,14 +49,14 @@ func NewHandler(k Keeper) sdk.Handler {
 			return &sdk.Result{
 				Data:   orm.EncodeSequence(msg.ExpectedCounter),
 				Log:    "MsgConditional executed",
-				Events: ctx.EventManager().Events(),
+				Events: ctx.EventManager().Events().ToABCIEvents(),
 			}, nil
 		case *MsgAuthenticate:
 			logger.Info("executed MsgAuthenticate msg")
 			return &sdk.Result{
 				Data:   nil,
 				Log:    "MsgAuthenticate executed",
-				Events: ctx.EventManager().Events(),
+				Events: ctx.EventManager().Events().ToABCIEvents(),
 			}, nil
 		default:
 			return nil, sdkerrors.Wrapf(sdkerrors.ErrUnknownRequest, "unrecognized message type: %T", msg)
@@ -72,6 +72,6 @@ func handleMsgPropose(ctx sdk.Context, k Keeper, msg MsgPropose) (*sdk.Result, e
 	return &sdk.Result{
 		Data:   id.Bytes(),
 		Log:    fmt.Sprintf("Proposal created :%d", id),
-		Events: ctx.EventManager().Events(),
+		Events: ctx.EventManager().Events().ToABCIEvents(),
 	}, nil
 }

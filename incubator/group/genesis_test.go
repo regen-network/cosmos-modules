@@ -8,20 +8,20 @@ import (
 	"github.com/cosmos/cosmos-sdk/codec"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/x/params"
-	"github.com/cosmos/cosmos-sdk/x/params/subspace"
+	subspace "github.com/cosmos/cosmos-sdk/x/params/types"
 	"github.com/cosmos/modules/incubator/group"
 	"github.com/cosmos/modules/incubator/group/testdata"
 	"github.com/cosmos/modules/incubator/orm"
 	"github.com/gogo/protobuf/types"
-	"github.com/google/gofuzz"
+	fuzz "github.com/google/gofuzz"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
 func TestGenesisImportExportParameters(t *testing.T) {
-	amino := codec.New()
+	cdc := codec.NewHybridCodec(codec.New())
 	pKey, pTKey := sdk.NewKVStoreKey(params.StoreKey), sdk.NewTransientStoreKey(params.TStoreKey)
-	paramSpace := subspace.NewSubspace(amino, pKey, pTKey, group.DefaultParamspace)
+	paramSpace := subspace.NewSubspace(cdc, pKey, pTKey, group.DefaultParamspace)
 
 	groupKey := sdk.NewKVStoreKey(group.StoreKeyName)
 	srcK := group.NewGroupKeeper(groupKey, paramSpace, baseapp.NewRouter(), &group.MockProposalI{})
@@ -33,20 +33,20 @@ func TestGenesisImportExportParameters(t *testing.T) {
 		srcCtx := group.NewContext(pKey, pTKey, groupKey)
 		paramSpace.SetParamSet(srcCtx, &params)
 
-		raw := group.NewAppModule(srcK).ExportGenesis(srcCtx)
+		raw := group.NewAppModule(srcK).ExportGenesis(srcCtx, cdc)
 
 		destK := group.NewGroupKeeper(groupKey, paramSpace, baseapp.NewRouter(), &group.MockProposalI{})
 		destCtx := group.NewContext(pKey, pTKey, groupKey)
 
-		_ = group.NewAppModule(destK).InitGenesis(destCtx, raw)
+		_ = group.NewAppModule(destK).InitGenesis(destCtx, cdc, raw)
 		require.Equal(t, srcK.GetParams(srcCtx), destK.GetParams(destCtx))
 	}
 }
 
 func TestGenesisImportExportGroups(t *testing.T) {
-	amino := codec.New()
+	cdc := codec.NewHybridCodec(codec.New())
 	pKey, pTKey := sdk.NewKVStoreKey(params.StoreKey), sdk.NewTransientStoreKey(params.TStoreKey)
-	paramSpace := subspace.NewSubspace(amino, pKey, pTKey, group.DefaultParamspace)
+	paramSpace := subspace.NewSubspace(cdc, pKey, pTKey, group.DefaultParamspace)
 
 	groupKey := sdk.NewKVStoreKey(group.StoreKeyName)
 	srcK := group.NewGroupKeeper(groupKey, paramSpace, baseapp.NewRouter(), &group.MockProposalI{})
@@ -69,12 +69,12 @@ func TestGenesisImportExportGroups(t *testing.T) {
 		groupID, err := srcK.CreateGroup(srcCtx, admin, members, descr)
 		require.NoError(t, err)
 
-		raw := group.NewAppModule(srcK).ExportGenesis(srcCtx)
+		raw := group.NewAppModule(srcK).ExportGenesis(srcCtx, cdc)
 
 		destK := group.NewGroupKeeper(groupKey, paramSpace, baseapp.NewRouter(), &group.MockProposalI{})
 		destCtx := group.NewContext(pKey, pTKey, groupKey)
 
-		_ = group.NewAppModule(destK).InitGenesis(destCtx, raw)
+		_ = group.NewAppModule(destK).InitGenesis(destCtx, cdc, raw)
 
 		got, err := srcK.GetGroup(srcCtx, groupID)
 		require.NoError(t, err)
@@ -108,9 +108,9 @@ func TestGenesisImportExportGroups(t *testing.T) {
 }
 
 func TestGenesisImportExportGroupMembers(t *testing.T) {
-	amino := codec.New()
+	cdc := codec.NewHybridCodec(codec.New())
 	pKey, pTKey := sdk.NewKVStoreKey(params.StoreKey), sdk.NewTransientStoreKey(params.TStoreKey)
-	paramSpace := subspace.NewSubspace(amino, pKey, pTKey, group.DefaultParamspace)
+	paramSpace := subspace.NewSubspace(cdc, pKey, pTKey, group.DefaultParamspace)
 
 	groupKey := sdk.NewKVStoreKey(group.StoreKeyName)
 	srcK := group.NewGroupKeeper(groupKey, paramSpace, baseapp.NewRouter(), &group.MockProposalI{})
@@ -133,12 +133,12 @@ func TestGenesisImportExportGroupMembers(t *testing.T) {
 		groupID, err := srcK.CreateGroup(srcCtx, admin, members, descr)
 		require.NoError(t, err)
 
-		raw := group.NewAppModule(srcK).ExportGenesis(srcCtx)
+		raw := group.NewAppModule(srcK).ExportGenesis(srcCtx, cdc)
 
 		destK := group.NewGroupKeeper(groupKey, paramSpace, baseapp.NewRouter(), &group.MockProposalI{})
 		destCtx := group.NewContext(pKey, pTKey, groupKey)
 
-		_ = group.NewAppModule(destK).InitGenesis(destCtx, raw)
+		_ = group.NewAppModule(destK).InitGenesis(destCtx, cdc, raw)
 
 		for i, m := range members {
 			exp, err := srcK.GetGroupMember(srcCtx, groupID, m.Address)
@@ -151,9 +151,9 @@ func TestGenesisImportExportGroupMembers(t *testing.T) {
 }
 
 func TestGenesisImportExportGroupAccount(t *testing.T) {
-	amino := codec.New()
+	cdc := codec.NewHybridCodec(codec.New())
 	pKey, pTKey := sdk.NewKVStoreKey(params.StoreKey), sdk.NewTransientStoreKey(params.TStoreKey)
-	paramSpace := subspace.NewSubspace(amino, pKey, pTKey, group.DefaultParamspace)
+	paramSpace := subspace.NewSubspace(cdc, pKey, pTKey, group.DefaultParamspace)
 
 	groupKey := sdk.NewKVStoreKey(group.StoreKeyName)
 	srcK := group.NewGroupKeeper(groupKey, paramSpace, baseapp.NewRouter(), &group.MockProposalI{})
@@ -177,12 +177,12 @@ func TestGenesisImportExportGroupAccount(t *testing.T) {
 		acc, err := srcK.CreateGroupAccount(srcCtx, admin, groupID, policy, comment)
 		require.NoError(t, err)
 
-		raw := group.NewAppModule(srcK).ExportGenesis(srcCtx)
+		raw := group.NewAppModule(srcK).ExportGenesis(srcCtx, cdc)
 
 		destK := group.NewGroupKeeper(groupKey, paramSpace, baseapp.NewRouter(), &group.MockProposalI{})
 		destCtx := group.NewContext(pKey, pTKey, groupKey)
 
-		_ = group.NewAppModule(destK).InitGenesis(destCtx, raw)
+		_ = group.NewAppModule(destK).InitGenesis(destCtx, cdc, raw)
 
 		exp, err := srcK.GetGroupAccount(srcCtx, acc)
 		require.NoError(t, err)
@@ -194,9 +194,9 @@ func TestGenesisImportExportGroupAccount(t *testing.T) {
 }
 
 func TestGenesisImportExportProposals(t *testing.T) {
-	amino := codec.New()
+	cdc := codec.NewHybridCodec(codec.New())
 	pKey, pTKey := sdk.NewKVStoreKey(params.StoreKey), sdk.NewTransientStoreKey(params.TStoreKey)
-	paramSpace := subspace.NewSubspace(amino, pKey, pTKey, group.DefaultParamspace)
+	paramSpace := subspace.NewSubspace(cdc, pKey, pTKey, group.DefaultParamspace)
 
 	groupKey := sdk.NewKVStoreKey(group.StoreKeyName)
 	srcK := group.NewGroupKeeper(groupKey, paramSpace, baseapp.NewRouter(), &testdata.MyAppProposal{})
@@ -236,12 +236,12 @@ func TestGenesisImportExportProposals(t *testing.T) {
 		srcCtx = srcCtx.WithBlockTime(blockTime)
 		propID, err := srcK.CreateProposal(srcCtx, acc, comment, proposers, msgs)
 		require.NoError(t, err)
-		raw := group.NewAppModule(srcK).ExportGenesis(srcCtx)
+		raw := group.NewAppModule(srcK).ExportGenesis(srcCtx, cdc)
 
 		destK := group.NewGroupKeeper(groupKey, paramSpace, baseapp.NewRouter(), &testdata.MyAppProposal{})
 		destCtx := group.NewContext(pKey, pTKey, groupKey)
 
-		_ = group.NewAppModule(destK).InitGenesis(destCtx, raw)
+		_ = group.NewAppModule(destK).InitGenesis(destCtx, cdc, raw)
 
 		exp, err := srcK.GetProposal(srcCtx, propID)
 		require.NoError(t, err)
@@ -253,9 +253,9 @@ func TestGenesisImportExportProposals(t *testing.T) {
 }
 
 func TestGenesisImportExportVotes(t *testing.T) {
-	amino := codec.New()
+	cdc := codec.NewHybridCodec(codec.New())
 	pKey, pTKey := sdk.NewKVStoreKey(params.StoreKey), sdk.NewTransientStoreKey(params.TStoreKey)
-	paramSpace := subspace.NewSubspace(amino, pKey, pTKey, group.DefaultParamspace)
+	paramSpace := subspace.NewSubspace(cdc, pKey, pTKey, group.DefaultParamspace)
 
 	groupKey := sdk.NewKVStoreKey(group.StoreKeyName)
 	srcK := group.NewGroupKeeper(groupKey, paramSpace, baseapp.NewRouter(), &testdata.MyAppProposal{})
@@ -300,12 +300,12 @@ func TestGenesisImportExportVotes(t *testing.T) {
 		err = srcK.Vote(srcCtx, propID, voters, choice, comment)
 		require.NoError(t, err)
 
-		raw := group.NewAppModule(srcK).ExportGenesis(srcCtx)
+		raw := group.NewAppModule(srcK).ExportGenesis(srcCtx, cdc)
 
 		destK := group.NewGroupKeeper(groupKey, paramSpace, baseapp.NewRouter(), &testdata.MyAppProposal{})
 		destCtx := group.NewContext(pKey, pTKey, groupKey)
 
-		_ = group.NewAppModule(destK).InitGenesis(destCtx, raw)
+		_ = group.NewAppModule(destK).InitGenesis(destCtx, cdc, raw)
 
 		for _, voter := range voters {
 			exp, err := srcK.GetVote(srcCtx, propID, voter)

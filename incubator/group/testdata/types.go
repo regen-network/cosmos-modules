@@ -36,11 +36,11 @@ func (m *MyAppProposal) SetMsgs(new []sdk.Msg) error {
 var _ orm.Validateable = MyAppProposal{}
 
 func (m MyAppProposal) ValidateBasic() error {
-	if err:=m.Base.ValidateBasic(); err!=nil{
+	if err := m.Base.ValidateBasic(); err != nil {
 		return errors.Wrap(err, "base")
 	}
-	for i, msg := range m.Msgs{
-		if err:=msg.GetMsg().ValidateBasic(); err!=nil{
+	for i, msg := range m.Msgs {
+		if err := msg.GetMsg().ValidateBasic(); err != nil {
 			return errors.Wrapf(err, "message %i", i)
 		}
 	}

@@ -7,6 +7,7 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/types/errors"
 	"github.com/cosmos/cosmos-sdk/x/params"
+	paramstypes "github.com/cosmos/cosmos-sdk/x/params/types"
 	"github.com/cosmos/modules/incubator/orm"
 	"github.com/gogo/protobuf/types"
 )
@@ -85,7 +86,7 @@ type Keeper struct {
 func NewGroupKeeper(storeKey sdk.StoreKey, paramSpace params.Subspace, router sdk.Router, proposalModel ProposalI) Keeper {
 	// set KeyTable if it has not already been set
 	if !paramSpace.HasKeyTable() {
-		paramSpace = paramSpace.WithKeyTable(params.NewKeyTable().RegisterParamSet(&Params{}))
+		paramSpace = paramSpace.WithKeyTable(paramstypes.NewKeyTable().RegisterParamSet(&Params{}))
 	}
 	if storeKey == nil {
 		panic("storeKey must not be nil")

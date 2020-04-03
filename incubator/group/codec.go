@@ -21,19 +21,19 @@ func NewCodec(amino *codec.Codec) *Codec {
 // RegisterCodec registers all the necessary crisis module concrete types and
 // interfaces with the provided codec reference.
 func RegisterCodec(cdc *codec.Codec) {
-	cdc.RegisterConcrete(MsgCreateGroup{}, "cosmos-sdk/MsgCreateGroup", nil)
-	cdc.RegisterConcrete(MsgUpdateGroupMembers{}, "cosmos-sdk/MsgUpdateGroupMembers", nil)
-	cdc.RegisterConcrete(MsgUpdateGroupAdmin{}, "cosmos-sdk/MsgUpdateGroupAdmin", nil)
-	cdc.RegisterConcrete(MsgUpdateGroupComment{}, "cosmos-sdk/MsgUpdateGroupComment", nil)
-	cdc.RegisterConcrete(MsgCreateGroupAccountStd{}, "cosmos-sdk/MsgCreateGroupAccountStd", nil)
-	cdc.RegisterConcrete(MsgVote{}, "cosmos-sdk/group/MsgVote", nil)
-	cdc.RegisterConcrete(MsgExec{}, "cosmos-sdk/group/MsgExec", nil)
-
-	// oh man... amino
-	cdc.RegisterConcrete(StdDecisionPolicy{}, "cosmos-sdk/StdDecisionPolicy", nil)
-	cdc.RegisterConcrete(&StdDecisionPolicy_Threshold{}, "cosmos-sdk/StdDecisionPolicy_Threshold", nil)
-	cdc.RegisterConcrete(ThresholdDecisionPolicy{}, "cosmos-sdk/ThresholdDecisionPolicy", nil)
-	cdc.RegisterInterface((*isStdDecisionPolicy_Sum)(nil), nil)
+	//cdc.RegisterConcrete(MsgCreateGroup{}, "cosmos-sdk/MsgCreateGroup", nil)
+	//cdc.RegisterConcrete(MsgUpdateGroupMembers{}, "cosmos-sdk/MsgUpdateGroupMembers", nil)
+	//cdc.RegisterConcrete(MsgUpdateGroupAdmin{}, "cosmos-sdk/MsgUpdateGroupAdmin", nil)
+	//cdc.RegisterConcrete(MsgUpdateGroupComment{}, "cosmos-sdk/MsgUpdateGroupComment", nil)
+	//cdc.RegisterConcrete(MsgCreateGroupAccountStd{}, "cosmos-sdk/MsgCreateGroupAccountStd", nil)
+	//cdc.RegisterConcrete(MsgVote{}, "cosmos-sdk/group/MsgVote", nil)
+	//cdc.RegisterConcrete(MsgExec{}, "cosmos-sdk/group/MsgExec", nil)
+	//
+	//// oh man... amino
+	//cdc.RegisterConcrete(StdDecisionPolicy{}, "cosmos-sdk/StdDecisionPolicy", nil)
+	//cdc.RegisterConcrete(&StdDecisionPolicy_Threshold{}, "cosmos-sdk/StdDecisionPolicy_Threshold", nil)
+	//cdc.RegisterConcrete(ThresholdDecisionPolicy{}, "cosmos-sdk/ThresholdDecisionPolicy", nil)
+	//cdc.RegisterInterface((*isStdDecisionPolicy_Sum)(nil), nil)
 }
 
 // generic sealed codec to be used throughout module

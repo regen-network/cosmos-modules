@@ -4,7 +4,7 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 	"github.com/cosmos/cosmos-sdk/x/params"
-	"github.com/cosmos/cosmos-sdk/x/params/subspace"
+	subspace "github.com/cosmos/cosmos-sdk/x/params/types"
 	"github.com/cosmos/modules/incubator/orm"
 	"github.com/gogo/protobuf/types"
 	"github.com/pkg/errors"
@@ -200,9 +200,14 @@ func (p Params) String() string {
 // ParamSetPairs returns the parameter set pairs.
 func (p *Params) ParamSetPairs() params.ParamSetPairs {
 	return params.ParamSetPairs{
-		params.NewParamSetPair(ParamMaxCommentLength, &p.MaxCommentLength, noopValidator()),
+		params.ParamSetPair{
+			Key:         ParamMaxCommentLength,
+			Value:       &p.MaxCommentLength,
+			ValidatorFn: noopValidator(),
+		},
 	}
 }
+
 func (p Params) Validate() error {
 	return nil
 }

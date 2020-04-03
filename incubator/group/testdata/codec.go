@@ -21,13 +21,13 @@ func NewCodec(amino *codec.Codec) *Codec {
 // RegisterCodec registers all the necessary crisis module concrete types and
 // interfaces with the provided codec reference.
 func RegisterCodec(cdc *codec.Codec) {
-	cdc.RegisterConcrete(MsgPropose{}, "testdata/MsgPropose", nil)
-	// oh man... amino
-	cdc.RegisterInterface((*isMyAppMsg_Sum)(nil), nil)
-	cdc.RegisterConcrete(&MsgAlwaysSucceed{}, "testdata/MsgAlwaysSucceed", nil)
-	cdc.RegisterConcrete(&MsgAlwaysFail{}, "testdata/MsgAlwaysFail", nil)
-	cdc.RegisterConcrete(&MyAppMsg_A{}, "testdata/MyAppMsg_A", nil)
-	cdc.RegisterConcrete(&MyAppMsg_B{}, "testdata/MyAppMsg_B", nil)
+	//cdc.RegisterConcrete(MsgPropose{}, "testdata/MsgPropose", nil)
+	//// oh man... amino
+	//cdc.RegisterInterface((*isMyAppMsg_Sum)(nil), nil)
+	//cdc.RegisterConcrete(&MsgAlwaysSucceed{}, "testdata/MsgAlwaysSucceed", nil)
+	//cdc.RegisterConcrete(&MsgAlwaysFail{}, "testdata/MsgAlwaysFail", nil)
+	//cdc.RegisterConcrete(&MyAppMsg_A{}, "testdata/MyAppMsg_A", nil)
+	//cdc.RegisterConcrete(&MyAppMsg_B{}, "testdata/MyAppMsg_B", nil)
 }
 
 // generic sealed codec to be used throughout module
