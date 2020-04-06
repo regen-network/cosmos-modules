@@ -147,7 +147,29 @@ func (v Vote) NaturalKey() []byte {
 	return result
 }
 
-func (g Vote) ValidateBasic() error {
+func (v Vote) ValidateBasic() error {
+	if len(v.Voter) == 0 {
+		return errors.Wrap(ErrEmpty, "voter")
+	}
+	if err := sdk.VerifyAddressFormat(v.Voter); err != nil {
+		return sdkerrors.Wrap(err, "voter")
+	}
+	if v.Proposal == 0 {
+		return errors.Wrap(ErrEmpty, "proposal")
+	}
+	if v.Choice == Choice_UNKNOWN {
+		return errors.Wrap(ErrEmpty, "choice")
+	}
+	if _, ok := Choice_name[int32(v.Choice)]; !ok {
+		return errors.Wrap(ErrInvalid, "choice")
+	}
+	t, err := types.TimestampFromProto(&v.SubmittedAt)
+	if err != nil {
+		return errors.Wrap(err, "submitted at")
+	}
+	if t.IsZero() {
+		return errors.Wrap(ErrEmpty, "submitted at")
+	}
 	return nil
 }
 
@@ -229,16 +251,10 @@ func (p ProposalBase) ValidateBasic() error {
 	if len(p.Proposers) == 0 {
 		return sdkerrors.Wrap(ErrEmpty, "proposers")
 	}
-	index := make(map[string]struct{}, len(p.Proposers))
-	for _, p := range p.Proposers {
-		if err := sdk.VerifyAddressFormat(p); err != nil {
-			return sdkerrors.Wrap(err, "proposer")
-		}
-		if _, exists := index[string(p)]; exists {
-			return sdkerrors.Wrapf(ErrDuplicate, "proposer %q", p.String())
-		}
-		index[string(p)] = struct{}{}
+	if err := AccAddresses(p.Proposers).ValidateBasic(); err != nil {
+		return sdkerrors.Wrap(err, "proposers")
 	}
+
 	if p.SubmittedAt.Seconds == 0 && p.SubmittedAt.Nanos == 0 {
 		return sdkerrors.Wrap(ErrEmpty, "submitted at")
 	}
@@ -248,12 +264,19 @@ func (p ProposalBase) ValidateBasic() error {
 	if p.GroupAccountVersion == 0 {
 		return sdkerrors.Wrap(ErrEmpty, "group account version")
 	}
-	if p.Status == ProposalBase_PROPOSAL_STATUS_INVALID {
+	if p.Status == ProposalStatusInvalid {
 		return sdkerrors.Wrap(ErrEmpty, "status")
 	}
-	if p.Result == ProposalBase_PROPOSAL_RESULT_INVALID {
+	if _, ok := ProposalBase_Status_name[int32(p.Status)]; !ok {
+		return sdkerrors.Wrap(ErrInvalid, "status")
+	}
+	if p.Result == ProposalResultInvalid {
 		return sdkerrors.Wrap(ErrEmpty, "result")
 	}
+	if _, ok := ProposalBase_Result_name[int32(p.Result)]; !ok {
+		return sdkerrors.Wrap(ErrInvalid, "result")
+	}
+
 	if err := p.VoteState.ValidateBasic(); err != nil {
 		return errors.Wrap(err, "vote state")
 	}

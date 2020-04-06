@@ -294,6 +294,11 @@ func (k Keeper) GetGroupAccount(ctx sdk.Context, accountAddress sdk.AccAddress) 
 	return obj, k.groupAccountTable.GetOne(ctx, accountAddress.Bytes(), &obj)
 }
 
+func (k Keeper) UpdateGroupAccount(ctx sdk.Context, obj *StdGroupAccountMetadata) error {
+	obj.Base.Version++
+	return k.groupAccountTable.Save(ctx, obj)
+}
+
 func (k Keeper) GetGroupByGroupAccount(ctx sdk.Context, accountAddress sdk.AccAddress) (GroupMetadata, error) {
 	obj, err := k.GetGroupAccount(ctx, accountAddress)
 	if err != nil {
@@ -307,9 +312,14 @@ func (k Keeper) GetGroupMembersByGroup(ctx sdk.Context, id GroupID) (orm.Iterato
 }
 
 func (k Keeper) Vote(ctx sdk.Context, id ProposalID, voters []sdk.AccAddress, choice Choice, comment string) error {
-	// voters !=0
-	// comment within range
-	// within voting period
+	maxCommentSize := k.MaxCommentSize(ctx)
+	if len(comment) > maxCommentSize {
+		return errors.Wrap(ErrMaxLimit, "comment")
+	}
+	if len(voters) == 0 {
+		return errors.Wrap(ErrEmpty, "voters")
+	}
+
 	blockTime, err := types.TimestampProto(ctx.BlockTime())
 	if err != nil {
 		return err
@@ -319,7 +329,7 @@ func (k Keeper) Vote(ctx sdk.Context, id ProposalID, voters []sdk.AccAddress, ch
 		return err
 	}
 	base := proposal.GetBase()
-	if base.Status != ProposalBase_Submitted {
+	if base.Status != ProposalStatusSubmitted {
 		return errors.Wrap(ErrInvalid, "proposal not open")
 	}
 	votingPeriodEnd, err := types.TimestampFromProto(&base.Timeout)
@@ -380,11 +390,11 @@ func (k Keeper) Vote(ctx sdk.Context, id ProposalID, voters []sdk.AccAddress, ch
 	case err != nil:
 		return errors.Wrap(err, "policy execution")
 	case result == DecisionPolicyResult{Allow: true, Final: true}:
-		base.Result = ProposalBase_Accepted
-		base.Status = ProposalBase_Closed
+		base.Result = ProposalResultAccepted
+		base.Status = ProposalStatusClosed
 	case result == DecisionPolicyResult{Allow: false, Final: true}:
-		base.Result = ProposalBase_Rejected
-		base.Status = ProposalBase_Closed
+		base.Result = ProposalResultRejected
+		base.Status = ProposalStatusClosed
 	}
 
 	proposal.SetBase(base)
@@ -402,7 +412,7 @@ func (k Keeper) ExecProposal(ctx sdk.Context, id ProposalID) error {
 	// check constraints
 	base := proposal.GetBase()
 
-	if base.Status != ProposalBase_Submitted && base.Status != ProposalBase_Closed {
+	if base.Status != ProposalStatusSubmitted && base.Status != ProposalStatusClosed {
 		return errors.Wrapf(ErrInvalid, "not possible with proposal status %s", base.Status.String())
 	}
 	votingPeriodEnd, err := types.TimestampFromProto(&base.Timeout)
@@ -424,8 +434,8 @@ func (k Keeper) ExecProposal(ctx sdk.Context, id ProposalID) error {
 	}
 
 	if base.GroupAccountVersion != accountMetadata.Base.Version {
-		base.Result = ProposalBase_Undefined
-		base.Status = ProposalBase_Aborted
+		base.Result = ProposalResultUndefined
+		base.Status = ProposalStatusAborted
 		return storeUpdates()
 	}
 
@@ -435,12 +445,12 @@ func (k Keeper) ExecProposal(ctx sdk.Context, id ProposalID) error {
 	}
 
 	if electorate.Version != base.GroupVersion {
-		base.Result = ProposalBase_Undefined
-		base.Status = ProposalBase_Aborted
+		base.Result = ProposalResultUndefined
+		base.Status = ProposalStatusAborted
 		return storeUpdates()
 	}
 
-	if base.Status == ProposalBase_Submitted {
+	if base.Status == ProposalStatusSubmitted {
 		// proposal was not closed early so run decision policy
 		policy := accountMetadata.DecisionPolicy.GetThreshold()
 		if policy == nil {
@@ -455,17 +465,17 @@ func (k Keeper) ExecProposal(ctx sdk.Context, id ProposalID) error {
 		case err != nil:
 			return errors.Wrap(err, "policy execution")
 		case result == DecisionPolicyResult{Allow: true, Final: true}:
-			base.Result = ProposalBase_Accepted
-			base.Status = ProposalBase_Closed
+			base.Result = ProposalResultAccepted
+			base.Status = ProposalStatusClosed
 		case result == DecisionPolicyResult{Allow: false, Final: true}:
-			base.Result = ProposalBase_Rejected
-			base.Status = ProposalBase_Closed
+			base.Result = ProposalResultRejected
+			base.Status = ProposalStatusClosed
 		default:
 			// there might be votes coming so we can not close it
 		}
 	}
 
-	if base.Status == ProposalBase_Closed && base.Result == ProposalBase_Accepted {
+	if base.Status == ProposalStatusClosed && base.Result == ProposalResultAccepted {
 
 		logger := ctx.Logger().With("module", fmt.Sprintf("x/%s", ModuleName))
 		proposalType := reflect.TypeOf(proposal).String()
@@ -499,7 +509,7 @@ func (k Keeper) ExecProposal(ctx sdk.Context, id ProposalID) error {
 func (k Keeper) GetProposal(ctx sdk.Context, id ProposalID) (ProposalI, error) {
 	loaded := reflect.New(k.proposalModelType).Interface().(ProposalI)
 	if _, err := k.proposalTable.GetOne(ctx, id.Uint64(), loaded); err != nil {
-		return nil, errors.Wrap(err, "load proposal source")
+		return nil, errors.Wrap(err, "load proposal")
 	}
 	return loaded, nil
 }
@@ -553,8 +563,8 @@ func (k Keeper) CreateProposal(ctx sdk.Context, accountAddress sdk.AccAddress, c
 		SubmittedAt:         *blockTime,
 		GroupVersion:        g.Version,
 		GroupAccountVersion: account.Base.Version,
-		Result:              ProposalBase_Undefined,
-		Status:              ProposalBase_Submitted,
+		Result:              ProposalResultUndefined,
+		Status:              ProposalStatusSubmitted,
 		Timeout:             *endTime,
 		VoteState: Tally{
 			YesCount:     sdk.ZeroDec(),
@@ -572,4 +582,9 @@ func (k Keeper) CreateProposal(ctx sdk.Context, accountAddress sdk.AccAddress, c
 		return 0, errors.Wrap(err, "create proposal")
 	}
 	return ProposalID(id), nil
+}
+
+func (k Keeper) GetVote(ctx sdk.Context, id ProposalID, voter sdk.AccAddress) (Vote, error) {
+	var v Vote
+	return v, k.voteTable.GetOne(ctx, Vote{Proposal: id, Voter: voter}.NaturalKey(), &v)
 }

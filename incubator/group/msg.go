@@ -64,24 +64,6 @@ func (m MsgCreateGroup) ValidateBasic() error {
 	return nil
 }
 
-type Members []Member
-
-func (ms Members) ValidateBasic() error {
-	index := make(map[string]struct{}, len(ms))
-	for i := range ms {
-		member := ms[i]
-		if err := member.ValidateBasic(); err != nil {
-			return err
-		}
-		addr := string(member.Address)
-		if _, exists := index[addr]; exists {
-			return errors.Wrapf(ErrDuplicate, "address: %s", member.Address)
-		}
-		index[addr] = struct{}{}
-	}
-	return nil
-}
-
 func (m Member) ValidateBasic() error {
 	if m.Address.Empty() {
 		return sdkerrors.Wrap(ErrEmpty, "address")
@@ -243,15 +225,8 @@ func (m *MsgProposeBase) ValidateBasic() error {
 	if len(m.Proposers) == 0 {
 		return sdkerrors.Wrap(ErrEmpty, "proposers")
 	}
-	index := make(map[string]struct{}, len(m.Proposers))
-	for _, p := range m.Proposers {
-		if err := sdk.VerifyAddressFormat(p); err != nil {
-			return sdkerrors.Wrap(err, "proposer")
-		}
-		if _, exists := index[string(p)]; exists {
-			return sdkerrors.Wrapf(ErrDuplicate, "proposer %q", p.String())
-		}
-		index[string(p)] = struct{}{}
+	if err := AccAddresses(m.Proposers).ValidateBasic(); err != nil {
+		return sdkerrors.Wrap(err, "proposers")
 	}
 	return nil
 }
@@ -325,18 +300,17 @@ func (m MsgVote) ValidateBasic() error {
 	if len(m.Voters) == 0 {
 		return errors.Wrap(ErrEmpty, "voters")
 	}
-	for i := range m.Voters {
-		if err := sdk.VerifyAddressFormat(m.Voters[i]); err != nil {
-			return errors.Wrap(ErrInvalid, "voter")
-		}
+	if err := AccAddresses(m.Voters).ValidateBasic(); err != nil {
+		return sdkerrors.Wrap(err, "voters")
 	}
-	// todo: prevent duplicates in votes, ignore or normalize later?
-
 	if m.Proposal == 0 {
 		return errors.Wrap(ErrEmpty, "proposal")
 	}
 	if m.Choice == Choice_UNKNOWN {
 		return errors.Wrap(ErrEmpty, "choice")
+	}
+	if _, ok := Choice_name[int32(m.Choice)]; !ok {
+		return errors.Wrap(ErrInvalid, "choice")
 	}
 	return nil
 }
