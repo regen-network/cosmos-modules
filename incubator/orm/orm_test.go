@@ -72,7 +72,7 @@ func TestTypeSafeRowGetter(t *testing.T) {
 			} else {
 				dest = &loadedObj
 			}
-			err := getter(ctx, spec.srcRowID, dest)
+			err := getter.Get(ctx, spec.srcRowID, dest)
 			if spec.expErr != nil {
 				require.True(t, spec.expErr.Is(err), err)
 				return
