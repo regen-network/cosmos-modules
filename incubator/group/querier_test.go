@@ -11,7 +11,7 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/types/errors"
 	"github.com/cosmos/cosmos-sdk/x/params"
-	"github.com/cosmos/cosmos-sdk/x/params/subspace"
+	subspace "github.com/cosmos/cosmos-sdk/x/params/types"
 	"github.com/cosmos/modules/incubator/orm"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -19,9 +19,9 @@ import (
 )
 
 func TestQuerier(t *testing.T) {
-	amino := codec.New()
+	cdc := codec.NewHybridCodec(codec.New())
 	pKey, pTKey := sdk.NewKVStoreKey(params.StoreKey), sdk.NewTransientStoreKey(params.TStoreKey)
-	paramSpace := subspace.NewSubspace(amino, pKey, pTKey, DefaultParamspace)
+	paramSpace := subspace.NewSubspace(cdc, pKey, pTKey, DefaultParamspace)
 
 	groupKey := sdk.NewKVStoreKey(StoreKeyName)
 	k := NewGroupKeeper(groupKey, paramSpace, baseapp.NewRouter(), &MockProposalI{})

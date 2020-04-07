@@ -98,7 +98,6 @@ func (tx Transaction) ValidateBasic() error {
 			sdkerrors.ErrUnauthorized, "wrong number of signers; expected %d, got %d", tx.GetSigners(), len(stdSigs),
 		)
 	}
-
 	return nil
 }
 

@@ -5,9 +5,12 @@ import (
 	"fmt"
 
 	"github.com/cosmos/cosmos-sdk/client/context"
+	"github.com/cosmos/cosmos-sdk/client/tx"
 	"github.com/cosmos/cosmos-sdk/codec"
+	codecstd "github.com/cosmos/cosmos-sdk/codec/std"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/types/errors"
+	"github.com/cosmos/cosmos-sdk/x/auth"
 	"github.com/gorilla/mux"
 	"github.com/spf13/cobra"
 	abci "github.com/tendermint/tendermint/abci/types"
@@ -29,7 +32,9 @@ const (
 	DefaultParamspace = ModuleName
 )
 
-type AppModuleBasic struct{}
+type AppModuleBasic struct{
+	TXGenerator tx.Generator // TODO: this probalby does not belong here
+}
 
 func (a AppModuleBasic) Name() string {
 	return ModuleName
@@ -53,12 +58,17 @@ func (a AppModuleBasic) RegisterRESTRoutes(ctx context.CLIContext, r *mux.Router
 	// todo: what client functions do we want to support?
 }
 
-func (a AppModuleBasic) GetTxCmd(*codec.Codec) *cobra.Command {
-	return nil
+func (a AppModuleBasic) GetTxCmd(cdc *codec.Codec) *cobra.Command {
+	// TODO: revisit command initialization. Just hacking stuff together to convert to new codec
+	appCodec := codecstd.NewAppCodec(cdc)
+	querier := context.NewCLIContext().WithMarshaler(appCodec)
+	return NewTxCmd(appCodec, a.TXGenerator, auth.NewAccountRetriever(appCodec, querier))
 }
 
-func (a AppModuleBasic) GetQueryCmd(*codec.Codec) *cobra.Command {
-	return nil
+func (a AppModuleBasic) GetQueryCmd(cdc *codec.Codec) *cobra.Command {
+	// convert to new codec
+	appCodec := codecstd.NewAppCodec(cdc)
+	return NewQueryCmd(appCodec)
 }
 
 type AppModule struct {

@@ -8,6 +8,6 @@ import (
 func NewQuerier(k Keeper) sdk.Querier {
 	qh := orm.NewQueryHandler()
 	qh.AddTableRoute("xgroup", k.groupTable)
-	qh.AddIndexRoute("xgroup/admin", k.groupByAdminIndex)
+	qh.AddIndexRoute("xgroup/admin", k.GroupByAdminIndex)
 	return qh.Handle
 }

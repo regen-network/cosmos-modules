@@ -40,15 +40,14 @@ func (a AppModule) ValidateGenesis(_ codec.JSONMarshaler, bz json.RawMessage) er
 }
 
 func (a AppModule) RegisterRESTRoutes(ctx context.CLIContext, r *mux.Router) {
-	panic("implement me")
 }
 
 func (a AppModule) GetTxCmd(*codec.Codec) *cobra.Command {
-	panic("implement me")
+	return nil
 }
 
 func (a AppModule) GetQueryCmd(*codec.Codec) *cobra.Command {
-	panic("implement me")
+	return nil
 }
 
 func (a AppModule) InitGenesis(ctx sdk.Context, cdc codec.JSONMarshaler, data json.RawMessage) []abci.ValidatorUpdate {

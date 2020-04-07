@@ -52,14 +52,14 @@ func (h *queryHandler) Has(path string) bool {
 	return ok
 }
 
-func (h *queryHandler) Handle(ctx sdk.Context, _ []string, req abci.RequestQuery) ([]byte, error) {
-	q, err := splitPath(req.Path)
+func (h *queryHandler) Handle(ctx sdk.Context, path []string, req abci.RequestQuery) ([]byte, error) {
+	q, err := splitPath(path[0])
 	if err != nil {
 		return nil, err
 	}
 	queryIndex, ok := h.Routes[q.path]
 	if !ok {
-		return nil, errors.Wrapf(errors.ErrUnknownRequest, "unknown query path: %s", q.path)
+		return nil, errors.Wrapf(errors.ErrUnknownRequest, "unknown query path: %s", path[0])
 	}
 	it, err := DoQuery(ctx, queryIndex, q.mod, q.cursor, req.Data)
 	if err != nil {
@@ -81,12 +81,12 @@ type queryArgs struct {
 
 // splitPath splits out the real path along with the query
 // modifier (everything after the ?)
-func splitPath(path string) (queryArgs, error) {
+func splitPath(rawPath string) (queryArgs, error) {
 	q := queryArgs{mod: KeyQueryMod, limit: maxQueryResult}
 
-	chunks := strings.SplitN(path, "?", 2)
+	chunks := strings.SplitN(rawPath, "?", 2)
 	if len(chunks) != 2 {
-		q.path = path
+		q.path = rawPath
 		return q, nil
 	}
 	q.path = chunks[0]

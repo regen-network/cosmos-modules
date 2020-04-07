@@ -300,13 +300,13 @@ message Params {
 message GenesisState {
     option (gogoproto.equal) = true;
     option (gogoproto.goproto_stringer) = false;
-    Params Params = 1 [(gogoproto.nullable) = false];
-    uint64 GroupSeq = 2;
-    bytes Groups = 3 [(gogoproto.casttype) = "encoding/json.RawMessage"];
-    bytes GroupMembers = 4 [(gogoproto.casttype) = "encoding/json.RawMessage"];
-    uint64 GroupAccountSeq = 5;
-    bytes GroupAccounts = 6 [(gogoproto.casttype) = "encoding/json.RawMessage"];
-    uint64 ProposalSeq = 7;
-    bytes Proposals = 8 [(gogoproto.casttype) = "encoding/json.RawMessage"];
-    bytes Votes = 9 [(gogoproto.casttype) = "encoding/json.RawMessage"];
+    Params params = 1 [(gogoproto.nullable) = false];
+    uint64 group_seq = 2;
+    bytes groups = 3 [(gogoproto.casttype) = "encoding/json.RawMessage"];
+    bytes group_members = 4 [(gogoproto.casttype) = "encoding/json.RawMessage"];
+    uint64 group_account_seq = 5;
+    bytes group_accounts = 6 [(gogoproto.casttype) = "encoding/json.RawMessage"];
+    uint64 proposal_seq = 7;
+    bytes proposals = 8 [(gogoproto.casttype) = "encoding/json.RawMessage"];
+    bytes votes = 9 [(gogoproto.casttype) = "encoding/json.RawMessage"];
 }
