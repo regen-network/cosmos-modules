@@ -9,12 +9,12 @@ import (
 )
 
 const (
-	msgTypeMyMsgA         = "always_succeed"
-	msgTypeMyMsgB         = "always_fail"
-	msgTypeMyMsgC         = "set_value"
-	msgTypeMyMsgD         = "inc_counter"
-	msgTypeMyMsgE         = "conditional"
-	msgTypeMyMsgF         = "authenticate"
+	msgTypeMyMsgA = "always_succeed"
+	msgTypeMyMsgB = "always_fail"
+	msgTypeMyMsgC = "set_value"
+	msgTypeMyMsgD = "inc_counter"
+	msgTypeMyMsgE = "conditional"
+	msgTypeMyMsgF = "authenticate"
 )
 
 var _ sdk.Msg = &MsgPropose{}

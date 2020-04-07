@@ -1,15 +1,16 @@
 package group
 
 import (
-	"bytes"
 	"encoding/json"
 	"fmt"
 
 	"github.com/cosmos/cosmos-sdk/client/context"
+	"github.com/cosmos/cosmos-sdk/client/tx"
 	"github.com/cosmos/cosmos-sdk/codec"
+	codecstd "github.com/cosmos/cosmos-sdk/codec/std"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/types/errors"
-	"github.com/gogo/protobuf/jsonpb"
+	"github.com/cosmos/cosmos-sdk/x/auth"
 	"github.com/gorilla/mux"
 	"github.com/spf13/cobra"
 	abci "github.com/tendermint/tendermint/abci/types"
@@ -31,7 +32,9 @@ const (
 	DefaultParamspace = ModuleName
 )
 
-type AppModuleBasic struct{}
+type AppModuleBasic struct{
+	TXGenerator tx.Generator // TODO: this probalby does not belong here
+}
 
 func (a AppModuleBasic) Name() string {
 	return ModuleName
@@ -41,21 +44,13 @@ func (a AppModuleBasic) RegisterCodec(cdc *codec.Codec) {
 	RegisterCodec(cdc) // can not be removed until sdk.StdTx support protobuf
 }
 
-func (a AppModuleBasic) DefaultGenesis() json.RawMessage {
-	var buf bytes.Buffer
-	marshaler := jsonpb.Marshaler{}
-	err := marshaler.Marshal(&buf, NewGenesisState())
-	if err != nil {
-		panic(errors.Wrap(err, "failed to marshal default genesis"))
-	}
-	return buf.Bytes()
+func (a AppModuleBasic) DefaultGenesis(cdc codec.JSONMarshaler) json.RawMessage {
+	return cdc.MustMarshalJSON(NewGenesisState())
 }
 
-func (a AppModuleBasic) ValidateGenesis(bz json.RawMessage) error {
+func (a AppModuleBasic) ValidateGenesis(cdc codec.JSONMarshaler, bz json.RawMessage) error {
 	var data GenesisState
-	if err := jsonpb.Unmarshal(bytes.NewReader(bz), &data); err != nil {
-		return errors.Wrapf(err, "validate genesis")
-	}
+	cdc.MustUnmarshalJSON(bz, &data)
 	return data.Validate()
 }
 
@@ -63,12 +58,17 @@ func (a AppModuleBasic) RegisterRESTRoutes(ctx context.CLIContext, r *mux.Router
 	// todo: what client functions do we want to support?
 }
 
-func (a AppModuleBasic) GetTxCmd(*codec.Codec) *cobra.Command {
-	return nil
+func (a AppModuleBasic) GetTxCmd(cdc *codec.Codec) *cobra.Command {
+	// TODO: revisit command initialization. Just hacking stuff together to convert to new codec
+	appCodec := codecstd.NewAppCodec(cdc)
+	querier := context.NewCLIContext().WithMarshaler(appCodec)
+	return NewTxCmd(appCodec, a.TXGenerator, auth.NewAccountRetriever(appCodec, querier))
 }
 
-func (a AppModuleBasic) GetQueryCmd(*codec.Codec) *cobra.Command {
-	return nil
+func (a AppModuleBasic) GetQueryCmd(cdc *codec.Codec) *cobra.Command {
+	// convert to new codec
+	appCodec := codecstd.NewAppCodec(cdc)
+	return NewQueryCmd(appCodec)
 }
 
 type AppModule struct {
@@ -83,12 +83,9 @@ func NewAppModule(keeper Keeper) AppModule {
 	}
 }
 
-func (a AppModule) InitGenesis(ctx sdk.Context, bz json.RawMessage) []abci.ValidatorUpdate {
+func (a AppModule) InitGenesis(ctx sdk.Context, cdc codec.JSONMarshaler, bz json.RawMessage) []abci.ValidatorUpdate {
 	var data GenesisState
-	if err := jsonpb.Unmarshal(bytes.NewReader(bz), &data); err != nil {
-		panic(errors.Wrapf(err, "init genesis"))
-	}
-
+	cdc.MustUnmarshalJSON(bz, &data)
 	if err := ImportGenesis(ctx, a.keeper, data); err != nil {
 		panic(fmt.Sprintf("failed to validate %s genesis state: %s", ModuleName, err))
 	}
@@ -96,17 +93,12 @@ func (a AppModule) InitGenesis(ctx sdk.Context, bz json.RawMessage) []abci.Valid
 
 }
 
-func (a AppModule) ExportGenesis(ctx sdk.Context) json.RawMessage {
-	var buf bytes.Buffer
-	marshaller := jsonpb.Marshaler{}
+func (a AppModule) ExportGenesis(ctx sdk.Context, cdc codec.JSONMarshaler) json.RawMessage {
 	genesis, err := ExportGenesis(ctx, a.keeper)
 	if err != nil {
 		panic(errors.Wrap(err, "export genesis"))
 	}
-	if err := marshaller.Marshal(&buf, genesis); err != nil {
-		panic(errors.Wrap(err, "marshal genesis"))
-	}
-	return buf.Bytes()
+	return cdc.MustMarshalJSON(genesis)
 }
 
 func (a AppModule) RegisterInvariants(sdk.InvariantRegistry) {

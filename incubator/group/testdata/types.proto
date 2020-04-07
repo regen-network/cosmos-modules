@@ -3,23 +3,17 @@ syntax = "proto3";
 package cosmos_modules.incubator.group.v1_alpha.testdata;
 option go_package = "github.com/cosmos/modules/incubator/group/testdata";
 
-import "third_party/proto/cosmos-proto/cosmos.proto";
-import "gogoproto/gogo.proto";
+import "codec/std/codec.proto";
 import "group/types.proto";
-
-// MyAppMsg is the payload stored with a proposal and executed when approved
-message MyAppMsg {
-    option (cosmos_proto.interface_type) = "*github.com/cosmos/cosmos-sdk/types.Msg";
-    oneof sum {
-        MsgAlwaysSucceed A = 1;
-        MsgAlwaysFail B = 2;
-        MsgSetValue C = 3;
-        MsgIncCounter D = 4;
-        MsgConditional E = 5;
-        MsgAuthenticate F = 6;
-    }
-}
-
+import "third_party/proto/cosmos-proto/cosmos.proto";
+import "third_party/proto/gogoproto/gogo.proto";
+import "x/auth/types/types.proto";
+import "x/bank/types/types.proto";
+import "x/crisis/types/types.proto";
+import "x/distribution/types/types.proto";
+import "x/gov/types/types.proto";
+import "x/slashing/types/types.proto";
+import "x/staking/types/types.proto";
 
 message MyAppProposal {
     option (gogoproto.goproto_getters) = false;
@@ -54,5 +48,61 @@ message MsgAuthenticate {
 
 message MsgPropose {
     cosmos_modules.incubator.group.v1_alpha.MsgProposeBase base = 1 [(gogoproto.nullable) = false];
+    repeated MyAppMsg msgs = 2 [(gogoproto.nullable) = false];
+}
+
+// Transaction defines the application-level transaction that can be signed and
+// processed by the state-machine. It contains a base of common fields and
+// repeated set of Message types.
+message Transaction {
+    option (gogoproto.goproto_getters) = false;
+
+    cosmos_sdk.x.auth.v1.StdTxBase base = 1 [(gogoproto.jsontag) = "", (gogoproto.embed) = true, (gogoproto.nullable) = false];
+    repeated MyAppMsg msgs = 2 [(gogoproto.nullable) = false];
+}
+
+// Message defines the set of valid concrete message types that can be used to
+// construct a transaction.
+message MyAppMsg {
+    option (cosmos_proto.interface_type) = "*github.com/cosmos/cosmos-sdk/types.Msg";
+
+    // sum defines the set of all allowed valid messages defined in modules.
+    oneof sum {
+        MsgAlwaysSucceed A = 1;
+        MsgAlwaysFail B = 2;
+        MsgSetValue C = 3;
+        MsgIncCounter D = 4;
+        MsgConditional E = 5;
+        MsgAuthenticate F = 6;
+        MsgPropose propose = 7;
+        cosmos_modules.incubator.group.v1_alpha.MsgCreateGroup create_group = 8;
+        cosmos_modules.incubator.group.v1_alpha.MsgCreateGroupAccountStd create_group_account = 9;
+        cosmos_modules.incubator.group.v1_alpha.MsgVote vote = 10;
+        cosmos_modules.incubator.group.v1_alpha.MsgExec exec = 11;
+
+        cosmos_sdk.x.bank.v1.MsgSend msg_send = 101;
+        cosmos_sdk.x.bank.v1.MsgMultiSend msg_multi_send = 102;
+        cosmos_sdk.x.crisis.v1.MsgVerifyInvariant msg_verify_invariant = 103;
+        cosmos_sdk.x.distribution.v1.MsgSetWithdrawAddress msg_set_withdraw_address = 104;
+        cosmos_sdk.x.distribution.v1.MsgWithdrawDelegatorReward msg_withdraw_delegator_reward = 105;
+        cosmos_sdk.x.distribution.v1.MsgWithdrawValidatorCommission msg_withdraw_validator_commission = 106;
+        cosmos_sdk.x.distribution.v1.MsgFundCommunityPool msg_fund_community_pool = 107;
+        cosmos_sdk.codec.std.v1.MsgSubmitEvidence msg_submit_evidence = 108;
+        cosmos_sdk.codec.std.v1.MsgSubmitProposal msg_submit_proposal = 109;
+        cosmos_sdk.x.gov.v1.MsgVote msg_vote = 110;
+        cosmos_sdk.x.gov.v1.MsgDeposit msg_deposit = 111;
+        cosmos_sdk.x.slashing.v1.MsgUnjail msg_unjail = 112;
+        cosmos_sdk.x.staking.v1.MsgCreateValidator msg_create_validator = 113;
+        cosmos_sdk.x.staking.v1.MsgEditValidator msg_edit_validator = 114;
+        cosmos_sdk.x.staking.v1.MsgDelegate msg_delegate = 115;
+        cosmos_sdk.x.staking.v1.MsgBeginRedelegate msg_begin_redelegate = 116;
+        cosmos_sdk.x.staking.v1.MsgUndelegate msg_undelegate = 117;
+    }
+}
+
+// SignDoc defines a standard application-level signing document to compose
+// signatures for a Transaction.
+message SignDoc {
+    cosmos_sdk.x.auth.v1.StdSignDocBase base = 1 [(gogoproto.jsontag) = "", (gogoproto.embed) = true, (gogoproto.nullable) = false];
     repeated MyAppMsg msgs = 2 [(gogoproto.nullable) = false];
 }

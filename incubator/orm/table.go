@@ -194,8 +194,7 @@ func (a Table) Has(ctx HasKVStore, rowID RowID) bool {
 // GetOne load the object persisted for the given RowID into the dest parameter.
 // If none exists `ErrNotFound` is returned instead. Parameters must not be nil.
 func (a Table) GetOne(ctx HasKVStore, rowID RowID, dest Persistent) error {
-	x := NewTypeSafeRowGetter(a.storeKey, a.prefix, a.model)
-	return x(ctx, rowID, dest)
+	return TableRowGetter(a).Get(ctx, rowID, dest)
 }
 
 // PrefixScan returns an Iterator over a domain of keys in ascending order. End is exclusive.
@@ -221,7 +220,7 @@ func (a Table) PrefixScan(ctx HasKVStore, start, end RowID) (Iterator, error) {
 	store := prefix.NewStore(ctx.KVStore(a.storeKey), []byte{a.prefix})
 	return &typeSafeIterator{
 		ctx:       ctx,
-		rowGetter: NewTypeSafeRowGetter(a.storeKey, a.prefix, a.model),
+		rowGetter: TableRowGetter(a),
 		it:        store.Iterator(start, end),
 	}, nil
 }
@@ -242,7 +241,7 @@ func (a Table) ReversePrefixScan(ctx HasKVStore, start, end RowID) (Iterator, er
 	store := prefix.NewStore(ctx.KVStore(a.storeKey), []byte{a.prefix})
 	return &typeSafeIterator{
 		ctx:       ctx,
-		rowGetter: NewTypeSafeRowGetter(a.storeKey, a.prefix, a.model),
+		rowGetter: TableRowGetter(a),
 		it:        store.ReverseIterator(start, end),
 	}, nil
 }
@@ -254,17 +253,24 @@ func (a Table) Table() Table {
 // typeSafeIterator is initialized with a type safe RowGetter only.
 type typeSafeIterator struct {
 	ctx       HasKVStore
-	rowGetter RowGetter
+	rowGetter TypeSafeRowGetter
 	it        types.Iterator
 }
 
-func (i typeSafeIterator) LoadNext(dest Persistent) (RowID, error) {
+func (i *typeSafeIterator) LoadNext(dest Persistent) (RowID, error) {
 	if !i.it.Valid() {
 		return nil, ErrIteratorDone
 	}
 	rowID := i.it.Key()
 	i.it.Next()
-	return rowID, i.rowGetter(i.ctx, rowID, dest)
+	return rowID, i.rowGetter.Get(i.ctx, rowID, dest)
+}
+
+func (i typeSafeIterator) NextPosition() Cursor {
+	if !i.it.Valid() {
+		return nil
+	}
+	return i.it.Key()
 }
 
 func (i typeSafeIterator) Close() error {

@@ -1,6 +1,7 @@
 package group_test
 
 import (
+	"encoding/json"
 	"os"
 	"testing"
 	"time"
@@ -23,8 +24,8 @@ import (
 
 func createTestApp(isCheckTx bool) (*testdata.SimApp, sdk.Context) {
 	db := dbm.NewMemDB()
-	app := testdata.NewSimApp(log.NewTMJSONLogger(log.NewSyncWriter(os.Stdout)), db, nil, true, map[int64]bool{}, 0)
-	genesisState := testdata.ModuleBasics.DefaultGenesis()
+	app := testdata.NewSimApp(log.NewTMJSONLogger(log.NewSyncWriter(os.Stdout)), db, nil, true, map[int64]bool{}, "", 0)
+	genesisState := testdata.ModuleBasics.DefaultGenesis(app.Codec())
 	stateBytes, err := codec.MarshalJSONIndent(app.Codec(), genesisState)
 	if err != nil {
 		panic(err)
@@ -73,7 +74,7 @@ func TestCreateGroupScenario(t *testing.T) {
 				Comment: "integration test",
 			},
 		},
-		"invalid message": {
+		"invalid message - invalid power": {
 			src: group.MsgCreateGroup{
 				Admin: myAddr,
 				Members: []group.Member{{
@@ -99,9 +100,9 @@ func TestCreateGroupScenario(t *testing.T) {
 		t.Run(msg, func(t *testing.T) {
 			accSeq, err := app.AccountKeeper.GetSequence(ctx, myAddr)
 			require.NoError(t, err)
-			tx := types.NewTestTx(ctx, []sdk.Msg{spec.src}, privs, []uint64{accNums}, []uint64{accSeq}, fee)
 
-			resp := app.DeliverTx(abci.RequestDeliverTx{Tx: app.Codec().MustMarshalBinaryLengthPrefixed(tx)})
+			tx := NewTestTx(ctx, asMyAppMsgs(&spec.src), privs, []uint64{accNums}, []uint64{accSeq}, fee)
+			resp := app.DeliverTx(abci.RequestDeliverTx{Tx: app.Codec().MustMarshalBinaryBare(tx)})
 			// then
 			require.Equal(t, spec.expCode, resp.Code, resp.Log)
 			if spec.expCode != 0 {
@@ -197,12 +198,10 @@ func TestCreateGroupAccountScenario(t *testing.T) {
 	privs, accNums := []crypto.PrivKey{myKey}, myAccount.GetAccountNumber()
 	for msg, spec := range specs {
 		t.Run(msg, func(t *testing.T) {
-			msgs := []sdk.Msg{spec.src}
 			accSeq, err := app.AccountKeeper.GetSequence(ctx, myAddr)
 			require.NoError(t, err)
-			tx := types.NewTestTx(ctx, msgs, privs, []uint64{accNums}, []uint64{accSeq}, fee)
-
-			resp := app.DeliverTx(abci.RequestDeliverTx{Tx: app.Codec().MustMarshalBinaryLengthPrefixed(tx)})
+			tx := NewTestTx(ctx, asMyAppMsgs(&spec.src), privs, []uint64{accNums}, []uint64{accSeq}, fee)
+			resp := app.DeliverTx(abci.RequestDeliverTx{Tx: app.Codec().MustMarshalBinaryBare(tx)})
 			// then
 			require.Equal(t, spec.expCode, resp.Code, resp.Log)
 			if spec.expCode != 0 {
@@ -228,7 +227,7 @@ func TestFullProposalWorkflow(t *testing.T) {
 
 	// setup group
 	msgs := []sdk.Msg{
-		group.MsgCreateGroup{
+		&group.MsgCreateGroup{
 			Admin: myAddr,
 			Members: []group.Member{{
 				Address: myAddr,
@@ -238,7 +237,7 @@ func TestFullProposalWorkflow(t *testing.T) {
 			Comment: "integration test",
 		},
 		// setup group account
-		group.MsgCreateGroupAccountStd{
+		&group.MsgCreateGroupAccountStd{
 			Base: group.MsgCreateGroupAccountBase{
 				Admin:   myAddr,
 				Group:   1,
@@ -254,7 +253,7 @@ func TestFullProposalWorkflow(t *testing.T) {
 			},
 		},
 		// and another one
-		group.MsgCreateGroupAccountStd{
+		&group.MsgCreateGroupAccountStd{
 			Base: group.MsgCreateGroupAccountBase{
 				Admin:   myAddr,
 				Group:   1,
@@ -270,7 +269,7 @@ func TestFullProposalWorkflow(t *testing.T) {
 			},
 		},
 		// submit proposals
-		testdata.MsgPropose{
+		&testdata.MsgPropose{
 			Base: group.MsgProposeBase{
 				GroupAccount: group.AccountCondition(1).Address(), // first account
 				Proposers:    []sdk.AccAddress{myAddr},
@@ -278,7 +277,7 @@ func TestFullProposalWorkflow(t *testing.T) {
 			},
 			Msgs: []testdata.MyAppMsg{{Sum: &testdata.MyAppMsg_A{A: &testdata.MsgAlwaysSucceed{}}}},
 		},
-		testdata.MsgPropose{
+		&testdata.MsgPropose{
 			Base: group.MsgProposeBase{
 				GroupAccount: group.AccountCondition(2).Address(), // second account, same group
 				Proposers:    []sdk.AccAddress{myAddr},
@@ -286,13 +285,13 @@ func TestFullProposalWorkflow(t *testing.T) {
 			},
 		},
 		// vote
-		group.MsgVote{
+		&group.MsgVote{
 			Proposal: 1,
 			Voters:   []sdk.AccAddress{myAddr},
 			Choice:   group.Choice_YES,
 			Comment:  "makes sense",
 		},
-		group.MsgVote{
+		&group.MsgVote{
 			Proposal: 2,
 			Voters:   []sdk.AccAddress{myAddr},
 			Choice:   group.Choice_VETO,
@@ -302,9 +301,9 @@ func TestFullProposalWorkflow(t *testing.T) {
 
 	fee := types.NewStdFee(200000, sdk.NewCoins(sdk.NewInt64Coin("atom", 150)))
 	privs, accNums, seqs := []crypto.PrivKey{myKey}, myAccount.GetAccountNumber(), myAccount.GetSequence()
-	tx := types.NewTestTx(ctx, msgs, privs, []uint64{accNums}, []uint64{seqs}, fee)
+	tx := NewTestTx(ctx, asMyAppMsgs(msgs...), privs, []uint64{accNums}, []uint64{seqs}, fee)
 
-	resp := app.DeliverTx(abci.RequestDeliverTx{Tx: app.Codec().MustMarshalBinaryLengthPrefixed(tx)})
+	resp := app.DeliverTx(abci.RequestDeliverTx{Tx: app.Codec().MustMarshalBinaryBare(tx)})
 	require.Equal(t, uint32(0), resp.Code, resp.Log)
 
 	// execute can not be in the same block so start new one
@@ -312,16 +311,16 @@ func TestFullProposalWorkflow(t *testing.T) {
 
 	// execute first proposal
 	msgs = []sdk.Msg{
-		group.MsgExec{
+		&group.MsgExec{
 			Proposal: 1,
 			Signer:   myAddr,
 		},
 	}
 	myAccount = app.AccountKeeper.GetAccount(ctx, myAddr)
 	privs, accNums, seqs = []crypto.PrivKey{myKey}, myAccount.GetAccountNumber(), myAccount.GetSequence()
-	tx = types.NewTestTx(ctx, msgs, privs, []uint64{accNums}, []uint64{seqs}, fee)
+	tx = NewTestTx(ctx, asMyAppMsgs(msgs...), privs, []uint64{accNums}, []uint64{seqs}, fee)
 
-	resp = app.DeliverTx(abci.RequestDeliverTx{Tx: app.Codec().MustMarshalBinaryLengthPrefixed(tx)})
+	resp = app.DeliverTx(abci.RequestDeliverTx{Tx: app.Codec().MustMarshalBinaryBare(tx)})
 	require.Equal(t, uint32(0), resp.Code, resp.Log)
 
 	// then verify proposal got accepted
@@ -334,16 +333,16 @@ func TestFullProposalWorkflow(t *testing.T) {
 
 	// execute second proposal
 	msgs = []sdk.Msg{
-		group.MsgExec{
+		&group.MsgExec{
 			Proposal: 2,
 			Signer:   myAddr,
 		},
 	}
 	myAccount = app.AccountKeeper.GetAccount(ctx, myAddr)
 	privs, accNums, seqs = []crypto.PrivKey{myKey}, myAccount.GetAccountNumber(), myAccount.GetSequence()
-	tx = types.NewTestTx(ctx, msgs, privs, []uint64{accNums}, []uint64{seqs}, fee)
+	tx = NewTestTx(ctx, asMyAppMsgs(msgs...), privs, []uint64{accNums}, []uint64{seqs}, fee)
 
-	resp = app.DeliverTx(abci.RequestDeliverTx{Tx: app.Codec().MustMarshalBinaryLengthPrefixed(tx)})
+	resp = app.DeliverTx(abci.RequestDeliverTx{Tx: app.Codec().MustMarshalBinaryBare(tx)})
 	require.Equal(t, uint32(0), resp.Code, resp.Log)
 
 	// verify second  proposal
@@ -353,4 +352,59 @@ func TestFullProposalWorkflow(t *testing.T) {
 	assert.Equal(t, group.ProposalStatusClosed, proposal.GetBase().Status, proposal.GetBase().Status.String())
 	expTally = group.Tally{YesCount: sdk.ZeroDec(), NoCount: sdk.ZeroDec(), AbstainCount: sdk.ZeroDec(), VetoCount: sdk.OneDec()}
 	assert.Equal(t, expTally, proposal.GetBase().VoteState)
+}
+
+func asMyAppMsgs(msgs ...sdk.Msg) []testdata.MyAppMsg {
+	customMsg := make([]testdata.MyAppMsg, len(msgs))
+	for i, m := range msgs {
+		if err := customMsg[i].SetMsg(m); err != nil {
+			panic(err)
+		}
+	}
+	return customMsg
+}
+
+func NewTestTx(ctx sdk.Context, msgs []testdata.MyAppMsg, privs []crypto.PrivKey, accNums []uint64, seqs []uint64, fee types.StdFee) *testdata.Transaction {
+	sigs := make([]types.StdSignature, len(privs))
+	for i, priv := range privs {
+		signBytes := StdSignBytes(ctx.ChainID(), accNums[i], seqs[i], fee, msgs, "")
+
+		sig, err := priv.Sign(signBytes)
+		if err != nil {
+			panic(err)
+		}
+
+		sigs[i] = types.StdSignature{PubKey: priv.PubKey().Bytes(), Signature: sig}
+	}
+	tx := testdata.Transaction{
+		StdTxBase: types.StdTxBase{
+			Fee:        fee,
+			Signatures: sigs,
+			Memo:       "",
+		},
+		Msgs: msgs,
+	}
+	return &tx
+}
+
+func StdSignBytes(chainID string, accnum uint64, sequence uint64, fee types.StdFee, msgs []testdata.MyAppMsg, memo string) []byte {
+	msgsBytes := make([]json.RawMessage, 0, len(msgs))
+	for _, msg := range msgs {
+		msgsBytes = append(msgsBytes, msg.GetMsg().GetSignBytes())
+	}
+	sign := testdata.SignDoc{
+		StdSignDocBase: types.StdSignDocBase{
+			ChainID:       chainID,
+			AccountNumber: accnum,
+			Sequence:      sequence,
+			Memo:          memo,
+			Fee:           fee,
+		},
+		Msgs: msgs,
+	}
+	b, err := sdk.CanonicalSignBytes(&sign)
+	if err != nil {
+		panic(err)
+	}
+	return b
 }

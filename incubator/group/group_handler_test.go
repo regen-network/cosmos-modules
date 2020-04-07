@@ -53,7 +53,7 @@ func TestMsgCreateGroup(t *testing.T) {
 	for msg, spec := range specs {
 		t.Run(msg, func(t *testing.T) {
 			k, ctx := createGroupKeeper()
-			res, err := NewHandler(k)(ctx, spec.src)
+			res, err := NewHandler(k)(ctx, &spec.src)
 			require.True(t, spec.expErr.Is(err), err)
 			if spec.expErr != nil {
 				return
@@ -140,7 +140,7 @@ func TestMsgUpdateGroupAdmin(t *testing.T) {
 	for msg, spec := range specs {
 		t.Run(msg, func(t *testing.T) {
 			ctx, _ := pCtx.CacheContext()
-			_, err := NewHandler(k)(ctx, spec.src)
+			_, err := NewHandler(k)(ctx, &spec.src)
 			require.True(t, spec.expErr.Is(err), err)
 			// then
 			loaded, err := k.GetGroup(ctx, groupID)
@@ -217,7 +217,7 @@ func TestMsgUpdateGroupComment(t *testing.T) {
 	for msg, spec := range specs {
 		t.Run(msg, func(t *testing.T) {
 			ctx, _ := pCtx.CacheContext()
-			_, err := NewHandler(k)(ctx, spec.src)
+			_, err := NewHandler(k)(ctx, &spec.src)
 			require.True(t, spec.expErr.Is(err), err)
 			// then
 			loaded, err := k.GetGroup(ctx, groupID)
@@ -457,7 +457,7 @@ func TestMsgUpdateGroupMembers(t *testing.T) {
 	for msg, spec := range specs {
 		t.Run(msg, func(t *testing.T) {
 			ctx, _ := pCtx.CacheContext()
-			_, err := NewHandler(k)(ctx, spec.src)
+			_, err := NewHandler(k)(ctx, &spec.src)
 			require.True(t, spec.expErr.Is(err), err)
 			// then
 			loaded, err := k.GetGroup(ctx, groupID)

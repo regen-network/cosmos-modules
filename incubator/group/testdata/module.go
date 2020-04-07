@@ -31,31 +31,30 @@ func (a AppModule) RegisterCodec(cdc *codec.Codec) {
 	RegisterCodec(cdc)
 }
 
-func (a AppModule) DefaultGenesis() json.RawMessage {
+func (a AppModule) DefaultGenesis(_ codec.JSONMarshaler) json.RawMessage {
 	return nil
 }
 
-func (a AppModule) ValidateGenesis(bz json.RawMessage) error {
+func (a AppModule) ValidateGenesis(_ codec.JSONMarshaler, bz json.RawMessage) error {
 	return nil
 }
 
 func (a AppModule) RegisterRESTRoutes(ctx context.CLIContext, r *mux.Router) {
-	panic("implement me")
 }
 
 func (a AppModule) GetTxCmd(*codec.Codec) *cobra.Command {
-	panic("implement me")
-}
-
-func (a AppModule) GetQueryCmd(*codec.Codec) *cobra.Command {
-	panic("implement me")
-}
-
-func (a AppModule) InitGenesis(ctx sdk.Context, data json.RawMessage) []abci.ValidatorUpdate {
 	return nil
 }
 
-func (a AppModule) ExportGenesis(ctx sdk.Context) json.RawMessage {
+func (a AppModule) GetQueryCmd(*codec.Codec) *cobra.Command {
+	return nil
+}
+
+func (a AppModule) InitGenesis(ctx sdk.Context, cdc codec.JSONMarshaler, data json.RawMessage) []abci.ValidatorUpdate {
+	return nil
+}
+
+func (a AppModule) ExportGenesis(ctx sdk.Context, cdc codec.JSONMarshaler) json.RawMessage {
 	return nil
 }
 

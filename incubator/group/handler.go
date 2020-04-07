@@ -13,20 +13,20 @@ func NewHandler(k Keeper) sdk.Handler {
 	return func(ctx sdk.Context, msg sdk.Msg) (*sdk.Result, error) {
 		ctx = ctx.WithEventManager(sdk.NewEventManager())
 		switch msg := msg.(type) {
-		case MsgCreateGroup:
-			return handleMsgCreateGroup(ctx, k, msg)
-		case MsgUpdateGroupAdmin:
-			return handleMsgUpdateGroupAdmin(ctx, k, msg)
-		case MsgUpdateGroupComment:
-			return handleMsgUpdateGroupComment(ctx, k, msg)
-		case MsgUpdateGroupMembers:
-			return handleMsgUpdateGroupMembers(ctx, k, msg)
+		case *MsgCreateGroup:
+			return handleMsgCreateGroup(ctx, k, *msg)
+		case *MsgUpdateGroupAdmin:
+			return handleMsgUpdateGroupAdmin(ctx, k, *msg)
+		case *MsgUpdateGroupComment:
+			return handleMsgUpdateGroupComment(ctx, k, *msg)
+		case *MsgUpdateGroupMembers:
+			return handleMsgUpdateGroupMembers(ctx, k, *msg)
 		case MsgCreateGroupAccountI:
 			return handleMsgCreateGroupAccountI(ctx, k, msg)
-		case MsgVote:
-			return handleMsgVote(ctx, k, msg)
-		case MsgExec:
-			return handleMsgExec(ctx, k, msg)
+		case *MsgVote:
+			return handleMsgVote(ctx, k, *msg)
+		case *MsgExec:
+			return handleMsgExec(ctx, k, *msg)
 		default:
 			return nil, sdkerrors.Wrapf(sdkerrors.ErrUnknownRequest, "unrecognized group message type: %T", msg)
 		}
@@ -42,7 +42,7 @@ func handleMsgVote(ctx sdk.Context, k Keeper, msg MsgVote) (*sdk.Result, error) 
 	// todo: event?
 	return &sdk.Result{
 		Log:    fmt.Sprintf("Voted for proposal: %d", msg.Proposal),
-		Events: ctx.EventManager().Events(),
+		Events: ctx.EventManager().Events().ToABCIEvents(),
 	}, nil
 }
 
@@ -53,7 +53,7 @@ func handleMsgExec(ctx sdk.Context, k Keeper, msg MsgExec) (*sdk.Result, error) 
 	// todo: event?
 	return &sdk.Result{
 		Log:    fmt.Sprintf("Executed proposal: %d", msg.Proposal),
-		Events: ctx.EventManager().Events(),
+		Events: ctx.EventManager().Events().ToABCIEvents(),
 	}, nil
 }
 
@@ -77,6 +77,6 @@ func buildGroupAccountResult(ctx sdk.Context, admin sdk.AccAddress, acc sdk.AccA
 	return &sdk.Result{
 		Data:   acc.Bytes(),
 		Log:    fmt.Sprintf("Group account %s %s", acc.String(), note),
-		Events: ctx.EventManager().Events(),
+		Events: ctx.EventManager().Events().ToABCIEvents(),
 	}, nil
 }

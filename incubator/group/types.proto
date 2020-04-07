@@ -4,26 +4,12 @@ package cosmos_modules.incubator.group.v1_alpha;
 
 option go_package = "github.com/cosmos/modules/incubator/group";
 
-import "gogoproto/gogo.proto";
-import "google/protobuf/duration.proto";
-import "google/protobuf/timestamp.proto";
+import "third_party/proto/gogoproto/gogo.proto";
 import "third_party/proto/cosmos-proto/cosmos.proto";
 
+import "google/protobuf/duration.proto";
+import "google/protobuf/timestamp.proto";
 
-message Msg {
-    oneof sum {
-        MsgCreateGroup create_group = 1; // returns uint64 GroupID
-        MsgUpdateGroupMembers update_group_members = 2;
-        MsgUpdateGroupAdmin update_group_admin = 3;
-        MsgUpdateGroupComment update_group_comment = 4;
-        MsgCreateGroupAccountStd create_group_account = 5; // returns sdk.AccAddress
-        MsgUpdateGroupAccountAdmin update_group_account_admin = 6;
-        MsgUpdateGroupAccountDecisionPolicyStd update_group_account_decision_policy = 7;
-        MsgUpdateGroupAccountComment update_group_account_comment = 8;
-        MsgVote vote = 9;
-        MsgExec exec = 10;
-    }
-}
 
 //
 // Groups
@@ -314,13 +300,13 @@ message Params {
 message GenesisState {
     option (gogoproto.equal) = true;
     option (gogoproto.goproto_stringer) = false;
-    Params Params = 1 [(gogoproto.nullable) = false];
-    uint64 GroupSeq = 2;
-    bytes Groups = 3 [(gogoproto.casttype) = "encoding/json.RawMessage"];
-    bytes GroupMembers = 4 [(gogoproto.casttype) = "encoding/json.RawMessage"];
-    uint64 GroupAccountSeq = 5;
-    bytes GroupAccounts = 6 [(gogoproto.casttype) = "encoding/json.RawMessage"];
-    uint64 ProposalSeq = 7;
-    bytes Proposals = 8 [(gogoproto.casttype) = "encoding/json.RawMessage"];
-    bytes Votes = 9 [(gogoproto.casttype) = "encoding/json.RawMessage"];
+    Params params = 1 [(gogoproto.nullable) = false];
+    uint64 group_seq = 2;
+    bytes groups = 3 [(gogoproto.casttype) = "encoding/json.RawMessage"];
+    bytes group_members = 4 [(gogoproto.casttype) = "encoding/json.RawMessage"];
+    uint64 group_account_seq = 5;
+    bytes group_accounts = 6 [(gogoproto.casttype) = "encoding/json.RawMessage"];
+    uint64 proposal_seq = 7;
+    bytes proposals = 8 [(gogoproto.casttype) = "encoding/json.RawMessage"];
+    bytes votes = 9 [(gogoproto.casttype) = "encoding/json.RawMessage"];
 }
