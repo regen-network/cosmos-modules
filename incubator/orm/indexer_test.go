@@ -21,47 +21,47 @@ func TestIndexerOnCreate(t *testing.T) {
 		expErr           error
 	}{
 		"single key": {
-			srcFunc: func(value interface{}) ([]RowID, error) {
-				return []RowID{{0, 0, 0, 0, 0, 0, 0, 1}}, nil
+			srcFunc: func(value interface{}) ([][]byte, error) {
+				return [][]byte{{0, 0, 0, 0, 0, 0, 0, 1}}, nil
 			},
 			expAddFuncCalled: true,
 			expIndexKeys:     []RowID{{0, 0, 0, 0, 0, 0, 0, 1}},
 			expRowIDs:        []RowID{myRowID},
 		},
 		"multi key": {
-			srcFunc: func(value interface{}) ([]RowID, error) {
-				return []RowID{{0, 0, 0, 0, 0, 0, 0, 1}, {1, 0, 0, 0, 0, 0, 0, 0}}, nil
+			srcFunc: func(value interface{}) ([][]byte, error) {
+				return [][]byte{{0, 0, 0, 0, 0, 0, 0, 1}, {1, 0, 0, 0, 0, 0, 0, 0}}, nil
 			},
 			expAddFuncCalled: true,
 			expIndexKeys:     []RowID{{0, 0, 0, 0, 0, 0, 0, 1}, {1, 0, 0, 0, 0, 0, 0, 0}},
 			expRowIDs:        []RowID{myRowID, myRowID},
 		},
 		"empty key in slice": {
-			srcFunc: func(value interface{}) ([]RowID, error) {
-				return []RowID{{}}, nil
+			srcFunc: func(value interface{}) ([][]byte, error) {
+				return [][]byte{{}}, nil
 			},
 			expAddFuncCalled: false,
 		},
 		"nil key in slice": {
-			srcFunc: func(value interface{}) ([]RowID, error) {
-				return []RowID{nil}, nil
+			srcFunc: func(value interface{}) ([][]byte, error) {
+				return [][]byte{nil}, nil
 			},
 			expAddFuncCalled: false,
 		},
 		"empty key": {
-			srcFunc: func(value interface{}) ([]RowID, error) {
-				return []RowID{}, nil
+			srcFunc: func(value interface{}) ([][]byte, error) {
+				return [][]byte{}, nil
 			},
 			expAddFuncCalled: false,
 		},
 		"nil key": {
-			srcFunc: func(value interface{}) ([]RowID, error) {
+			srcFunc: func(value interface{}) ([][]byte, error) {
 				return nil, nil
 			},
 			expAddFuncCalled: false,
 		},
 		"error case": {
-			srcFunc: func(value interface{}) ([]RowID, error) {
+			srcFunc: func(value interface{}) ([][]byte, error) {
 				return nil, stdErrors.New("test")
 			},
 			expErr:           stdErrors.New("test"),
@@ -96,14 +96,14 @@ func TestIndexerOnDelete(t *testing.T) {
 		expErr       error
 	}{
 		"single key": {
-			srcFunc: func(value interface{}) ([]RowID, error) {
-				return []RowID{{0, 0, 0, 0, 0, 0, 0, 1}}, nil
+			srcFunc: func(value interface{}) ([][]byte, error) {
+				return [][]byte{{0, 0, 0, 0, 0, 0, 0, 1}}, nil
 			},
 			expIndexKeys: []RowID{append([]byte{0, 0, 0, 0, 0, 0, 0, 1}, myRowID...)},
 		},
 		"multi key": {
-			srcFunc: func(value interface{}) ([]RowID, error) {
-				return []RowID{{0, 0, 0, 0, 0, 0, 0, 1}, {1, 0, 0, 0, 0, 0, 0, 0}}, nil
+			srcFunc: func(value interface{}) ([][]byte, error) {
+				return [][]byte{{0, 0, 0, 0, 0, 0, 0, 1}, {1, 0, 0, 0, 0, 0, 0, 0}}, nil
 			},
 			expIndexKeys: []RowID{
 				append([]byte{0, 0, 0, 0, 0, 0, 0, 1}, myRowID...),
@@ -111,27 +111,27 @@ func TestIndexerOnDelete(t *testing.T) {
 			},
 		},
 		"empty key": {
-			srcFunc: func(value interface{}) ([]RowID, error) {
-				return []RowID{}, nil
+			srcFunc: func(value interface{}) ([][]byte, error) {
+				return [][]byte{}, nil
 			},
 		},
 		"nil key": {
-			srcFunc: func(value interface{}) ([]RowID, error) {
+			srcFunc: func(value interface{}) ([][]byte, error) {
 				return nil, nil
 			},
 		},
 		"empty key in slice": {
-			srcFunc: func(value interface{}) ([]RowID, error) {
-				return []RowID{{}}, nil
+			srcFunc: func(value interface{}) ([][]byte, error) {
+				return [][]byte{{}}, nil
 			},
 		},
 		"nil key in slice": {
-			srcFunc: func(value interface{}) ([]RowID, error) {
-				return []RowID{nil}, nil
+			srcFunc: func(value interface{}) ([][]byte, error) {
+				return [][]byte{nil}, nil
 			},
 		},
 		"error case": {
-			srcFunc: func(value interface{}) ([]RowID, error) {
+			srcFunc: func(value interface{}) ([][]byte, error) {
 				return nil, stdErrors.New("test")
 			},
 			expErr: stdErrors.New("test"),
@@ -166,14 +166,14 @@ func TestIndexerOnUpdate(t *testing.T) {
 		addFunc        func(sdk.KVStore, IndexKeyCodec, []byte, RowID) error
 	}{
 		"single key - same key, no update": {
-			srcFunc: func(value interface{}) ([]RowID, error) {
-				return []RowID{EncodeSequence(1)}, nil
+			srcFunc: func(value interface{}) ([][]byte, error) {
+				return [][]byte{EncodeSequence(1)}, nil
 			},
 		},
 		"single key - different key, replaced": {
-			srcFunc: func(value interface{}) ([]RowID, error) {
+			srcFunc: func(value interface{}) ([][]byte, error) {
 				keys := []RowID{EncodeSequence(1), EncodeSequence(2)}
-				return []RowID{keys[value.(int)]}, nil
+				return [][]byte{keys[value.(int)]}, nil
 			},
 			expAddedKeys: []RowID{
 				append(EncodeSequence(2), myRowID...),
@@ -183,14 +183,14 @@ func TestIndexerOnUpdate(t *testing.T) {
 			},
 		},
 		"multi key - same key, no update": {
-			srcFunc: func(value interface{}) ([]RowID, error) {
-				return []RowID{EncodeSequence(1), EncodeSequence(2)}, nil
+			srcFunc: func(value interface{}) ([][]byte, error) {
+				return [][]byte{EncodeSequence(1), EncodeSequence(2)}, nil
 			},
 		},
 		"multi key - replaced": {
-			srcFunc: func(value interface{}) ([]RowID, error) {
+			srcFunc: func(value interface{}) ([][]byte, error) {
 				keys := []RowID{EncodeSequence(1), EncodeSequence(2), EncodeSequence(3), EncodeSequence(4)}
-				return []RowID{keys[value.(int)], keys[value.(int)+2]}, nil
+				return [][]byte{keys[value.(int)], keys[value.(int)+2]}, nil
 			},
 			expAddedKeys: []RowID{
 				append(EncodeSequence(2), myRowID...),
@@ -202,45 +202,45 @@ func TestIndexerOnUpdate(t *testing.T) {
 			},
 		},
 		"empty key": {
-			srcFunc: func(value interface{}) ([]RowID, error) {
-				return []RowID{}, nil
+			srcFunc: func(value interface{}) ([][]byte, error) {
+				return [][]byte{}, nil
 			},
 		},
 		"nil key": {
-			srcFunc: func(value interface{}) ([]RowID, error) {
+			srcFunc: func(value interface{}) ([][]byte, error) {
 				return nil, nil
 			},
 		},
 		"empty key in slice": {
-			srcFunc: func(value interface{}) ([]RowID, error) {
-				return []RowID{{}}, nil
+			srcFunc: func(value interface{}) ([][]byte, error) {
+				return [][]byte{{}}, nil
 			},
 		},
 		"nil key in slice": {
-			srcFunc: func(value interface{}) ([]RowID, error) {
-				return []RowID{nil}, nil
+			srcFunc: func(value interface{}) ([][]byte, error) {
+				return [][]byte{nil}, nil
 			},
 		},
 		"error case with new value": {
-			srcFunc: func(value interface{}) ([]RowID, error) {
+			srcFunc: func(value interface{}) ([][]byte, error) {
 				return nil, stdErrors.New("test")
 			},
 			expErr: stdErrors.New("test"),
 		},
 		"error case with old value": {
-			srcFunc: func(value interface{}) ([]RowID, error) {
+			srcFunc: func(value interface{}) ([][]byte, error) {
 				var err error
 				if value.(int)%2 == 1 {
 					err = stdErrors.New("test")
 				}
-				return []RowID{myRowID}, err
+				return [][]byte{myRowID}, err
 			},
 			expErr: stdErrors.New("test"),
 		},
 		"error case on persisting new keys": {
-			srcFunc: func(value interface{}) ([]RowID, error) {
+			srcFunc: func(value interface{}) ([][]byte, error) {
 				keys := []RowID{EncodeSequence(1), EncodeSequence(2)}
-				return []RowID{keys[value.(int)]}, nil
+				return [][]byte{keys[value.(int)]}, nil
 			},
 			addFunc: func(_ sdk.KVStore, _ IndexKeyCodec, _ []byte, _ RowID) error {
 				return stdErrors.New("test")
@@ -356,8 +356,8 @@ func TestMultiKeyAddFunc(t *testing.T) {
 }
 
 func TestDifference(t *testing.T) {
-	asByte := func(s []string) []RowID {
-		r := make([]RowID, len(s))
+	asByte := func(s []string) [][]byte {
+		r := make([][]byte, len(s))
 		for i := 0; i < len(s); i++ {
 			r[i] = []byte(s[i])
 		}
@@ -391,64 +391,64 @@ func TestDifference(t *testing.T) {
 func TestPruneEmptyKeys(t *testing.T) {
 	specs := map[string]struct {
 		srcFunc   IndexerFunc
-		expResult []RowID
+		expResult [][]byte
 		expError  error
 	}{
 		"non empty": {
-			srcFunc: func(v interface{}) ([]RowID, error) {
-				return []RowID{{0}, {1}}, nil
+			srcFunc: func(v interface{}) ([][]byte, error) {
+				return [][]byte{{0}, {1}}, nil
 			},
-			expResult: []RowID{{0}, {1}},
+			expResult: [][]byte{{0}, {1}},
 		},
 		"empty": {
-			srcFunc: func(v interface{}) ([]RowID, error) {
-				return []RowID{}, nil
+			srcFunc: func(v interface{}) ([][]byte, error) {
+				return [][]byte{}, nil
 			},
-			expResult: []RowID{},
+			expResult: [][]byte{},
 		},
 		"nil": {
-			srcFunc: func(v interface{}) ([]RowID, error) {
+			srcFunc: func(v interface{}) ([][]byte, error) {
 				return nil, nil
 			},
 		},
 		"nil in the beginning": {
-			srcFunc: func(v interface{}) ([]RowID, error) {
-				return []RowID{nil, {0}, {1}}, nil
+			srcFunc: func(v interface{}) ([][]byte, error) {
+				return [][]byte{nil, {0}, {1}}, nil
 			},
-			expResult: []RowID{{0}, {1}},
+			expResult: [][]byte{{0}, {1}},
 		},
 		"nil in the middle": {
-			srcFunc: func(v interface{}) ([]RowID, error) {
-				return []RowID{{0}, nil, {1}}, nil
+			srcFunc: func(v interface{}) ([][]byte, error) {
+				return [][]byte{{0}, nil, {1}}, nil
 			},
-			expResult: []RowID{{0}, {1}},
+			expResult: [][]byte{{0}, {1}},
 		},
 		"nil at the end": {
-			srcFunc: func(v interface{}) ([]RowID, error) {
-				return []RowID{{0}, nil, {1}}, nil
+			srcFunc: func(v interface{}) ([][]byte, error) {
+				return [][]byte{{0}, nil, {1}}, nil
 			},
-			expResult: []RowID{{0}, {1}},
+			expResult: [][]byte{{0}, {1}},
 		},
 		"empty in the beginning": {
-			srcFunc: func(v interface{}) ([]RowID, error) {
-				return []RowID{{}, {0}, {1}}, nil
+			srcFunc: func(v interface{}) ([][]byte, error) {
+				return [][]byte{{}, {0}, {1}}, nil
 			},
-			expResult: []RowID{{0}, {1}},
+			expResult: [][]byte{{0}, {1}},
 		},
 		"empty in the middle": {
-			srcFunc: func(v interface{}) ([]RowID, error) {
-				return []RowID{{0}, {}, {1}}, nil
+			srcFunc: func(v interface{}) ([][]byte, error) {
+				return [][]byte{{0}, {}, {1}}, nil
 			},
-			expResult: []RowID{{0}, {1}},
+			expResult: [][]byte{{0}, {1}},
 		},
 		"empty at the end": {
-			srcFunc: func(v interface{}) ([]RowID, error) {
-				return []RowID{{0}, {}, {1}}, nil
+			srcFunc: func(v interface{}) ([][]byte, error) {
+				return [][]byte{{0}, {}, {1}}, nil
 			},
-			expResult: []RowID{{0}, {1}},
+			expResult: [][]byte{{0}, {1}},
 		},
 		"error passed": {
-			srcFunc: func(v interface{}) ([]RowID, error) {
+			srcFunc: func(v interface{}) ([][]byte, error) {
 				return nil, stdErrors.New("test")
 			},
 			expError: stdErrors.New("test"),

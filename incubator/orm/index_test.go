@@ -17,8 +17,8 @@ func TestIndexPrefixScan(t *testing.T) {
 		testTableSeqPrefix
 	)
 	tBuilder := NewAutoUInt64TableBuilder(testTablePrefix, testTableSeqPrefix, storeKey, &testdata.GroupMetadata{})
-	idx := NewIndex(tBuilder, GroupByAdminIndexPrefix, func(val interface{}) ([]RowID, error) {
-		return []RowID{[]byte(val.(*testdata.GroupMetadata).Admin)}, nil
+	idx := NewIndex(tBuilder, GroupByAdminIndexPrefix, func(val interface{}) ([][]byte, error) {
+		return [][]byte{val.(*testdata.GroupMetadata).Admin}, nil
 	})
 	tb := tBuilder.Build()
 	ctx := NewMockContext()
@@ -202,7 +202,7 @@ func TestUniqueIndex(t *testing.T) {
 	storeKey := sdk.NewKVStoreKey("test")
 
 	tableBuilder := NewNaturalKeyTableBuilder(GroupMemberTablePrefix, storeKey, &testdata.GroupMember{}, Max255DynamicLengthIndexKeyCodec{})
-	uniqueIdx := NewUniqueIndex(tableBuilder, 0x10, func(val interface{}) (RowID, error) {
+	uniqueIdx := NewUniqueIndex(tableBuilder, 0x10, func(val interface{}) ([]byte, error) {
 		return []byte{val.(*testdata.GroupMember).Member[0]}, nil
 	})
 	myTable := tableBuilder.Build()
@@ -259,12 +259,12 @@ func TestUniqueIndex(t *testing.T) {
 	rowID, err = it.LoadNext(&loaded)
 	require.Error(t, ErrIteratorDone, err)
 	// create with same index key should fail
-	new := testdata.GroupMember{
+	newEntry := testdata.GroupMember{
 		Group:  sdk.AccAddress(EncodeSequence(1)),
 		Member: sdk.AccAddress([]byte("my-other")),
 		Weight: 10,
 	}
-	err = myTable.Create(ctx, &new)
+	err = myTable.Create(ctx, &newEntry)
 	require.Error(t, ErrUniqueConstraint, err)
 
 	// and when delete

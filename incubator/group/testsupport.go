@@ -1,14 +1,20 @@
 package group
 
 import (
+	"time"
+
 	"github.com/cosmos/cosmos-sdk/baseapp"
 	"github.com/cosmos/cosmos-sdk/codec"
 	"github.com/cosmos/cosmos-sdk/store/rootmulti"
+	"github.com/cosmos/cosmos-sdk/store/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/x/params"
 	"github.com/cosmos/cosmos-sdk/x/params/subspace"
+	gogo "github.com/gogo/protobuf/types"
+	fuzz "github.com/google/gofuzz"
 	abci "github.com/tendermint/tendermint/abci/types"
 	"github.com/tendermint/tendermint/libs/log"
+	"github.com/tendermint/tendermint/libs/math"
 	dbm "github.com/tendermint/tm-db"
 )
 
@@ -21,7 +27,10 @@ func NewContext(keys ...sdk.StoreKey) sdk.Context {
 			storeType = sdk.StoreTypeTransient
 		}
 		cms.MountStoreWithDB(v, storeType, db)
-		cms.LoadLatestVersion()
+	}
+	cms.SetPruning(types.PruneSyncable)
+	if err := cms.LoadLatestVersion(); err != nil {
+		panic(err)
 	}
 	return sdk.NewContext(cms, abci.Header{}, false, log.NewNopLogger())
 }
@@ -36,6 +45,36 @@ func createGroupKeeper() (Keeper, sdk.Context) {
 	ctx := NewContext(pKey, pTKey, groupKey)
 	k.setParams(ctx, DefaultParams())
 	return k, ctx
+}
+
+func FuzzPositiveDec(m *sdk.Dec, c fuzz.Continue) {
+	*m = sdk.NewDec(c.Rand.Int63())
+}
+func FuzzComment(m *string, c fuzz.Continue) {
+	randString := c.RandString()
+	*m = randString[0:math.MinInt(len(randString), defaultMaxCommentLength)]
+}
+func FuzzAddr(m *sdk.AccAddress, c fuzz.Continue) {
+	*m = make([]byte, 20)
+	c.Read(*m)
+}
+func FuzzPositiveDuration(m *gogo.Duration, c fuzz.Continue) {
+	v := gogo.DurationProto(time.Duration(c.Int63()))
+	*m = *v
+}
+func FuzzMember(m *Member, c fuzz.Continue) {
+	FuzzAddr(&m.Address, c)
+	FuzzPositiveDec(&m.Power, c)
+	FuzzComment(&m.Comment, c)
+}
+func FuzzGroupMember(m *GroupMember, c fuzz.Continue) {
+	m.Group = GroupID(c.RandUint64())
+	FuzzAddr(&m.Member, c)
+	FuzzPositiveDec(&m.Weight, c)
+	FuzzComment(&m.Comment, c)
+}
+func FuzzChoice(m *Choice, c fuzz.Continue) {
+	*m = Choice(c.Intn(len(Choice_name)-2) + 1)
 }
 
 type MockProposalI struct {

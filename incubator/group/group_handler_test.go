@@ -65,7 +65,7 @@ func TestMsgCreateGroup(t *testing.T) {
 			assert.Equal(t, spec.expGroup, loaded)
 
 			// and members persisted
-			it, err := k.groupMemberByGroupIndex.Get(ctx, groupID)
+			it, err := k.GroupMemberByGroupIndex.Get(ctx, groupID)
 			require.NoError(t, err)
 			var loadedMembers []GroupMember
 			_, err = orm.ReadAll(it, &loadedMembers)
@@ -465,7 +465,7 @@ func TestMsgUpdateGroupMembers(t *testing.T) {
 			assert.Equal(t, spec.expGroup, loaded)
 
 			// and members persisted
-			it, err := k.groupMemberByGroupIndex.Get(ctx, uint64(groupID))
+			it, err := k.GroupMemberByGroupIndex.Get(ctx, uint64(groupID))
 			require.NoError(t, err)
 			var loadedMembers []GroupMember
 			_, err = orm.ReadAll(it, &loadedMembers)
