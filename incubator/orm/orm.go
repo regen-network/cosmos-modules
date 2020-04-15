@@ -37,6 +37,12 @@ func (r RowID) Bytes() []byte {
 	return r
 }
 
+// Validateable is an interface that Persistent types can implement and is called on any orm save or update operation.
+type Validateable interface {
+	// ValidateBasic is a sanity check on the data. Any error returned prevents create or updates.
+	ValidateBasic() error
+}
+
 // Persistent supports Marshal and Unmarshal
 //
 // This is separated from Marshal, as this almost always requires
@@ -46,8 +52,6 @@ func (r RowID) Bytes() []byte {
 // As with Marshaller, this may do internal validation on the data
 // and errors should be expected.
 type Persistent interface {
-	// ValidateBasic is a sanity check on the data. Any error returned prevents create or updates.
-	ValidateBasic() error
 	// Marshal serializes object into binary representation
 	Marshal() ([]byte, error)
 	// Unmarshal deserializes the object from the binary representation

@@ -48,6 +48,7 @@ type DecisionPolicyResult struct {
 // DecisionPolicy is the persistent set of rules to determine the result of election on a proposal.
 type DecisionPolicy interface {
 	orm.Persistent
+	orm.Validateable
 	Allow(tally Tally, totalPower sdk.Dec, votingDuration time.Duration) (DecisionPolicyResult, error)
 }
 
@@ -126,6 +127,8 @@ func (s StdGroupAccountMetadata) NaturalKey() []byte {
 	return s.Base.NaturalKey()
 }
 
+var _ orm.Validateable = StdGroupAccountMetadata{}
+
 func (s StdGroupAccountMetadata) ValidateBasic() error {
 	if err := s.Base.ValidateBasic(); err != nil {
 		return errors.Wrap(err, "base")
@@ -146,6 +149,8 @@ func (v Vote) NaturalKey() []byte {
 	result = append(result, v.Voter...)
 	return result
 }
+
+var _ orm.Validateable = Vote{}
 
 func (v Vote) ValidateBasic() error {
 	if len(v.Voter) == 0 {
@@ -206,6 +211,8 @@ func noopValidator() subspace.ValueValidatorFn {
 	return func(value interface{}) error { return nil }
 }
 
+var _ orm.Validateable = GroupMetadata{}
+
 func (m GroupMetadata) ValidateBasic() error {
 	if m.Group.Empty() {
 		return sdkerrors.Wrap(ErrEmpty, "group")
@@ -225,6 +232,8 @@ func (m GroupMetadata) ValidateBasic() error {
 	return nil
 }
 
+var _ orm.Validateable = GroupMember{}
+
 func (m GroupMember) ValidateBasic() error {
 	if m.Group.Empty() {
 		return sdkerrors.Wrap(ErrEmpty, "group")
@@ -240,6 +249,8 @@ func (m GroupMember) ValidateBasic() error {
 	}
 	return nil
 }
+
+var _ orm.Validateable = ProposalBase{}
 
 func (p ProposalBase) ValidateBasic() error {
 	if p.GroupAccount.Empty() {

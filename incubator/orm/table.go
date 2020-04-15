@@ -102,7 +102,7 @@ func (a Table) Create(ctx HasKVStore, rowID RowID, obj Persistent) error {
 	if err := assertCorrectType(a.model, obj); err != nil {
 		return err
 	}
-	if err := obj.ValidateBasic(); err != nil {
+	if err := assertValid(obj); err != nil {
 		return err
 	}
 	store := prefix.NewStore(ctx.KVStore(a.storeKey), []byte{a.prefix})
@@ -128,7 +128,7 @@ func (a Table) Save(ctx HasKVStore, rowID RowID, newValue Persistent) error {
 	if err := assertCorrectType(a.model, newValue); err != nil {
 		return err
 	}
-	if err := newValue.ValidateBasic(); err != nil {
+	if err := assertValid(newValue); err != nil {
 		return err
 	}
 
@@ -147,6 +147,15 @@ func (a Table) Save(ctx HasKVStore, rowID RowID, newValue Persistent) error {
 	for i, itc := range a.afterSave {
 		if err := itc(ctx, rowID, newValue, oldValue); err != nil {
 			return errors.Wrapf(err, "interceptor %d failed", i)
+		}
+	}
+	return nil
+}
+
+func assertValid(obj Persistent) error {
+	if v, ok := obj.(Validateable); ok {
+		if err := v.ValidateBasic(); err != nil {
+			return err
 		}
 	}
 	return nil
