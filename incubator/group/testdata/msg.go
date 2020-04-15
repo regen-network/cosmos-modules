@@ -9,9 +9,12 @@ import (
 )
 
 const (
-	msgTypeCreateProposal = "create_proposal"
-	msgTypeMyMsgA         = "my_msg_a"
-	msgTypeMyMsgB         = "my_msg_b"
+	msgTypeMyMsgA         = "always_succeed"
+	msgTypeMyMsgB         = "always_fail"
+	msgTypeMyMsgC         = "set_value"
+	msgTypeMyMsgD         = "inc_counter"
+	msgTypeMyMsgE         = "conditional"
+	msgTypeMyMsgF         = "authenticate"
 )
 
 var _ sdk.Msg = &MsgPropose{}
@@ -48,19 +51,19 @@ func (m MsgPropose) ValidateBasic() error {
 	return nil
 }
 
-var _ sdk.Msg = &MyAppProposalPayloadMsgA{}
+var _ sdk.Msg = &MsgAlwaysSucceed{}
 
-func (m MyAppProposalPayloadMsgA) Route() string { return ModuleName }
+func (m MsgAlwaysSucceed) Route() string { return ModuleName }
 
-func (m MyAppProposalPayloadMsgA) Type() string { return msgTypeMyMsgA }
+func (m MsgAlwaysSucceed) Type() string { return msgTypeMyMsgA }
 
 // GetSigners returns the addresses that must sign over msg.GetSignBytes()
-func (m MyAppProposalPayloadMsgA) GetSigners() []sdk.AccAddress {
+func (m MsgAlwaysSucceed) GetSigners() []sdk.AccAddress {
 	return nil // nothing to do
 }
 
 // GetSignBytes returns the bytes for the message signer to sign on
-func (m MyAppProposalPayloadMsgA) GetSignBytes() []byte {
+func (m MsgAlwaysSucceed) GetSignBytes() []byte {
 	var buf bytes.Buffer
 	enc := jsonpb.Marshaler{}
 	if err := enc.Marshal(&buf, &m); err != nil {
@@ -70,23 +73,23 @@ func (m MyAppProposalPayloadMsgA) GetSignBytes() []byte {
 }
 
 // ValidateBasic does a sanity check on the provided data
-func (m MyAppProposalPayloadMsgA) ValidateBasic() error {
+func (m MsgAlwaysSucceed) ValidateBasic() error {
 	return nil
 }
 
-var _ sdk.Msg = &MyAppProposalPayloadMsgB{}
+var _ sdk.Msg = &MsgAlwaysFail{}
 
-func (m MyAppProposalPayloadMsgB) Route() string { return ModuleName }
+func (m MsgAlwaysFail) Route() string { return ModuleName }
 
-func (m MyAppProposalPayloadMsgB) Type() string { return msgTypeMyMsgB }
+func (m MsgAlwaysFail) Type() string { return msgTypeMyMsgB }
 
 // GetSigners returns the addresses that must sign over msg.GetSignBytes()
-func (m MyAppProposalPayloadMsgB) GetSigners() []sdk.AccAddress {
+func (m MsgAlwaysFail) GetSigners() []sdk.AccAddress {
 	return nil
 }
 
 // GetSignBytes returns the bytes for the message signer to sign on
-func (m MyAppProposalPayloadMsgB) GetSignBytes() []byte {
+func (m MsgAlwaysFail) GetSignBytes() []byte {
 	var buf bytes.Buffer
 	enc := jsonpb.Marshaler{}
 	if err := enc.Marshal(&buf, &m); err != nil {
@@ -96,6 +99,105 @@ func (m MyAppProposalPayloadMsgB) GetSignBytes() []byte {
 }
 
 // ValidateBasic does a sanity check on the provided data
-func (m MyAppProposalPayloadMsgB) ValidateBasic() error {
+func (m MsgAlwaysFail) ValidateBasic() error {
+	return nil
+}
+
+var _ sdk.Msg = &MsgSetValue{}
+
+func (m MsgSetValue) Route() string { return ModuleName }
+
+func (m MsgSetValue) Type() string { return msgTypeMyMsgC }
+
+// GetSigners returns the addresses that must sign over msg.GetSignBytes()
+func (m MsgSetValue) GetSigners() []sdk.AccAddress {
+	return nil
+}
+
+// GetSignBytes returns the bytes for the message signer to sign on
+func (m MsgSetValue) GetSignBytes() []byte {
+	var buf bytes.Buffer
+	enc := jsonpb.Marshaler{}
+	if err := enc.Marshal(&buf, &m); err != nil {
+		panic(err)
+	}
+	return sdk.MustSortJSON(buf.Bytes())
+}
+
+// ValidateBasic does a sanity check on the provided data
+func (m MsgSetValue) ValidateBasic() error {
+	return nil
+}
+
+var _ sdk.Msg = &MsgIncCounter{}
+
+func (m MsgIncCounter) Route() string { return ModuleName }
+
+func (m MsgIncCounter) Type() string { return msgTypeMyMsgD }
+
+// GetSigners returns the addresses that must sign over msg.GetSignBytes()
+func (m MsgIncCounter) GetSigners() []sdk.AccAddress {
+	return nil
+}
+
+// GetSignBytes returns the bytes for the message signer to sign on
+func (m MsgIncCounter) GetSignBytes() []byte {
+	var buf bytes.Buffer
+	enc := jsonpb.Marshaler{}
+	if err := enc.Marshal(&buf, &m); err != nil {
+		panic(err)
+	}
+	return sdk.MustSortJSON(buf.Bytes())
+}
+
+// ValidateBasic does a sanity check on the provided data
+func (m MsgIncCounter) ValidateBasic() error {
+	return nil
+}
+
+var _ sdk.Msg = &MsgConditional{}
+
+func (m MsgConditional) Route() string { return ModuleName }
+
+func (m MsgConditional) Type() string { return msgTypeMyMsgE }
+
+// GetSigners returns the addresses that must sign over msg.GetSignBytes()
+func (m MsgConditional) GetSigners() []sdk.AccAddress {
+	return nil
+}
+
+// GetSignBytes returns the bytes for the message signer to sign on
+func (m MsgConditional) GetSignBytes() []byte {
+	var buf bytes.Buffer
+	enc := jsonpb.Marshaler{}
+	if err := enc.Marshal(&buf, &m); err != nil {
+		panic(err)
+	}
+	return sdk.MustSortJSON(buf.Bytes())
+}
+
+// ValidateBasic does a sanity check on the provided data
+func (m MsgConditional) ValidateBasic() error {
+	return nil
+}
+
+var _ sdk.Msg = &MsgAuthenticate{}
+
+func (m MsgAuthenticate) Route() string { return ModuleName }
+
+func (m MsgAuthenticate) Type() string { return msgTypeMyMsgF }
+
+// GetSignBytes returns the bytes for the message signer to sign on
+func (m MsgAuthenticate) GetSignBytes() []byte {
+	var buf bytes.Buffer
+	enc := jsonpb.Marshaler{}
+	if err := enc.Marshal(&buf, &m); err != nil {
+		panic(err)
+	}
+	return sdk.MustSortJSON(buf.Bytes())
+}
+
+// ValidateBasic does a sanity check on the provided data
+func (m MsgAuthenticate) ValidateBasic() error {
 	return nil
 }

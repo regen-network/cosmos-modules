@@ -24,8 +24,8 @@ func RegisterCodec(cdc *codec.Codec) {
 	cdc.RegisterConcrete(MsgPropose{}, "testdata/MsgPropose", nil)
 	// oh man... amino
 	cdc.RegisterInterface((*isMyAppMsg_Sum)(nil), nil)
-	cdc.RegisterConcrete(&MyAppProposalPayloadMsgA{}, "testdata/MyAppProposalPayloadMsgA", nil)
-	cdc.RegisterConcrete(&MyAppProposalPayloadMsgB{}, "testdata/MyAppProposalPayloadMsgB", nil)
+	cdc.RegisterConcrete(&MsgAlwaysSucceed{}, "testdata/MsgAlwaysSucceed", nil)
+	cdc.RegisterConcrete(&MsgAlwaysFail{}, "testdata/MsgAlwaysFail", nil)
 	cdc.RegisterConcrete(&MyAppMsg_A{}, "testdata/MyAppMsg_A", nil)
 	cdc.RegisterConcrete(&MyAppMsg_B{}, "testdata/MyAppMsg_B", nil)
 }

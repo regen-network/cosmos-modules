@@ -276,7 +276,7 @@ func TestFullProposalWorkflow(t *testing.T) {
 				Proposers:    []sdk.AccAddress{myAddr},
 				Comment:      "ok",
 			},
-			Msgs: []testdata.MyAppMsg{{Sum: &testdata.MyAppMsg_A{A: &testdata.MyAppProposalPayloadMsgA{}}}},
+			Msgs: []testdata.MyAppMsg{{Sum: &testdata.MyAppMsg_A{A: &testdata.MsgAlwaysSucceed{}}}},
 		},
 		testdata.MsgPropose{
 			Base: group.MsgProposeBase{

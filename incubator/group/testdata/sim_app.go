@@ -205,7 +205,7 @@ func NewSimApp(
 		app.cdc, keys[evidence.StoreKey], app.subspaces[evidence.ModuleName], &app.StakingKeeper, app.SlashingKeeper,
 	)
 	app.GroupKeeper = group.NewGroupKeeper(keys[group.StoreKeyName], app.subspaces[group.ModuleName], app.Router(), &MyAppProposal{} )
-	app.TestdataKeeper = NewTestdataKeeper(keys[ModuleName], app.GroupKeeper)
+	app.TestdataKeeper = NewKeeper(keys[ModuleName], app.GroupKeeper)
 	evidenceRouter := evidence.NewRouter()
 	// TODO: Register evidence routes.
 	evidenceKeeper.SetRouter(evidenceRouter)

@@ -337,8 +337,11 @@ func (m MsgExec) GetSignBytes() []byte {
 
 // ValidateBasic does a sanity check on the provided data
 func (m MsgExec) ValidateBasic() error {
+	if m.Signer.Empty() {
+		return errors.Wrap(ErrEmpty, "signer")
+	}
 	if err := sdk.VerifyAddressFormat(m.Signer); err != nil {
-		return errors.Wrap(ErrInvalid, "voter")
+		return errors.Wrap(ErrInvalid, "signer")
 	}
 	if m.Proposal == 0 {
 		return errors.Wrap(ErrEmpty, "proposal")

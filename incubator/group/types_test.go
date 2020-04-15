@@ -26,7 +26,7 @@ func TestThresholdDecisionPolicy(t *testing.T) {
 			},
 			srcTally:          Tally{YesCount: sdk.NewDec(2)},
 			srcTotalPower:     sdk.NewDec(3),
-			srcVotingDuration: time.Second,
+			srcVotingDuration: time.Millisecond,
 			expResult:         DecisionPolicyResult{Allow: true, Final: true},
 		},
 		"accept when yes count equal to threshold": {
@@ -36,7 +36,7 @@ func TestThresholdDecisionPolicy(t *testing.T) {
 			},
 			srcTally:          Tally{YesCount: sdk.OneDec(), NoCount: sdk.ZeroDec(), AbstainCount: sdk.ZeroDec(), VetoCount: sdk.ZeroDec()},
 			srcTotalPower:     sdk.NewDec(3),
-			srcVotingDuration: time.Second,
+			srcVotingDuration: time.Millisecond,
 			expResult:         DecisionPolicyResult{Allow: true, Final: true},
 		},
 		"reject when yes count lower to threshold": {
@@ -46,7 +46,7 @@ func TestThresholdDecisionPolicy(t *testing.T) {
 			},
 			srcTally:          Tally{YesCount: sdk.ZeroDec(), NoCount: sdk.ZeroDec(), AbstainCount: sdk.ZeroDec(), VetoCount: sdk.ZeroDec()},
 			srcTotalPower:     sdk.NewDec(3),
-			srcVotingDuration: time.Second,
+			srcVotingDuration: time.Millisecond,
 			expResult:         DecisionPolicyResult{Allow: false, Final: false},
 		},
 		"reject as final when remaining votes can't cross threshold": {
@@ -56,10 +56,20 @@ func TestThresholdDecisionPolicy(t *testing.T) {
 			},
 			srcTally:          Tally{YesCount: sdk.ZeroDec(), NoCount: sdk.NewDec(2), AbstainCount: sdk.ZeroDec(), VetoCount: sdk.ZeroDec()},
 			srcTotalPower:     sdk.NewDec(3),
+			srcVotingDuration: time.Millisecond,
+			expResult:         DecisionPolicyResult{Allow: false, Final: true},
+		},
+		"expired when on timeout": {
+			srcPolicy: ThresholdDecisionPolicy{
+				Threshold: sdk.OneDec(),
+				Timout:    proto.Duration{Seconds: 1},
+			},
+			srcTally:          Tally{YesCount: sdk.NewDec(2)},
+			srcTotalPower:     sdk.NewDec(3),
 			srcVotingDuration: time.Second,
 			expResult:         DecisionPolicyResult{Allow: false, Final: true},
 		},
-		"reject when expired": {
+		"expired when after timeout": {
 			srcPolicy: ThresholdDecisionPolicy{
 				Threshold: sdk.OneDec(),
 				Timout:    proto.Duration{Seconds: 1},
@@ -76,7 +86,7 @@ func TestThresholdDecisionPolicy(t *testing.T) {
 			},
 			srcTally:          Tally{YesCount: sdk.ZeroDec(), NoCount: sdk.ZeroDec(), AbstainCount: sdk.OneDec(), VetoCount: sdk.ZeroDec()},
 			srcTotalPower:     sdk.NewDec(3),
-			srcVotingDuration: time.Second,
+			srcVotingDuration: time.Millisecond,
 			expResult:         DecisionPolicyResult{Allow: false, Final: false},
 		},
 		"veto same as no": {
@@ -86,7 +96,7 @@ func TestThresholdDecisionPolicy(t *testing.T) {
 			},
 			srcTally:          Tally{YesCount: sdk.ZeroDec(), NoCount: sdk.ZeroDec(), AbstainCount: sdk.ZeroDec(), VetoCount: sdk.NewDec(2)},
 			srcTotalPower:     sdk.NewDec(3),
-			srcVotingDuration: time.Second,
+			srcVotingDuration: time.Millisecond,
 			expResult:         DecisionPolicyResult{Allow: false, Final: false},
 		},
 	}
