@@ -57,6 +57,10 @@ func (a TableBuilder) StoreKey() sdk.StoreKey {
 	return a.storeKey
 }
 
+func (a TableBuilder) Prefix() byte {
+	return a.prefixData
+}
+
 // Build creates a new Table object.
 func (a TableBuilder) Build() Table {
 	return Table{

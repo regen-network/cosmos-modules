@@ -108,19 +108,25 @@ type Iterator interface {
 	io.Closer
 }
 
-// IndexKeyCodec defines the encoding/ decoding methods for building/ splitting index keys.
-type IndexKeyCodec interface {
-	// BuildIndexKey encodes a searchable key and the target RowID.
-	BuildIndexKey(searchableKey []byte, rowID RowID) []byte
+// IndexKeyDecoder defines the decoding methods for splitting index keys.
+type IndexKeyDecoder interface {
 	// StripRowID returns the RowID from the combined persistentIndexKey. It is the reverse operation to BuildIndexKey
 	// but with the searchableKey dropped.
 	StripRowID(persistentIndexKey []byte) RowID
+}
+
+// IndexKeyCodec defines the encoding/ decoding methods for building/ splitting index keys.
+type IndexKeyCodec interface {
+	IndexKeyDecoder
+	// BuildIndexKey encodes a searchable key and the target RowID.
+	BuildIndexKey(searchableKey []byte, rowID RowID) []byte
 }
 
 // Indexable types are used to setup new tables.
 // This interface provides a set of functions that can be called by indexes to register and interact with the tables.
 type Indexable interface {
 	StoreKey() sdk.StoreKey
+	Prefix() byte
 	RowGetter() RowGetter
 	IndexKeyCodec() IndexKeyCodec
 	AddAfterSaveInterceptor(interceptor AfterSaveInterceptor)

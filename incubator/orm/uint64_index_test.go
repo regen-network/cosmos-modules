@@ -123,3 +123,81 @@ func TestUInt64MultiKeyAdapter(t *testing.T) {
 		})
 	}
 }
+
+func TestVirtualUInt64Index(t *testing.T) {
+	storeKey := sdk.NewKVStoreKey("test")
+	const testTablePrefix = iota
+	builder := NewNaturalKeyTableBuilder(testTablePrefix, storeKey, &testdata.GroupMember{}, Max255DynamicLengthIndexKeyCodec{})
+	table := builder.Build()
+
+	ctx := NewMockContext()
+	const anyWeight = 1
+	m1 := testdata.GroupMember{
+		Group:  EncodeSequence(1),
+		Member: []byte("member-one"),
+		Weight: anyWeight,
+	}
+	m2 := testdata.GroupMember{
+		Group:  EncodeSequence(1),
+		Member: []byte("member-two"),
+		Weight: anyWeight,
+	}
+	m3 := testdata.GroupMember{
+		Group:  EncodeSequence(2),
+		Member: []byte("member-two"),
+		Weight: anyWeight,
+	}
+	for _, g := range []testdata.GroupMember{m1, m2, m3} {
+		require.NoError(t, table.Create(ctx, &g))
+	}
+	idx := AsUInt64Index(NewVirtualIndex(builder))
+
+	it, err := idx.Get(ctx, 1)
+	require.NoError(t, err)
+	assert.True(t, idx.Has(ctx, 1))
+
+	var loaded []testdata.GroupMember
+	rowIDs, err := ReadAll(it, &loaded)
+	require.NoError(t, err)
+	assert.Equal(t, []testdata.GroupMember{m1, m2}, loaded)
+	assert.Equal(t, []RowID{m1.NaturalKey(), m2.NaturalKey()}, rowIDs)
+
+	// and with prefix scan
+	it, err = idx.PrefixScan(ctx, 1, 9999)
+	require.NoError(t, err)
+	rowIDs, err = ReadAll(it, &loaded)
+	require.NoError(t, err)
+	assert.Equal(t, []testdata.GroupMember{m1, m2, m3}, loaded)
+	assert.Equal(t, []RowID{m1.NaturalKey(), m2.NaturalKey(), m3.NaturalKey()}, rowIDs)
+	// and reverse
+	it, err = idx.ReversePrefixScan(ctx, 1, 9999)
+	require.NoError(t, err)
+	rowIDs, err = ReadAll(it, &loaded)
+	require.NoError(t, err)
+	assert.Equal(t, []testdata.GroupMember{m3, m2, m1}, loaded)
+	assert.Equal(t, []RowID{m3.NaturalKey(), m2.NaturalKey(), m1.NaturalKey()}, rowIDs)
+
+	// and when one entry removed
+	require.NoError(t, table.Delete(ctx, &m2))
+	it, err = idx.Get(ctx, 1)
+	require.NoError(t, err)
+
+	assert.True(t, idx.Has(ctx, 1))
+
+	rowIDs, err = ReadAll(it, &loaded)
+	require.NoError(t, err)
+	assert.Equal(t, []testdata.GroupMember{m1}, loaded)
+	assert.Equal(t, []RowID{m1.NaturalKey()}, rowIDs)
+
+	// and when other entry removed
+	require.NoError(t, table.Delete(ctx, &m1))
+	it, err = idx.Get(ctx, 1)
+	require.NoError(t, err)
+
+	assert.False(t, idx.Has(ctx, 1))
+
+	rowIDs, err = ReadAll(it, &loaded)
+	require.NoError(t, err)
+	assert.Equal(t, []testdata.GroupMember{}, loaded)
+	assert.Nil(t, rowIDs)
+}
