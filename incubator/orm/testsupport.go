@@ -63,6 +63,10 @@ func (d debuggingGasMeter) IsPastLimit() bool {
 func (d debuggingGasMeter) IsOutOfGas() bool {
 	return d.g.IsOutOfGas()
 }
+func (g *debuggingGasMeter) String() string {
+	return g.g.String()
+}
+
 
 type GasCountingMockContext struct {
 	parent   HasKVStore

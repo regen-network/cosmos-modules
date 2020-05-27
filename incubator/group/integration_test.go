@@ -23,8 +23,8 @@ import (
 
 func createTestApp(isCheckTx bool) (*testdata.SimApp, sdk.Context) {
 	db := dbm.NewMemDB()
-	app := testdata.NewSimApp(log.NewTMJSONLogger(log.NewSyncWriter(os.Stdout)), db, nil, true, map[int64]bool{}, 0)
-	genesisState := testdata.ModuleBasics.DefaultGenesis()
+	app := testdata.NewSimApp(log.NewTMJSONLogger(log.NewSyncWriter(os.Stdout)), db, nil, true, map[int64]bool{}, "", 0)
+	genesisState := testdata.ModuleBasics.DefaultGenesis(app.AppCodec())
 	stateBytes, err := codec.MarshalJSONIndent(app.Codec(), genesisState)
 	if err != nil {
 		panic(err)
@@ -100,8 +100,7 @@ func TestCreateGroupScenario(t *testing.T) {
 			accSeq, err := app.AccountKeeper.GetSequence(ctx, myAddr)
 			require.NoError(t, err)
 			tx := types.NewTestTx(ctx, []sdk.Msg{spec.src}, privs, []uint64{accNums}, []uint64{accSeq}, fee)
-
-			resp := app.DeliverTx(abci.RequestDeliverTx{Tx: app.Codec().MustMarshalBinaryLengthPrefixed(tx)})
+			resp := app.DeliverTx(abci.RequestDeliverTx{Tx: app.MustEncodeTx(tx)})
 			// then
 			require.Equal(t, spec.expCode, resp.Code, resp.Log)
 			if spec.expCode != 0 {
@@ -201,8 +200,7 @@ func TestCreateGroupAccountScenario(t *testing.T) {
 			accSeq, err := app.AccountKeeper.GetSequence(ctx, myAddr)
 			require.NoError(t, err)
 			tx := types.NewTestTx(ctx, msgs, privs, []uint64{accNums}, []uint64{accSeq}, fee)
-
-			resp := app.DeliverTx(abci.RequestDeliverTx{Tx: app.Codec().MustMarshalBinaryLengthPrefixed(tx)})
+			resp := app.DeliverTx(abci.RequestDeliverTx{Tx: app.MustEncodeTx(tx)})
 			// then
 			require.Equal(t, spec.expCode, resp.Code, resp.Log)
 			if spec.expCode != 0 {
@@ -304,7 +302,7 @@ func TestFullProposalWorkflow(t *testing.T) {
 	privs, accNums, seqs := []crypto.PrivKey{myKey}, myAccount.GetAccountNumber(), myAccount.GetSequence()
 	tx := types.NewTestTx(ctx, msgs, privs, []uint64{accNums}, []uint64{seqs}, fee)
 
-	resp := app.DeliverTx(abci.RequestDeliverTx{Tx: app.Codec().MustMarshalBinaryLengthPrefixed(tx)})
+	resp := app.DeliverTx(abci.RequestDeliverTx{Tx: app.MustEncodeTx(tx)})
 	require.Equal(t, uint32(0), resp.Code, resp.Log)
 
 	// execute can not be in the same block so start new one
@@ -321,7 +319,7 @@ func TestFullProposalWorkflow(t *testing.T) {
 	privs, accNums, seqs = []crypto.PrivKey{myKey}, myAccount.GetAccountNumber(), myAccount.GetSequence()
 	tx = types.NewTestTx(ctx, msgs, privs, []uint64{accNums}, []uint64{seqs}, fee)
 
-	resp = app.DeliverTx(abci.RequestDeliverTx{Tx: app.Codec().MustMarshalBinaryLengthPrefixed(tx)})
+	resp = app.DeliverTx(abci.RequestDeliverTx{Tx: app.MustEncodeTx(tx)})
 	require.Equal(t, uint32(0), resp.Code, resp.Log)
 
 	// then verify proposal got accepted
@@ -343,7 +341,7 @@ func TestFullProposalWorkflow(t *testing.T) {
 	privs, accNums, seqs = []crypto.PrivKey{myKey}, myAccount.GetAccountNumber(), myAccount.GetSequence()
 	tx = types.NewTestTx(ctx, msgs, privs, []uint64{accNums}, []uint64{seqs}, fee)
 
-	resp = app.DeliverTx(abci.RequestDeliverTx{Tx: app.Codec().MustMarshalBinaryLengthPrefixed(tx)})
+	resp = app.DeliverTx(abci.RequestDeliverTx{Tx: app.MustEncodeTx(tx)})
 	require.Equal(t, uint32(0), resp.Code, resp.Log)
 
 	// verify second  proposal
