@@ -4,7 +4,7 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 	"github.com/cosmos/cosmos-sdk/x/params"
-	"github.com/cosmos/cosmos-sdk/x/params/subspace"
+	paramtypes "github.com/cosmos/cosmos-sdk/x/params/types"
 	"github.com/cosmos/modules/incubator/orm"
 	"github.com/gogo/protobuf/types"
 	"github.com/pkg/errors"
@@ -207,7 +207,7 @@ func (p Params) Validate() error {
 	return nil
 }
 
-func noopValidator() subspace.ValueValidatorFn {
+func noopValidator() paramtypes.ValueValidatorFn {
 	return func(value interface{}) error { return nil }
 }
 

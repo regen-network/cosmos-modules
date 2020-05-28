@@ -7,10 +7,9 @@ import (
 	"time"
 
 	"github.com/cosmos/cosmos-sdk/baseapp"
-	"github.com/cosmos/cosmos-sdk/codec"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/x/params"
-	"github.com/cosmos/cosmos-sdk/x/params/subspace"
+	paramtypes "github.com/cosmos/cosmos-sdk/x/params/types"
 	"github.com/cosmos/modules/incubator/group"
 	"github.com/cosmos/modules/incubator/group/testdata"
 	"github.com/cosmos/modules/incubator/orm"
@@ -20,9 +19,8 @@ import (
 )
 
 func TestCreateGroup(t *testing.T) {
-	amino := codec.New()
 	pKey, pTKey := sdk.NewKVStoreKey(params.StoreKey), sdk.NewTransientStoreKey(params.TStoreKey)
-	paramSpace := subspace.NewSubspace(amino, pKey, pTKey, group.DefaultParamspace)
+	paramSpace := paramtypes.NewSubspace(group.NewCodec(), pKey, pTKey, group.DefaultParamspace)
 
 	groupKey := sdk.NewKVStoreKey(group.StoreKeyName)
 	k := group.NewGroupKeeper(groupKey, paramSpace, baseapp.NewRouter(), &group.MockProposalI{})
@@ -107,9 +105,8 @@ func TestCreateGroup(t *testing.T) {
 }
 
 func TestCreateGroupAccount(t *testing.T) {
-	amino := codec.New()
 	pKey, pTKey := sdk.NewKVStoreKey(params.StoreKey), sdk.NewTransientStoreKey(params.TStoreKey)
-	paramSpace := subspace.NewSubspace(amino, pKey, pTKey, group.DefaultParamspace)
+	paramSpace := paramtypes.NewSubspace(group.NewCodec(), pKey, pTKey, group.DefaultParamspace)
 
 	groupKey := sdk.NewKVStoreKey(group.StoreKeyName)
 	k := group.NewGroupKeeper(groupKey, paramSpace, baseapp.NewRouter(), &group.MockProposalI{})
@@ -199,9 +196,8 @@ func TestCreateGroupAccount(t *testing.T) {
 }
 
 func TestCreateProposal(t *testing.T) {
-	amino := codec.New()
 	pKey, pTKey := sdk.NewKVStoreKey(params.StoreKey), sdk.NewTransientStoreKey(params.TStoreKey)
-	paramSpace := subspace.NewSubspace(amino, pKey, pTKey, group.DefaultParamspace)
+	paramSpace := paramtypes.NewSubspace(group.NewCodec(), pKey, pTKey, group.DefaultParamspace)
 
 	groupKey := sdk.NewKVStoreKey(group.StoreKeyName)
 	k := group.NewGroupKeeper(groupKey, paramSpace, baseapp.NewRouter(), &testdata.MyAppProposal{})
@@ -351,9 +347,8 @@ func TestCreateProposal(t *testing.T) {
 }
 
 func TestVote(t *testing.T) {
-	amino := codec.New()
 	pKey, pTKey := sdk.NewKVStoreKey(params.StoreKey), sdk.NewTransientStoreKey(params.TStoreKey)
-	paramSpace := subspace.NewSubspace(amino, pKey, pTKey, group.DefaultParamspace)
+	paramSpace := paramtypes.NewSubspace(group.NewCodec(), pKey, pTKey, group.DefaultParamspace)
 
 	groupKey := sdk.NewKVStoreKey(group.StoreKeyName)
 	k := group.NewGroupKeeper(groupKey, paramSpace, baseapp.NewRouter(), &testdata.MyAppProposal{})
@@ -612,9 +607,8 @@ func TestVote(t *testing.T) {
 }
 
 func TestExecProposal(t *testing.T) {
-	amino := codec.New()
 	pKey, pTKey := sdk.NewKVStoreKey(params.StoreKey), sdk.NewTransientStoreKey(params.TStoreKey)
-	paramSpace := subspace.NewSubspace(amino, pKey, pTKey, group.DefaultParamspace)
+	paramSpace := paramtypes.NewSubspace(group.NewCodec(), pKey, pTKey, group.DefaultParamspace)
 
 	router := baseapp.NewRouter()
 	groupKey := sdk.NewKVStoreKey(group.StoreKeyName)
@@ -901,9 +895,8 @@ func TestExecProposal(t *testing.T) {
 }
 
 func TestLoadParam(t *testing.T) {
-	amino := codec.New()
 	pKey, pTKey := sdk.NewKVStoreKey(params.StoreKey), sdk.NewTransientStoreKey(params.TStoreKey)
-	paramSpace := subspace.NewSubspace(amino, pKey, pTKey, group.DefaultParamspace)
+	paramSpace := paramtypes.NewSubspace(group.NewCodec(), pKey, pTKey, group.DefaultParamspace)
 
 	groupKey := sdk.NewKVStoreKey(group.StoreKeyName)
 	k := group.NewGroupKeeper(groupKey, paramSpace, baseapp.NewRouter(), &group.MockProposalI{})

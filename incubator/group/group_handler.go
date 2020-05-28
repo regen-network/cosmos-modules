@@ -111,6 +111,6 @@ func buildGroupResult(ctx sdk.Context, admin sdk.AccAddress, group GroupID, note
 	return &sdk.Result{
 		Data:   group.Bytes(),
 		Log:    fmt.Sprintf("Group %d %s", group, note),
-		Events: ctx.EventManager().Events(),
+		Events: ctx.EventManager().ABCIEvents(),
 	}, nil
 }

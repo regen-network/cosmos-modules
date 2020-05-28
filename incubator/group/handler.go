@@ -42,7 +42,7 @@ func handleMsgVote(ctx sdk.Context, k Keeper, msg MsgVote) (*sdk.Result, error) 
 	// todo: event?
 	return &sdk.Result{
 		Log:    fmt.Sprintf("Voted for proposal: %d", msg.Proposal),
-		Events: ctx.EventManager().Events(),
+		Events: ctx.EventManager().ABCIEvents(),
 	}, nil
 }
 
@@ -53,7 +53,7 @@ func handleMsgExec(ctx sdk.Context, k Keeper, msg MsgExec) (*sdk.Result, error) 
 	// todo: event?
 	return &sdk.Result{
 		Log:    fmt.Sprintf("Executed proposal: %d", msg.Proposal),
-		Events: ctx.EventManager().Events(),
+		Events: ctx.EventManager().ABCIEvents(),
 	}, nil
 }
 
@@ -77,6 +77,6 @@ func buildGroupAccountResult(ctx sdk.Context, admin sdk.AccAddress, acc sdk.AccA
 	return &sdk.Result{
 		Data:   acc.Bytes(),
 		Log:    fmt.Sprintf("Group account %s %s", acc.String(), note),
-		Events: ctx.EventManager().Events(),
+		Events: ctx.EventManager().ABCIEvents(),
 	}, nil
 }
