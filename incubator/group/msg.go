@@ -255,25 +255,29 @@ func (m MsgCreateGroupAccount) ValidateBasic() error {
 	if m.Group == 0 {
 		return sdkerrors.Wrap(ErrEmpty, "group")
 	}
-	if m.GetDecisionPolicy() == nil {
+
+	policy := m.GetDecisionPolicy()
+	if policy == nil {
 		return errors.Wrap(ErrEmpty, "decision policy")
 	}
-	if err := m.GetDecisionPolicy().ValidateBasic(); err != nil {
+
+	if err := policy.ValidateBasic(); err != nil {
 		return errors.Wrap(err, "decision policy")
 	}
 	return nil
 }
 
 var (
-	_ MsgCreateGroupAccountI        = MsgCreateGroupAccount{}
+	_ MsgCreateGroupAccountI        = &MsgCreateGroupAccount{}
 	_ types.UnpackInterfacesMessage = MsgCreateGroupAccount{}
 )
 
 // NewMsgCreateGroupAccount creates a new MsgCreateGroupAccount.
-func NewMsgCreateGroupAccount(admin sdk.AccAddress, group GroupID, decisionPolicy DecisionPolicy) (*MsgCreateGroupAccount, error) {
+func NewMsgCreateGroupAccount(admin sdk.AccAddress, group GroupID, comment string, decisionPolicy DecisionPolicy) (*MsgCreateGroupAccount, error) {
 	m := &MsgCreateGroupAccount{
-		Admin: admin,
-		Group: group,
+		Admin:   admin,
+		Group:   group,
+		Comment: comment,
 	}
 	err := m.SetDecisionPolicy(decisionPolicy)
 	if err != nil {
@@ -282,20 +286,19 @@ func NewMsgCreateGroupAccount(admin sdk.AccAddress, group GroupID, decisionPolic
 	return m, nil
 }
 
-func (m MsgCreateGroupAccount) GetAdmin() sdk.AccAddress {
+func (m *MsgCreateGroupAccount) GetAdmin() sdk.AccAddress {
 	return m.Admin
 }
 
-func (m MsgCreateGroupAccount) GetGroup() GroupID {
+func (m *MsgCreateGroupAccount) GetGroup() GroupID {
 	return m.Group
 }
 
-func (m MsgCreateGroupAccount) GetComment() string {
+func (m *MsgCreateGroupAccount) GetComment() string {
 	return m.Comment
 }
 
-func (m MsgCreateGroupAccount) GetDecisionPolicy() DecisionPolicy {
-	// return m.DecisionPolicy
+func (m *MsgCreateGroupAccount) GetDecisionPolicy() DecisionPolicy {
 	decisionPolicy, ok := m.DecisionPolicy.GetCachedValue().(DecisionPolicy)
 	if !ok {
 		return nil
@@ -303,7 +306,7 @@ func (m MsgCreateGroupAccount) GetDecisionPolicy() DecisionPolicy {
 	return decisionPolicy
 }
 
-func (m MsgCreateGroupAccount) SetDecisionPolicy(decisionPolicy DecisionPolicy) error {
+func (m *MsgCreateGroupAccount) SetDecisionPolicy(decisionPolicy DecisionPolicy) error {
 	msg, ok := decisionPolicy.(proto.Message)
 	if !ok {
 		return fmt.Errorf("can't proto marshal %T", msg)

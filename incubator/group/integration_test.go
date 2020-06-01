@@ -129,66 +129,42 @@ func TestCreateGroupAccountScenario(t *testing.T) {
 
 	fee := types.NewTestStdFee()
 	specs := map[string]struct {
-		src     group.MsgCreateGroupAccountStd
-		expCode uint32
+		admin     sdk.AccAddress
+		group     group.GroupID
+		comment   string
+		threshold sdk.Dec
+		timeout   proto.Duration
+		expCode   uint32
 	}{
 		"happy path": {
-			src: group.MsgCreateGroupAccountStd{
-				Base: group.MsgCreateGroupAccountBase{
-					Admin:   myAddr,
-					Group:   myGroupID,
-					Comment: "integration test",
-				},
-				DecisionPolicy: group.StdDecisionPolicy{
-					Sum: &group.StdDecisionPolicy_Threshold{Threshold: &group.ThresholdDecisionPolicy{
-						Threshold: sdk.OneDec(),
-						Timout:    proto.Duration{Seconds: 1},
-					}}},
-			},
+			admin:     myAddr,
+			group:     myGroupID,
+			comment:   "integration test",
+			threshold: sdk.OneDec(),
+			timeout:   proto.Duration{Seconds: 1},
 		},
 		"second account with same group": {
-			src: group.MsgCreateGroupAccountStd{
-				Base: group.MsgCreateGroupAccountBase{
-					Admin:   myAddr,
-					Group:   myGroupID,
-					Comment: "integration test",
-				},
-				DecisionPolicy: group.StdDecisionPolicy{
-					Sum: &group.StdDecisionPolicy_Threshold{Threshold: &group.ThresholdDecisionPolicy{
-						Threshold: sdk.OneDec(),
-						Timout:    proto.Duration{Seconds: 1},
-					}}},
-			},
+			admin:     myAddr,
+			group:     myGroupID,
+			comment:   "integration test",
+			threshold: sdk.OneDec(),
+			timeout:   proto.Duration{Seconds: 1},
 		},
 		"unknown group in message": {
-			src: group.MsgCreateGroupAccountStd{
-				Base: group.MsgCreateGroupAccountBase{
-					Admin:   myAddr,
-					Group:   99999,
-					Comment: "group id does not exists",
-				},
-				DecisionPolicy: group.StdDecisionPolicy{
-					Sum: &group.StdDecisionPolicy_Threshold{Threshold: &group.ThresholdDecisionPolicy{
-						Threshold: sdk.OneDec(),
-						Timout:    proto.Duration{Seconds: 1},
-					}}},
-			},
-			expCode: orm.ErrNotFound.ABCICode(),
+			admin:     myAddr,
+			group:     99999,
+			comment:   "group id does not exists",
+			threshold: sdk.OneDec(),
+			timeout:   proto.Duration{Seconds: 1},
+			expCode:   orm.ErrNotFound.ABCICode(),
 		},
 		"invalid signer": {
-			src: group.MsgCreateGroupAccountStd{
-				Base: group.MsgCreateGroupAccountBase{
-					Admin:   otherAddr,
-					Group:   myGroupID,
-					Comment: "integration test",
-				},
-				DecisionPolicy: group.StdDecisionPolicy{
-					Sum: &group.StdDecisionPolicy_Threshold{Threshold: &group.ThresholdDecisionPolicy{
-						Threshold: sdk.OneDec(),
-						Timout:    proto.Duration{Seconds: 1},
-					}}},
-			},
-			expCode: errors.ErrInvalidPubKey.ABCICode(),
+			admin:     otherAddr,
+			group:     myGroupID,
+			comment:   "integration test",
+			threshold: sdk.OneDec(),
+			timeout:   proto.Duration{Seconds: 1},
+			expCode:   errors.ErrInvalidPubKey.ABCICode(),
 		},
 	}
 
@@ -196,7 +172,18 @@ func TestCreateGroupAccountScenario(t *testing.T) {
 	privs, accNums := []crypto.PrivKey{myKey}, myAccount.GetAccountNumber()
 	for msg, spec := range specs {
 		t.Run(msg, func(t *testing.T) {
-			msgs := []sdk.Msg{spec.src}
+			m, err := group.NewMsgCreateGroupAccount(
+				spec.admin,
+				spec.group,
+				spec.comment,
+				&group.ThresholdDecisionPolicy{
+					Threshold: spec.threshold,
+					Timout:    spec.timeout,
+				},
+			)
+			require.NoError(t, err)
+
+			msgs := []sdk.Msg{m}
 			accSeq, err := app.AccountKeeper.GetSequence(ctx, myAddr)
 			require.NoError(t, err)
 			tx := types.NewTestTx(ctx, msgs, privs, []uint64{accNums}, []uint64{accSeq}, fee)
@@ -224,6 +211,28 @@ func TestFullProposalWorkflow(t *testing.T) {
 	balances := sdk.NewCoins(sdk.NewInt64Coin("atom", 100000))
 	require.NoError(t, app.BankKeeper.SetBalances(ctx, myAddr, balances))
 
+	msgFirstAccount, err := group.NewMsgCreateGroupAccount(
+		myAddr,
+		1,
+		"first account",
+		&group.ThresholdDecisionPolicy{
+			Threshold: sdk.OneDec(),
+			Timout:    *proto.DurationProto(time.Second),
+		},
+	)
+	require.NoError(t, err)
+
+	msgSecondAccount, err := group.NewMsgCreateGroupAccount(
+		myAddr,
+		1,
+		"second account",
+		&group.ThresholdDecisionPolicy{
+			Threshold: sdk.OneDec(),
+			Timout:    *proto.DurationProto(time.Second),
+		},
+	)
+	require.NoError(t, err)
+
 	// setup group
 	msgs := []sdk.Msg{
 		group.MsgCreateGroup{
@@ -236,37 +245,9 @@ func TestFullProposalWorkflow(t *testing.T) {
 			Comment: "integration test",
 		},
 		// setup group account
-		group.MsgCreateGroupAccountStd{
-			Base: group.MsgCreateGroupAccountBase{
-				Admin:   myAddr,
-				Group:   1,
-				Comment: "first account",
-			},
-			DecisionPolicy: group.StdDecisionPolicy{
-				Sum: &group.StdDecisionPolicy_Threshold{
-					Threshold: &group.ThresholdDecisionPolicy{
-						Threshold: sdk.OneDec(),
-						Timout:    *proto.DurationProto(time.Second),
-					},
-				},
-			},
-		},
+		msgFirstAccount,
 		// and another one
-		group.MsgCreateGroupAccountStd{
-			Base: group.MsgCreateGroupAccountBase{
-				Admin:   myAddr,
-				Group:   1,
-				Comment: "second account",
-			},
-			DecisionPolicy: group.StdDecisionPolicy{
-				Sum: &group.StdDecisionPolicy_Threshold{
-					Threshold: &group.ThresholdDecisionPolicy{
-						Threshold: sdk.OneDec(),
-						Timout:    *proto.DurationProto(time.Second),
-					},
-				},
-			},
-		},
+		msgSecondAccount,
 		// submit proposals
 		testdata.MsgPropose{
 			Base: group.MsgProposeBase{

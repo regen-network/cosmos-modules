@@ -126,8 +126,7 @@ func TestMsgCreateGroupAccount(t *testing.T) {
 		group     GroupID
 		threshold sdk.Dec
 		timeout   proto.Duration
-		// src    MsgCreateGroupAccount
-		expErr bool
+		expErr    bool
 	}{
 		"all good with minimum fields set": {
 			admin:     myAddr,
@@ -270,6 +269,7 @@ func TestMsgCreateGroupAccount(t *testing.T) {
 			m, err := NewMsgCreateGroupAccount(
 				spec.admin,
 				spec.group,
+				"any comment",
 				&ThresholdDecisionPolicy{
 					Threshold: spec.threshold,
 					Timout:    spec.timeout,

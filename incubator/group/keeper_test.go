@@ -120,7 +120,7 @@ func TestCreateGroupAccount(t *testing.T) {
 	specs := map[string]struct {
 		srcAdmin   sdk.AccAddress
 		srcGroupID group.GroupID
-		srcPolicy  group.ThresholdDecisionPolicy
+		srcPolicy  group.DecisionPolicy
 		srcComment string
 		expErr     bool
 	}{
@@ -128,48 +128,48 @@ func TestCreateGroupAccount(t *testing.T) {
 			srcAdmin:   []byte("valid--admin-address"),
 			srcComment: "test",
 			srcGroupID: myGroupID,
-			srcPolicy: group.ThresholdDecisionPolicy{
-				Threshold: sdk.OneDec(),
-				Timout:    types.Duration{Seconds: 1},
-			},
+			srcPolicy: group.NewThresholdDecisionPolicy(
+				sdk.OneDec(),
+				types.Duration{Seconds: 1},
+			),
 		},
 		"decision policy threshold > total group weight": {
 			srcAdmin:   []byte("valid--admin-address"),
 			srcComment: "test",
 			srcGroupID: myGroupID,
-			srcPolicy: group.ThresholdDecisionPolicy{
-				Threshold: sdk.NewDec(math.MaxInt64),
-				Timout:    types.Duration{Seconds: 1},
-			},
+			srcPolicy: group.NewThresholdDecisionPolicy(
+				sdk.NewDec(math.MaxInt64),
+				types.Duration{Seconds: 1},
+			),
 		},
 		"group id does not exists": {
 			srcAdmin:   []byte("valid--admin-address"),
 			srcComment: "test",
 			srcGroupID: 9999,
-			srcPolicy: group.ThresholdDecisionPolicy{
-				Threshold: sdk.OneDec(),
-				Timout:    types.Duration{Seconds: 1},
-			},
+			srcPolicy: group.NewThresholdDecisionPolicy(
+				sdk.OneDec(),
+				types.Duration{Seconds: 1},
+			),
 			expErr: true,
 		},
 		"admin not group admin": {
 			srcAdmin:   []byte("other--admin-address"),
 			srcComment: "test",
 			srcGroupID: myGroupID,
-			srcPolicy: group.ThresholdDecisionPolicy{
-				Threshold: sdk.OneDec(),
-				Timout:    types.Duration{Seconds: 1},
-			},
+			srcPolicy: group.NewThresholdDecisionPolicy(
+				sdk.OneDec(),
+				types.Duration{Seconds: 1},
+			),
 			expErr: true,
 		},
 		"comment too long": {
 			srcAdmin:   []byte("valid--admin-address"),
 			srcComment: strings.Repeat("a", 256),
 			srcGroupID: myGroupID,
-			srcPolicy: group.ThresholdDecisionPolicy{
-				Threshold: sdk.OneDec(),
-				Timout:    types.Duration{Seconds: 1},
-			},
+			srcPolicy: group.NewThresholdDecisionPolicy(
+				sdk.OneDec(),
+				types.Duration{Seconds: 1},
+			),
 			expErr: true,
 		},
 	}
@@ -185,12 +185,12 @@ func TestCreateGroupAccount(t *testing.T) {
 			// then all data persisted
 			groupAccount, err := k.GetGroupAccount(ctx, addr)
 			require.NoError(t, err)
-			assert.Equal(t, addr, groupAccount.Base.GroupAccount)
-			assert.Equal(t, myGroupID, groupAccount.Base.Group)
-			assert.Equal(t, sdk.AccAddress([]byte(spec.srcAdmin)), groupAccount.Base.Admin)
-			assert.Equal(t, spec.srcComment, groupAccount.Base.Comment)
-			assert.Equal(t, uint64(1), groupAccount.Base.Version)
-			assert.Equal(t, &spec.srcPolicy, groupAccount.DecisionPolicy.GetDecisionPolicy())
+			assert.Equal(t, addr, groupAccount.GroupAccount)
+			assert.Equal(t, myGroupID, groupAccount.Group)
+			assert.Equal(t, sdk.AccAddress([]byte(spec.srcAdmin)), groupAccount.Admin)
+			assert.Equal(t, spec.srcComment, groupAccount.Comment)
+			assert.Equal(t, uint64(1), groupAccount.Version)
+			assert.Equal(t, &spec.srcPolicy, groupAccount.GetDecisionPolicy())
 		})
 	}
 }
@@ -213,17 +213,17 @@ func TestCreateProposal(t *testing.T) {
 	myGroupID, err := k.CreateGroup(ctx, []byte("valid--admin-address"), members, "test")
 	require.NoError(t, err)
 
-	policy := group.ThresholdDecisionPolicy{
-		Threshold: sdk.OneDec(),
-		Timout:    types.Duration{Seconds: 1},
-	}
+	policy := group.NewThresholdDecisionPolicy(
+		sdk.OneDec(),
+		types.Duration{Seconds: 1},
+	)
 	accountAddr, err := k.CreateGroupAccount(ctx, []byte("valid--admin-address"), myGroupID, policy, "test")
 	require.NoError(t, err)
 
-	policy = group.ThresholdDecisionPolicy{
-		Threshold: sdk.NewDec(math.MaxInt64),
-		Timout:    types.Duration{Seconds: 1},
-	}
+	policy = group.NewThresholdDecisionPolicy(
+		sdk.NewDec(math.MaxInt64),
+		types.Duration{Seconds: 1},
+	)
 	bigThresholdAddr, err := k.CreateGroupAccount(ctx, []byte("valid--admin-address"), myGroupID, policy, "test")
 	require.NoError(t, err)
 
@@ -364,10 +364,10 @@ func TestVote(t *testing.T) {
 	myGroupID, err := k.CreateGroup(parentCtx, []byte("valid--admin-address"), members, "test")
 	require.NoError(t, err)
 
-	policy := group.ThresholdDecisionPolicy{
-		Threshold: sdk.NewDec(2),
-		Timout:    types.Duration{Seconds: 1},
-	}
+	policy := group.NewThresholdDecisionPolicy(
+		sdk.NewDec(2),
+		types.Duration{Seconds: 1},
+	)
 	accountAddr, err := k.CreateGroupAccount(parentCtx, []byte("valid--admin-address"), myGroupID, policy, "test")
 	require.NoError(t, err)
 	myProposalID, err := k.CreateProposal(parentCtx, accountAddr, "integration test", []sdk.AccAddress{[]byte("valid-member-address")}, nil)
@@ -558,7 +558,7 @@ func TestVote(t *testing.T) {
 			doBefore: func(t *testing.T, ctx sdk.Context) {
 				a, err := k.GetGroupAccount(ctx, accountAddr)
 				require.NoError(t, err)
-				a.Base.Comment = "modified"
+				a.Comment = "modified"
 				require.NoError(t, k.UpdateGroupAccount(ctx, &a))
 			},
 			expErr: true,
@@ -765,7 +765,7 @@ func TestExecProposal(t *testing.T) {
 				// then modify group account
 				a, err := k.GetGroupAccount(ctx, accountAddr)
 				require.NoError(t, err)
-				a.Base.Comment = "modified"
+				a.Comment = "modified"
 				require.NoError(t, k.UpdateGroupAccount(ctx, &a))
 				return myProposalID
 			},
@@ -802,7 +802,7 @@ func TestExecProposal(t *testing.T) {
 				// then modify group account
 				a, err := k.GetGroupAccount(ctx, accountAddr)
 				require.NoError(t, err)
-				a.Base.Comment = "modified"
+				a.Comment = "modified"
 				require.NoError(t, k.UpdateGroupAccount(ctx, &a))
 				return myProposalID
 			},
