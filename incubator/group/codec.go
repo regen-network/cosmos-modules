@@ -35,7 +35,7 @@ func RegisterInterfaces(registry cdctypes.InterfaceRegistry) {
 		&MsgExec{},
 	)
 	registry.RegisterInterface(
-		"cosmos_sdk.decision_policy.v1.DecisionPolicy",
+		"cosmos_modules.incubator.group.v1_alpha.DecisionPolicy",
 		(*DecisionPolicy)(nil),
 		&ThresholdDecisionPolicy{},
 	)

@@ -176,11 +176,12 @@ func TestCreateGroupAccountScenario(t *testing.T) {
 				spec.admin,
 				spec.group,
 				spec.comment,
-				&group.ThresholdDecisionPolicy{
-					Threshold: spec.threshold,
-					Timout:    spec.timeout,
-				},
+				group.NewThresholdDecisionPolicy(
+					spec.threshold,
+					spec.timeout,
+				),
 			)
+
 			require.NoError(t, err)
 
 			msgs := []sdk.Msg{m}
@@ -215,10 +216,10 @@ func TestFullProposalWorkflow(t *testing.T) {
 		myAddr,
 		1,
 		"first account",
-		&group.ThresholdDecisionPolicy{
-			Threshold: sdk.OneDec(),
-			Timout:    *proto.DurationProto(time.Second),
-		},
+		group.NewThresholdDecisionPolicy(
+			sdk.OneDec(),
+			*proto.DurationProto(time.Second),
+		),
 	)
 	require.NoError(t, err)
 
@@ -226,10 +227,10 @@ func TestFullProposalWorkflow(t *testing.T) {
 		myAddr,
 		1,
 		"second account",
-		&group.ThresholdDecisionPolicy{
-			Threshold: sdk.OneDec(),
-			Timout:    *proto.DurationProto(time.Second),
-		},
+		group.NewThresholdDecisionPolicy(
+			sdk.OneDec(),
+			*proto.DurationProto(time.Second),
+		),
 	)
 	require.NoError(t, err)
 
