@@ -2,26 +2,33 @@ package group
 
 import (
 	"bytes"
+	"fmt"
 
+	"github.com/cosmos/cosmos-sdk/codec/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 	"github.com/gogo/protobuf/jsonpb"
+	proto "github.com/gogo/protobuf/proto"
 	"github.com/pkg/errors"
 )
 
 const (
-	msgTypeCreateGroup           = "create_group"
-	msgTypeUpdateGroupAdmin      = "update_group_admin"
-	msgTypeUpdateGroupComment    = "update_group_comment"
-	msgTypeUpdateGroupMembers    = "update_group_members"
-	msgTypeCreateGroupAccountStd = "create_group_account"
-	msgTypeVote                  = "vote"
-	msgTypeExecProposal          = "exec_proposal"
+	msgTypeCreateGroup        = "create_group"
+	msgTypeUpdateGroupAdmin   = "update_group_admin"
+	msgTypeUpdateGroupComment = "update_group_comment"
+	msgTypeUpdateGroupMembers = "update_group_members"
+	msgTypeCreateGroupAccount = "create_group_account"
+	msgTypeVote               = "vote"
+	msgTypeExecProposal       = "exec_proposal"
 )
 
 type MsgCreateGroupAccountI interface {
-	GetBase() MsgCreateGroupAccountBase
-	GetDecisionPolicy() StdDecisionPolicy
+	GetAdmin() sdk.AccAddress
+	GetGroup() GroupID
+	GetComment() string
+
+	GetDecisionPolicy() DecisionPolicy
+	SetDecisionPolicy(DecisionPolicy) error
 }
 
 var _ sdk.Msg = &MsgCreateGroup{}
@@ -201,20 +208,6 @@ func (m MsgUpdateGroupMembers) ValidateBasic() error {
 	return nil
 }
 
-func (m *MsgCreateGroupAccountBase) ValidateBasic() error {
-	if m.Admin.Empty() {
-		return sdkerrors.Wrap(ErrEmpty, "admin")
-	}
-	if err := sdk.VerifyAddressFormat(m.Admin); err != nil {
-		return sdkerrors.Wrap(err, "admin")
-	}
-
-	if m.Group == 0 {
-		return sdkerrors.Wrap(ErrEmpty, "group")
-	}
-	return nil
-}
-
 func (m *MsgProposeBase) ValidateBasic() error {
 	if m.GroupAccount.Empty() {
 		return sdkerrors.Wrap(ErrEmpty, "group account")
@@ -231,18 +224,18 @@ func (m *MsgProposeBase) ValidateBasic() error {
 	return nil
 }
 
-var _ sdk.Msg = &MsgCreateGroupAccountStd{}
+var _ sdk.Msg = &MsgCreateGroupAccount{}
 
-func (m MsgCreateGroupAccountStd) Route() string { return ModuleName }
-func (m MsgCreateGroupAccountStd) Type() string  { return msgTypeCreateGroupAccountStd }
+func (m MsgCreateGroupAccount) Route() string { return ModuleName }
+func (m MsgCreateGroupAccount) Type() string  { return msgTypeCreateGroupAccount }
 
 // GetSigners returns the addresses that must sign over msg.GetSignBytes()
-func (m MsgCreateGroupAccountStd) GetSigners() []sdk.AccAddress {
-	return []sdk.AccAddress{m.Base.Admin}
+func (m MsgCreateGroupAccount) GetSigners() []sdk.AccAddress {
+	return []sdk.AccAddress{m.Admin}
 }
 
 // GetSignBytes returns the bytes for the message signer to sign on
-func (m MsgCreateGroupAccountStd) GetSignBytes() []byte {
+func (m MsgCreateGroupAccount) GetSignBytes() []byte {
 	var buf bytes.Buffer
 	enc := jsonpb.Marshaler{}
 	if err := enc.Marshal(&buf, &m); err != nil {
@@ -252,27 +245,81 @@ func (m MsgCreateGroupAccountStd) GetSignBytes() []byte {
 }
 
 // ValidateBasic does a sanity check on the provided data
-func (m MsgCreateGroupAccountStd) ValidateBasic() error {
-	if err := m.Base.ValidateBasic(); err != nil {
-		return errors.Wrap(err, "base")
+func (m MsgCreateGroupAccount) ValidateBasic() error {
+	if m.Admin.Empty() {
+		return sdkerrors.Wrap(ErrEmpty, "admin")
 	}
-	if m.DecisionPolicy.GetDecisionPolicy() == nil {
+	if err := sdk.VerifyAddressFormat(m.Admin); err != nil {
+		return sdkerrors.Wrap(err, "admin")
+	}
+	if m.Group == 0 {
+		return sdkerrors.Wrap(ErrEmpty, "group")
+	}
+	if m.GetDecisionPolicy() == nil {
 		return errors.Wrap(ErrEmpty, "decision policy")
 	}
-	if err := m.DecisionPolicy.GetDecisionPolicy().ValidateBasic(); err != nil {
+	if err := m.GetDecisionPolicy().ValidateBasic(); err != nil {
 		return errors.Wrap(err, "decision policy")
 	}
 	return nil
 }
 
-var _ MsgCreateGroupAccountI = MsgCreateGroupAccountStd{}
+var (
+	_ MsgCreateGroupAccountI        = MsgCreateGroupAccount{}
+	_ types.UnpackInterfacesMessage = MsgCreateGroupAccount{}
+)
 
-func (m MsgCreateGroupAccountStd) GetBase() MsgCreateGroupAccountBase {
-	return m.Base
+// NewMsgCreateGroupAccount creates a new MsgCreateGroupAccount.
+func NewMsgCreateGroupAccount(admin sdk.AccAddress, group GroupID, decisionPolicy DecisionPolicy) (*MsgCreateGroupAccount, error) {
+	m := &MsgCreateGroupAccount{
+		Admin: admin,
+		Group: group,
+	}
+	err := m.SetDecisionPolicy(decisionPolicy)
+	if err != nil {
+		return nil, err
+	}
+	return m, nil
 }
 
-func (m MsgCreateGroupAccountStd) GetDecisionPolicy() StdDecisionPolicy {
-	return m.DecisionPolicy
+func (m MsgCreateGroupAccount) GetAdmin() sdk.AccAddress {
+	return m.Admin
+}
+
+func (m MsgCreateGroupAccount) GetGroup() GroupID {
+	return m.Group
+}
+
+func (m MsgCreateGroupAccount) GetComment() string {
+	return m.Comment
+}
+
+func (m MsgCreateGroupAccount) GetDecisionPolicy() DecisionPolicy {
+	// return m.DecisionPolicy
+	decisionPolicy, ok := m.DecisionPolicy.GetCachedValue().(DecisionPolicy)
+	if !ok {
+		return nil
+	}
+	return decisionPolicy
+}
+
+func (m MsgCreateGroupAccount) SetDecisionPolicy(decisionPolicy DecisionPolicy) error {
+	msg, ok := decisionPolicy.(proto.Message)
+	if !ok {
+		return fmt.Errorf("can't proto marshal %T", msg)
+	}
+	any, err := types.NewAnyWithValue(msg)
+	if err != nil {
+		return err
+	}
+	m.DecisionPolicy = any
+	return nil
+}
+
+// UnpackInterfaces implements UnpackInterfacesMessage.UnpackInterfaces
+func (m MsgCreateGroupAccount) UnpackInterfaces(unpacker types.AnyUnpacker) error {
+	var decisionPolicy DecisionPolicy
+	return unpacker.UnpackAny(m.DecisionPolicy, &decisionPolicy)
 }
 
 var _ sdk.Msg = &MsgVote{}

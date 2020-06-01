@@ -118,132 +118,169 @@ func TestMsgCreateGroupSigner(t *testing.T) {
 	assert.Equal(t, []sdk.AccAddress{myAddr}, MsgCreateGroup{Admin: myAddr}.GetSigners())
 }
 
-func TestMsgCreateGroupAccountStd(t *testing.T) {
+func TestMsgCreateGroupAccount(t *testing.T) {
 	_, _, myAddr := auth.KeyTestPubAddr()
 
 	specs := map[string]struct {
-		src    MsgCreateGroupAccountStd
+		admin     sdk.AccAddress
+		group     GroupID
+		threshold sdk.Dec
+		timeout   proto.Duration
+		// src    MsgCreateGroupAccount
 		expErr bool
 	}{
 		"all good with minimum fields set": {
-			src: MsgCreateGroupAccountStd{
-				Base: MsgCreateGroupAccountBase{Admin: myAddr, Group: 1},
-				DecisionPolicy: StdDecisionPolicy{
-					Sum: &StdDecisionPolicy_Threshold{&ThresholdDecisionPolicy{
-						Threshold: sdk.OneDec(),
-						Timout:    proto.Duration{Seconds: 1},
-					}},
-				},
-			},
+			admin:     myAddr,
+			group:     1,
+			threshold: sdk.OneDec(),
+			timeout:   proto.Duration{Seconds: 1},
+			// src: MsgCreateGroupAccount{
+			// 	Admin: myAddr,
+			// 	Group: 1,
+			// 	DecisionPolicy: &ThresholdDecisionPolicy{
+			// 		Threshold: sdk.OneDec(),
+			// 		Timout:    proto.Duration{Seconds: 1},
+			// 	},
+			// },
 		},
 		"zero threshold not allowed": {
-			src: MsgCreateGroupAccountStd{
-				Base: MsgCreateGroupAccountBase{Admin: myAddr, Group: 1},
-				DecisionPolicy: StdDecisionPolicy{
-					Sum: &StdDecisionPolicy_Threshold{&ThresholdDecisionPolicy{
-						Threshold: sdk.ZeroDec(),
-						Timout:    proto.Duration{Seconds: 1},
-					}},
-				},
-			},
+			admin:     myAddr,
+			group:     1,
+			threshold: sdk.ZeroDec(),
+			timeout:   proto.Duration{Seconds: 1},
+			// src: MsgCreateGroupAccount{
+			// 	Admin: myAddr,
+			// 	Group: 1,
+			// 	DecisionPolicy: &ThresholdDecisionPolicy{
+			// 		Threshold: sdk.ZeroDec(),
+			// 		Timout:    proto.Duration{Seconds: 1},
+			// 	},
+			// },
 			expErr: true,
 		},
 		"admin required": {
-			src: MsgCreateGroupAccountStd{
-				Base: MsgCreateGroupAccountBase{Group: 1},
-				DecisionPolicy: StdDecisionPolicy{
-					Sum: &StdDecisionPolicy_Threshold{&ThresholdDecisionPolicy{
-						Threshold: sdk.ZeroDec(),
-						Timout:    proto.Duration{Seconds: 1},
-					}},
-				},
-			},
+			group:     1,
+			threshold: sdk.ZeroDec(),
+			timeout:   proto.Duration{Seconds: 1},
+			// src: MsgCreateGroupAccount{
+			// 	Group: 1,
+			// 	DecisionPolicy: &ThresholdDecisionPolicy{
+			// 		Threshold: sdk.ZeroDec(),
+			// 		Timout:    proto.Duration{Seconds: 1},
+			// 	},
+			// },
 			expErr: true,
 		},
 		"valid admin required": {
-			src: MsgCreateGroupAccountStd{
-				Base: MsgCreateGroupAccountBase{Admin: []byte("invalid-address"), Group: 1},
-				DecisionPolicy: StdDecisionPolicy{
-					Sum: &StdDecisionPolicy_Threshold{&ThresholdDecisionPolicy{
-						Threshold: sdk.ZeroDec(),
-						Timout:    proto.Duration{Seconds: 1},
-					}},
-				},
-			},
+			admin:     []byte("invalid-address"),
+			group:     1,
+			threshold: sdk.ZeroDec(),
+			timeout:   proto.Duration{Seconds: 1},
+			// src: MsgCreateGroupAccount{
+			// 	Admin: []byte("invalid-address"),
+			// 	Group: 1,
+			// 	DecisionPolicy: &ThresholdDecisionPolicy{
+			// 		Threshold: sdk.ZeroDec(),
+			// 		Timout:    proto.Duration{Seconds: 1},
+			// 	},
+			// },
 			expErr: true,
 		},
 		"group required": {
-			src: MsgCreateGroupAccountStd{
-				Base: MsgCreateGroupAccountBase{Admin: myAddr},
-				DecisionPolicy: StdDecisionPolicy{
-					Sum: &StdDecisionPolicy_Threshold{&ThresholdDecisionPolicy{
-						Threshold: sdk.ZeroDec(),
-						Timout:    proto.Duration{Seconds: 1},
-					}},
-				},
-			},
+			admin:     myAddr,
+			threshold: sdk.ZeroDec(),
+			timeout:   proto.Duration{Seconds: 1},
+			// src: MsgCreateGroupAccount{
+			// 	Admin: myAddr,
+			// 	DecisionPolicy: &ThresholdDecisionPolicy{
+			// 		Threshold: sdk.ZeroDec(),
+			// 		Timout:    proto.Duration{Seconds: 1},
+			// 	},
+			// },
 			expErr: true,
 		},
 		"decision policy required": {
-			src: MsgCreateGroupAccountStd{
-				Base: MsgCreateGroupAccountBase{Admin: myAddr, Group: 1},
-			},
+			admin: myAddr,
+			group: 1,
+			// src: MsgCreateGroupAccount{
+			// 	Admin: myAddr,
+			// 	Group: 1,
+			// },
 			expErr: true,
 		},
 		"decision policy without timout": {
-			src: MsgCreateGroupAccountStd{
-				Base: MsgCreateGroupAccountBase{Admin: myAddr, Group: 1},
-				DecisionPolicy: StdDecisionPolicy{
-					Sum: &StdDecisionPolicy_Threshold{&ThresholdDecisionPolicy{
-						Threshold: sdk.ZeroDec(),
-					}},
-				},
-			},
+			admin:     myAddr,
+			group:     1,
+			threshold: sdk.ZeroDec(),
+			// src: MsgCreateGroupAccount{
+			// 	Admin: myAddr,
+			// 	Group: 1,
+			// 	DecisionPolicy: &ThresholdDecisionPolicy{
+			// 		Threshold: sdk.ZeroDec(),
+			// 	},
+			// },
 			expErr: true,
 		},
 		"decision policy with invalid timout": {
-			src: MsgCreateGroupAccountStd{
-				Base: MsgCreateGroupAccountBase{Admin: myAddr, Group: 1},
-				DecisionPolicy: StdDecisionPolicy{
-					Sum: &StdDecisionPolicy_Threshold{&ThresholdDecisionPolicy{
-						Threshold: sdk.ZeroDec(),
-						Timout:    proto.Duration{Seconds: -1},
-					}},
-				},
-			},
+			admin:     myAddr,
+			group:     1,
+			threshold: sdk.ZeroDec(),
+			timeout:   proto.Duration{Seconds: -1},
+			// src: MsgCreateGroupAccount{
+			// 	Admin: myAddr,
+			// 	Group: 1,
+			// 	DecisionPolicy: &ThresholdDecisionPolicy{
+			// 		Threshold: sdk.ZeroDec(),
+			// 		Timout:    proto.Duration{Seconds: -1},
+			// 	},
+			// },
 			expErr: true,
 		},
 		"decision policy without threshold": {
-			src: MsgCreateGroupAccountStd{
-				Base: MsgCreateGroupAccountBase{Admin: myAddr, Group: 1},
-				DecisionPolicy: StdDecisionPolicy{
-					Sum: &StdDecisionPolicy_Threshold{&ThresholdDecisionPolicy{
-						Timout: proto.Duration{Seconds: 1},
-					}},
-				},
-			},
+			admin:   myAddr,
+			group:   1,
+			timeout: proto.Duration{Seconds: 1},
+			// src: MsgCreateGroupAccount{
+			// 	Admin: myAddr,
+			// 	Group: 1,
+			// 	DecisionPolicy: &ThresholdDecisionPolicy{
+			// 		Timout: proto.Duration{Seconds: 1},
+			// 	},
+			// },
 			expErr: true,
 		},
 		"decision policy with negative threshold": {
-			src: MsgCreateGroupAccountStd{
-				Base: MsgCreateGroupAccountBase{Admin: myAddr, Group: 1},
-				DecisionPolicy: StdDecisionPolicy{
-					Sum: &StdDecisionPolicy_Threshold{&ThresholdDecisionPolicy{
-						Threshold: sdk.NewDec(-1),
-						Timout:    proto.Duration{Seconds: 1},
-					}},
-				},
-			},
+			admin:     myAddr,
+			group:     1,
+			threshold: sdk.NewDec(-1),
+			timeout:   proto.Duration{Seconds: 1},
+			// src: MsgCreateGroupAccount{
+			// 	Admin: myAddr,
+			// 	Group: 1,
+			// 	DecisionPolicy: &ThresholdDecisionPolicy{
+			// 		Threshold: sdk.NewDec(-1),
+			// 		Timout:    proto.Duration{Seconds: 1},
+			// 	},
+			// },
 			expErr: true,
 		},
 	}
 	for msg, spec := range specs {
 		t.Run(msg, func(t *testing.T) {
-			err := spec.src.ValidateBasic()
+			m, err := NewMsgCreateGroupAccount(
+				spec.admin,
+				spec.group,
+				&ThresholdDecisionPolicy{
+					Threshold: spec.threshold,
+					Timout:    spec.timeout,
+				},
+			)
+			require.NoError(t, err)
+
 			if spec.expErr {
-				require.Error(t, err)
+				require.Error(t, m.ValidateBasic())
 			} else {
-				require.NoError(t, err)
+				require.NoError(t, m.ValidateBasic())
 			}
 		})
 	}

@@ -628,10 +628,10 @@ func TestExecProposal(t *testing.T) {
 	myGroupID, err := k.CreateGroup(parentCtx, []byte("valid--admin-address"), members, "test")
 	require.NoError(t, err)
 
-	policy := group.ThresholdDecisionPolicy{
-		Threshold: sdk.OneDec(),
-		Timout:    types.Duration{Seconds: 1},
-	}
+	policy := group.NewThresholdDecisionPolicy(
+		sdk.OneDec(),
+		types.Duration{Seconds: 1},
+	)
 	accountAddr, err := k.CreateGroupAccount(parentCtx, []byte("valid--admin-address"), myGroupID, policy, "test")
 	require.NoError(t, err)
 

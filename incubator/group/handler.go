@@ -59,11 +59,11 @@ func handleMsgExec(ctx sdk.Context, k Keeper, msg MsgExec) (*sdk.Result, error) 
 
 func handleMsgCreateGroupAccountI(ctx sdk.Context, k Keeper, msg MsgCreateGroupAccountI) (*sdk.Result, error) {
 	decisionPolicy := msg.GetDecisionPolicy()
-	acc, err := k.CreateGroupAccount(ctx, msg.GetBase().Admin, msg.GetBase().Group, *decisionPolicy.GetThreshold(), msg.GetBase().Comment)
+	acc, err := k.CreateGroupAccount(ctx, msg.GetAdmin(), msg.GetGroup(), decisionPolicy, msg.GetComment())
 	if err != nil {
 		return nil, errors.Wrap(err, "create group account")
 	}
-	return buildGroupAccountResult(ctx, msg.GetBase().Admin, acc, "created")
+	return buildGroupAccountResult(ctx, msg.GetAdmin(), acc, "created")
 }
 
 func buildGroupAccountResult(ctx sdk.Context, admin sdk.AccAddress, acc sdk.AccAddress, note string) (*sdk.Result, error) {

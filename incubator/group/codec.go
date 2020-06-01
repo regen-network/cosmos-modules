@@ -9,19 +9,20 @@ import (
 // RegisterCodec registers all the necessary crisis module concrete types and
 // interfaces with the provided codec reference.
 func RegisterCodec(cdc *codec.Codec) {
+	cdc.RegisterInterface((*DecisionPolicy)(nil), nil)
 	cdc.RegisterConcrete(MsgCreateGroup{}, "cosmos-sdk/MsgCreateGroup", nil)
 	cdc.RegisterConcrete(MsgUpdateGroupMembers{}, "cosmos-sdk/MsgUpdateGroupMembers", nil)
 	cdc.RegisterConcrete(MsgUpdateGroupAdmin{}, "cosmos-sdk/MsgUpdateGroupAdmin", nil)
 	cdc.RegisterConcrete(MsgUpdateGroupComment{}, "cosmos-sdk/MsgUpdateGroupComment", nil)
-	cdc.RegisterConcrete(MsgCreateGroupAccountStd{}, "cosmos-sdk/MsgCreateGroupAccountStd", nil)
+	cdc.RegisterConcrete(MsgCreateGroupAccount{}, "cosmos-sdk/MsgCreateGroupAccount", nil)
 	cdc.RegisterConcrete(MsgVote{}, "cosmos-sdk/group/MsgVote", nil)
 	cdc.RegisterConcrete(MsgExec{}, "cosmos-sdk/group/MsgExec", nil)
 
 	// oh man... amino
-	cdc.RegisterConcrete(StdDecisionPolicy{}, "cosmos-sdk/StdDecisionPolicy", nil)
-	cdc.RegisterConcrete(&StdDecisionPolicy_Threshold{}, "cosmos-sdk/StdDecisionPolicy_Threshold", nil)
-	cdc.RegisterConcrete(ThresholdDecisionPolicy{}, "cosmos-sdk/ThresholdDecisionPolicy", nil)
-	cdc.RegisterInterface((*isStdDecisionPolicy_Sum)(nil), nil)
+	// cdc.RegisterConcrete(StdDecisionPolicy{}, "cosmos-sdk/StdDecisionPolicy", nil)
+	// cdc.RegisterConcrete(&StdDecisionPolicy_Threshold{}, "cosmos-sdk/StdDecisionPolicy_Threshold", nil)
+	cdc.RegisterConcrete(&ThresholdDecisionPolicy{}, "cosmos-sdk/ThresholdDecisionPolicy", nil)
+	// cdc.RegisterInterface((*isStdDecisionPolicy_Sum)(nil), nil)
 }
 
 func RegisterInterfaces(registry cdctypes.InterfaceRegistry) {
@@ -29,9 +30,14 @@ func RegisterInterfaces(registry cdctypes.InterfaceRegistry) {
 		&MsgCreateGroup{},
 		&MsgUpdateGroupMembers{},
 		&MsgUpdateGroupComment{},
-		&MsgCreateGroupAccountStd{},
+		&MsgCreateGroupAccount{},
 		&MsgVote{},
 		&MsgExec{},
+	)
+	registry.RegisterInterface(
+		"cosmos_sdk.decision_policy.v1.DecisionPolicy",
+		(*DecisionPolicy)(nil),
+		&ThresholdDecisionPolicy{},
 	)
 }
 

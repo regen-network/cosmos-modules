@@ -132,13 +132,13 @@ func NewGroupKeeper(storeKey sdk.StoreKey, paramSpace params.Subspace, router sd
 	// Group Account Table
 	//
 	k.groupAccountSeq = orm.NewSequence(storeKey, GroupAccountTableSeqPrefix)
-	groupAccountTableBuilder := orm.NewNaturalKeyTableBuilder(GroupAccountTablePrefix, storeKey, &StdGroupAccountMetadata{}, orm.Max255DynamicLengthIndexKeyCodec{})
+	groupAccountTableBuilder := orm.NewNaturalKeyTableBuilder(GroupAccountTablePrefix, storeKey, &GroupAccountMetadata{}, orm.Max255DynamicLengthIndexKeyCodec{})
 	k.groupAccountByGroupIndex = orm.NewUInt64Index(groupAccountTableBuilder, GroupAccountByGroupIndexPrefix, func(value interface{}) ([]uint64, error) {
-		group := value.(*StdGroupAccountMetadata).Base.Group
+		group := value.(*GroupAccountMetadata).Group
 		return []uint64{uint64(group)}, nil
 	})
 	k.groupAccountByAdminIndex = orm.NewIndex(groupAccountTableBuilder, GroupAccountByAdminIndexPrefix, func(value interface{}) ([]orm.RowID, error) {
-		admin := value.(*StdGroupAccountMetadata).Base.Admin
+		admin := value.(*GroupAccountMetadata).Admin
 		return []orm.RowID{admin.Bytes()}, nil
 	})
 	k.groupAccountTable = groupAccountTableBuilder.Build()
@@ -252,9 +252,9 @@ func (k Keeper) setParams(ctx sdk.Context, params Params) {
 	k.paramSpace.SetParamSet(ctx, &params)
 }
 
-// CreateGroupAccount creates and persists a `StdGroupAccountMetadata`
-//func (k Keeper) CreateGroupAccount(ctx sdk.Context, admin sdk.AccAddress, groupID GroupID, policy DecisionPolicy, comment string) (sdk.AccAddress, error) {
-func (k Keeper) CreateGroupAccount(ctx sdk.Context, admin sdk.AccAddress, groupID GroupID, policy ThresholdDecisionPolicy, comment string) (sdk.AccAddress, error) {
+// CreateGroupAccount creates and persists a `GroupAccountMetadata`
+func (k Keeper) CreateGroupAccount(ctx sdk.Context, admin sdk.AccAddress, groupID GroupID, policy DecisionPolicy, comment string) (sdk.AccAddress, error) {
+	// func (k Keeper) CreateGroupAccount(ctx sdk.Context, admin sdk.AccAddress, groupID GroupID, policy ThresholdDecisionPolicy, comment string) (sdk.AccAddress, error) {
 	maxCommentSize := k.MaxCommentSize(ctx)
 	if len(comment) > maxCommentSize {
 		return nil, errors.Wrap(ErrMaxLimit,
@@ -269,16 +269,18 @@ func (k Keeper) CreateGroupAccount(ctx sdk.Context, admin sdk.AccAddress, groupI
 		return nil, errors.Wrap(errors.ErrUnauthorized, "not group admin")
 	}
 	accountAddr := AccountCondition(k.groupAccountSeq.NextVal(ctx)).Address()
-	groupAccount := StdGroupAccountMetadata{
-		Base: GroupAccountMetadataBase{
-			GroupAccount: accountAddr,
-			Group:        groupID,
-			Admin:        admin,
-			Comment:      comment,
-			Version:      1,
-		},
-		DecisionPolicy: StdDecisionPolicy{Sum: &StdDecisionPolicy_Threshold{&policy}},
+	groupAccount, err := NewGroupAccountMetadata(
+		accountAddr,
+		groupID,
+		admin,
+		comment,
+		1,
+		policy,
+	)
+	if err != nil {
+		return nil, err
 	}
+
 	if err := k.groupAccountTable.Create(ctx, &groupAccount); err != nil {
 		return nil, errors.Wrap(err, "could not create group account")
 	}
@@ -289,13 +291,13 @@ func (k Keeper) HasGroupAccount(ctx sdk.Context, address sdk.AccAddress) bool {
 	return k.groupAccountTable.Has(ctx, address.Bytes())
 }
 
-func (k Keeper) GetGroupAccount(ctx sdk.Context, accountAddress sdk.AccAddress) (StdGroupAccountMetadata, error) {
-	var obj StdGroupAccountMetadata
+func (k Keeper) GetGroupAccount(ctx sdk.Context, accountAddress sdk.AccAddress) (GroupAccountMetadata, error) {
+	var obj GroupAccountMetadata
 	return obj, k.groupAccountTable.GetOne(ctx, accountAddress.Bytes(), &obj)
 }
 
-func (k Keeper) UpdateGroupAccount(ctx sdk.Context, obj *StdGroupAccountMetadata) error {
-	obj.Base.Version++
+func (k Keeper) UpdateGroupAccount(ctx sdk.Context, obj *GroupAccountMetadata) error {
+	obj.Version++
 	return k.groupAccountTable.Save(ctx, obj)
 }
 
@@ -304,7 +306,7 @@ func (k Keeper) GetGroupByGroupAccount(ctx sdk.Context, accountAddress sdk.AccAd
 	if err != nil {
 		return GroupMetadata{}, errors.Wrap(err, "load group account")
 	}
-	return k.GetGroup(ctx, obj.Base.Group)
+	return k.GetGroup(ctx, obj.Group)
 }
 
 func (k Keeper) GetGroupMembersByGroup(ctx sdk.Context, id GroupID) (orm.Iterator, error) {
@@ -339,15 +341,15 @@ func (k Keeper) Vote(ctx sdk.Context, id ProposalID, voters []sdk.AccAddress, ch
 	if votingPeriodEnd.Before(ctx.BlockTime()) || votingPeriodEnd.Equal(ctx.BlockTime()) {
 		return errors.Wrap(ErrExpired, "voting period has ended already")
 	}
-	var accountMetadata StdGroupAccountMetadata
+	var accountMetadata GroupAccountMetadata
 	if err := k.groupAccountTable.GetOne(ctx, base.GroupAccount.Bytes(), &accountMetadata); err != nil {
 		return errors.Wrap(err, "load group account")
 	}
-	if base.GroupAccountVersion != accountMetadata.Base.Version {
+	if base.GroupAccountVersion != accountMetadata.Version {
 		return errors.Wrap(ErrModified, "group account was modified")
 	}
 
-	electorate, err := k.GetGroup(ctx, accountMetadata.Base.Group)
+	electorate, err := k.GetGroup(ctx, accountMetadata.Group)
 	if err != nil {
 		return err
 	}
@@ -386,8 +388,8 @@ func (k Keeper) Vote(ctx sdk.Context, id ProposalID, voters []sdk.AccAddress, ch
 	return k.proposalTable.Save(ctx, id.Uint64(), proposal)
 }
 
-func doTally(ctx sdk.Context, base *ProposalBase, electorate GroupMetadata, accountMetadata StdGroupAccountMetadata) error {
-	policy := accountMetadata.DecisionPolicy.GetThreshold()
+func doTally(ctx sdk.Context, base *ProposalBase, electorate GroupMetadata, accountMetadata GroupAccountMetadata) error {
+	policy := accountMetadata.GetDecisionPolicy()
 	submittedAt, err := types.TimestampFromProto(&base.SubmittedAt)
 	if err != nil {
 		return err
@@ -420,7 +422,7 @@ func (k Keeper) ExecProposal(ctx sdk.Context, id ProposalID) error {
 		return errors.Wrapf(ErrInvalid, "not possible with proposal status %s", base.Status.String())
 	}
 
-	var accountMetadata StdGroupAccountMetadata
+	var accountMetadata GroupAccountMetadata
 	if err := k.groupAccountTable.GetOne(ctx, base.GroupAccount.Bytes(), &accountMetadata); err != nil {
 		return errors.Wrap(err, "load group account")
 	}
@@ -431,13 +433,13 @@ func (k Keeper) ExecProposal(ctx sdk.Context, id ProposalID) error {
 	}
 
 	if base.Status == ProposalStatusSubmitted {
-		if base.GroupAccountVersion != accountMetadata.Base.Version {
+		if base.GroupAccountVersion != accountMetadata.Version {
 			base.Result = ProposalResultUndefined
 			base.Status = ProposalStatusAborted
 			return storeUpdates()
 		}
 
-		electorate, err := k.GetGroup(ctx, accountMetadata.Base.Group)
+		electorate, err := k.GetGroup(ctx, accountMetadata.Group)
 		if err != nil {
 			return errors.Wrap(err, "load group")
 		}
@@ -456,7 +458,7 @@ func (k Keeper) ExecProposal(ctx sdk.Context, id ProposalID) error {
 	if base.Status == ProposalStatusClosed && base.Result == ProposalResultAccepted && base.ExecutorResult != ProposalExecutorResultSuccess {
 		logger := ctx.Logger().With("module", fmt.Sprintf("x/%s", ModuleName))
 		ctx, flush := ctx.CacheContext()
-		_, err := doExecuteMsgs(ctx, k.router, accountMetadata.Base.GroupAccount, proposal.GetMsgs())
+		_, err := doExecuteMsgs(ctx, k.router, accountMetadata.GroupAccount, proposal.GetMsgs())
 		if err != nil {
 			base.ExecutorResult = ProposalExecutorResultFailure
 			proposalType := reflect.TypeOf(proposal).String()
@@ -488,7 +490,7 @@ func (k Keeper) CreateProposal(ctx sdk.Context, accountAddress sdk.AccAddress, c
 		return 0, errors.Wrap(err, "load group account")
 	}
 
-	g, err := k.GetGroup(ctx, account.Base.Group)
+	g, err := k.GetGroup(ctx, account.Group)
 	if err != nil {
 		return 0, errors.Wrap(err, "get group by account")
 	}
@@ -500,7 +502,7 @@ func (k Keeper) CreateProposal(ctx sdk.Context, accountAddress sdk.AccAddress, c
 		}
 	}
 
-	if err := ensureMsgAuthZ(msgs, account.Base.GroupAccount); err != nil {
+	if err := ensureMsgAuthZ(msgs, account.GroupAccount); err != nil {
 		return 0, err
 	}
 
@@ -509,7 +511,8 @@ func (k Keeper) CreateProposal(ctx sdk.Context, accountAddress sdk.AccAddress, c
 		return 0, errors.Wrap(err, "block time conversion")
 	}
 	policy := account.GetDecisionPolicy()
-	window, err := types.DurationFromProto(&policy.GetThreshold().Timout)
+	timeout := policy.GetTimout()
+	window, err := types.DurationFromProto(&timeout)
 	if err != nil {
 		return 0, errors.Wrap(err, "maxVotingWindow time conversion")
 	}
@@ -519,7 +522,7 @@ func (k Keeper) CreateProposal(ctx sdk.Context, accountAddress sdk.AccAddress, c
 	}
 
 	// prevent proposal that can not succeed
-	if policy.GetThreshold() != nil && policy.GetThreshold().Threshold.GT(g.TotalWeight) {
+	if policy != nil && policy.GetThreshold().GT(g.TotalWeight) {
 		return 0, errors.Wrap(ErrInvalid, "policy threshold should not be greater than the total group weight")
 	}
 
@@ -530,7 +533,7 @@ func (k Keeper) CreateProposal(ctx sdk.Context, accountAddress sdk.AccAddress, c
 		Proposers:           proposers,
 		SubmittedAt:         *blockTime,
 		GroupVersion:        g.Version,
-		GroupAccountVersion: account.Base.Version,
+		GroupAccountVersion: account.Version,
 		Result:              ProposalResultUndefined,
 		Status:              ProposalStatusSubmitted,
 		ExecutorResult:      ProposalExecutorResultNotRun,
