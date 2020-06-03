@@ -61,16 +61,16 @@ func (a AppModuleBasic) ValidateGenesis(cdc codec.JSONMarshaler, bz json.RawMess
 func (a AppModuleBasic) RegisterRESTRoutes(ctx context.CLIContext, r *mux.Router) {
 	//rest.RegisterRoutes(ctx, r, moduleCdc, RouterKey)
 	// todo: what client functions do we want to support?
-	panic("implement me")
+	return
 }
 
 func (a AppModuleBasic) GetTxCmd(ctx context.CLIContext) *cobra.Command {
-	panic("implement me")
+	return &cobra.Command{}
 }
 
 func (a AppModuleBasic) GetQueryCmd(*codec.Codec) *cobra.Command {
 	//return cli.GetQueryCmd(StoreKey, cdc)
-	panic("implement me")
+	return &cobra.Command{}
 }
 
 // RegisterInterfaceTypes registers module concrete types into protobuf Any.
