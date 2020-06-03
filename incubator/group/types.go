@@ -92,7 +92,7 @@ func (p *ThresholdDecisionPolicy) GetThreshold() sdk.Dec {
 
 // Validate returns an error if policy threshold is greater than the total group weight
 func (p *ThresholdDecisionPolicy) Validate(g GroupMetadata) error {
-	if p != nil && p.GetThreshold().GT(g.TotalWeight) {
+	if p.GetThreshold().GT(g.TotalWeight) {
 		return errors.Wrap(ErrInvalid, "policy threshold should not be greater than the total group weight")
 	}
 	return nil
@@ -150,7 +150,6 @@ func NewGroupAccountMetadata(groupAccount sdk.AccAddress, group GroupID, admin s
 	}
 
 	p.DecisionPolicy = any
-
 	return p, nil
 }
 

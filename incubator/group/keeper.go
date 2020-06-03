@@ -254,7 +254,6 @@ func (k Keeper) setParams(ctx sdk.Context, params Params) {
 
 // CreateGroupAccount creates and persists a `GroupAccountMetadata`
 func (k Keeper) CreateGroupAccount(ctx sdk.Context, admin sdk.AccAddress, groupID GroupID, policy DecisionPolicy, comment string) (sdk.AccAddress, error) {
-	// func (k Keeper) CreateGroupAccount(ctx sdk.Context, admin sdk.AccAddress, groupID GroupID, policy ThresholdDecisionPolicy, comment string) (sdk.AccAddress, error) {
 	maxCommentSize := k.MaxCommentSize(ctx)
 	if len(comment) > maxCommentSize {
 		return nil, errors.Wrap(ErrMaxLimit,
@@ -486,6 +485,7 @@ func (k Keeper) CreateProposal(ctx sdk.Context, accountAddress sdk.AccAddress, c
 	}
 
 	account, err := k.GetGroupAccount(ctx, accountAddress.Bytes())
+
 	if err != nil {
 		return 0, errors.Wrap(err, "load group account")
 	}
@@ -512,6 +512,17 @@ func (k Keeper) CreateProposal(ctx sdk.Context, accountAddress sdk.AccAddress, c
 	}
 
 	policy := account.GetDecisionPolicy()
+
+	if policy == nil {
+		return 0, errors.Wrap(ErrEmpty, "nil policy")
+	}
+
+	// prevent proposal that can not succeed
+	err = policy.Validate(g)
+	if err != nil {
+		return 0, err
+	}
+
 	timeout := policy.GetTimeout()
 	window, err := types.DurationFromProto(&timeout)
 	if err != nil {
@@ -520,12 +531,6 @@ func (k Keeper) CreateProposal(ctx sdk.Context, accountAddress sdk.AccAddress, c
 	endTime, err := types.TimestampProto(ctx.BlockTime().Add(window))
 	if err != nil {
 		return 0, errors.Wrap(err, "end time conversion")
-	}
-
-	// prevent proposal that can not succeed
-	err = policy.Validate(g)
-	if err != nil {
-		return 0, err
 	}
 
 	m := reflect.New(k.proposalModelType).Interface().(ProposalI)
