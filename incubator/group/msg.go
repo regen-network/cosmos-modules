@@ -236,12 +236,8 @@ func (m MsgCreateGroupAccount) GetSigners() []sdk.AccAddress {
 
 // GetSignBytes returns the bytes for the message signer to sign on
 func (m MsgCreateGroupAccount) GetSignBytes() []byte {
-	var buf bytes.Buffer
-	enc := jsonpb.Marshaler{}
-	if err := enc.Marshal(&buf, &m); err != nil {
-		panic(errors.Wrap(err, "get sign bytes"))
-	}
-	return sdk.MustSortJSON(buf.Bytes())
+	bz := moduleCdc.MustMarshalJSON(m)
+	return sdk.MustSortJSON(bz)
 }
 
 // ValidateBasic does a sanity check on the provided data

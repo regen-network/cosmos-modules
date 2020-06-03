@@ -59,7 +59,7 @@ func (a AppModuleBasic) ValidateGenesis(cdc codec.JSONMarshaler, bz json.RawMess
 }
 
 func (a AppModuleBasic) RegisterRESTRoutes(ctx context.CLIContext, r *mux.Router) {
-	//rest.RegisterRoutes(ctx, r, ModuleCdc, RouterKey)
+	//rest.RegisterRoutes(ctx, r, moduleCdc, RouterKey)
 	// todo: what client functions do we want to support?
 	panic("implement me")
 }

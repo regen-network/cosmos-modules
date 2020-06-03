@@ -510,8 +510,9 @@ func (k Keeper) CreateProposal(ctx sdk.Context, accountAddress sdk.AccAddress, c
 	if err != nil {
 		return 0, errors.Wrap(err, "block time conversion")
 	}
+
 	policy := account.GetDecisionPolicy()
-	timeout := policy.GetTimout()
+	timeout := policy.GetTimeout()
 	window, err := types.DurationFromProto(&timeout)
 	if err != nil {
 		return 0, errors.Wrap(err, "maxVotingWindow time conversion")
@@ -522,8 +523,9 @@ func (k Keeper) CreateProposal(ctx sdk.Context, accountAddress sdk.AccAddress, c
 	}
 
 	// prevent proposal that can not succeed
-	if policy != nil && policy.GetThreshold().GT(g.TotalWeight) {
-		return 0, errors.Wrap(ErrInvalid, "policy threshold should not be greater than the total group weight")
+	err = policy.Validate(g)
+	if err != nil {
+		return 0, err
 	}
 
 	m := reflect.New(k.proposalModelType).Interface().(ProposalI)

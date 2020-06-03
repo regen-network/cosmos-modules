@@ -165,13 +165,13 @@ func TestMsgCreateGroupAccount(t *testing.T) {
 			group:  1,
 			expErr: true,
 		},
-		"decision policy without timout": {
+		"decision policy without timeout": {
 			admin:     myAddr,
 			group:     1,
 			threshold: sdk.ZeroDec(),
 			expErr:    true,
 		},
-		"decision policy with invalid timout": {
+		"decision policy with invalid timeout": {
 			admin:     myAddr,
 			group:     1,
 			threshold: sdk.ZeroDec(),
@@ -200,7 +200,7 @@ func TestMsgCreateGroupAccount(t *testing.T) {
 				"any comment",
 				&ThresholdDecisionPolicy{
 					Threshold: spec.threshold,
-					Timout:    spec.timeout,
+					Timeout:    spec.timeout,
 				},
 			)
 			require.NoError(t, err)

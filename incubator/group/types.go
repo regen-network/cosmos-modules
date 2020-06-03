@@ -53,9 +53,9 @@ type DecisionPolicyResult struct {
 type DecisionPolicy interface {
 	orm.Persistent
 	orm.Validateable
-	GetThreshold() sdk.Dec
-	GetTimout() types.Duration
+	GetTimeout() types.Duration
 	Allow(tally Tally, totalPower sdk.Dec, votingDuration time.Duration) (DecisionPolicyResult, error)
+	Validate(g GroupMetadata) error
 }
 
 // Implements DecisionPolicy Interface
@@ -68,7 +68,7 @@ func NewThresholdDecisionPolicy(threshold sdk.Dec, timeout types.Duration) Decis
 
 // Allow allows a proposal to pass when the tally of yes votes equals or exceeds the threshold before the timeout.
 func (p ThresholdDecisionPolicy) Allow(tally Tally, totalPower sdk.Dec, votingDuration time.Duration) (DecisionPolicyResult, error) {
-	timeout, err := types.DurationFromProto(&p.Timout)
+	timeout, err := types.DurationFromProto(&p.Timeout)
 	if err != nil {
 		return DecisionPolicyResult{}, err
 	}
@@ -90,10 +90,13 @@ func (p *ThresholdDecisionPolicy) GetThreshold() sdk.Dec {
 	return p.Threshold
 }
 
-// GetTimout returns the policy threshold
-// func (p ThresholdDecisionPolicy) GetTimout() types.Duration {
-// 	return p.Timout
-// }
+// Validate returns an error if policy threshold is greater than the total group weight
+func (p *ThresholdDecisionPolicy) Validate(g GroupMetadata) error {
+	if p != nil && p.GetThreshold().GT(g.TotalWeight) {
+		return errors.Wrap(ErrInvalid, "policy threshold should not be greater than the total group weight")
+	}
+	return nil
+}
 
 func (p ThresholdDecisionPolicy) ValidateBasic() error {
 	if p.Threshold.IsNil() {
@@ -102,7 +105,7 @@ func (p ThresholdDecisionPolicy) ValidateBasic() error {
 	if p.Threshold.LT(sdk.OneDec()) {
 		return errors.Wrap(ErrInvalid, "threshold")
 	}
-	timeout, err := types.DurationFromProto(&p.Timout)
+	timeout, err := types.DurationFromProto(&p.Timeout)
 	if err != nil {
 		return errors.Wrap(err, "timeout")
 	}

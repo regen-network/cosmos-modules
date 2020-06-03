@@ -20,13 +20,13 @@ func RegisterCodec(cdc *codec.Codec) {
 var (
 	amino = codec.New()
 
-	// ModuleCdc references the global x/transfer module codec. Note, the codec
+	// moduleCdc references the global x/transfer module codec. Note, the codec
 	// should ONLY be used in certain instances of tests and for JSON encoding as Amino
 	// is still used for that purpose.
 	//
 	// The actual codec used for serialization should be provided to x/transfer and
 	// defined at the application level.
-	ModuleCdc = codec.NewHybridCodec(amino, cdctypes.NewInterfaceRegistry())
+	moduleCdc = codec.NewHybridCodec(amino, cdctypes.NewInterfaceRegistry())
 )
 
 func init() {

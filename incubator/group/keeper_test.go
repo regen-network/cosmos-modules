@@ -333,9 +333,9 @@ func TestCreateProposal(t *testing.T) {
 				VetoCount:    sdk.ZeroDec(),
 			}, base.VoteState)
 
-			timout, err := types.TimestampFromProto(&base.Timeout)
+			timeout, err := types.TimestampFromProto(&base.Timeout)
 			require.NoError(t, err)
-			assert.Equal(t, blockTime.Add(time.Second).UTC(), timout)
+			assert.Equal(t, blockTime.Add(time.Second).UTC(), timeout)
 
 			if spec.srcMsgs == nil { // then empty list is ok
 				assert.Len(t, proposal.GetMsgs(), 0)
