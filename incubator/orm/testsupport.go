@@ -64,6 +64,10 @@ func (d debuggingGasMeter) IsOutOfGas() bool {
 	return d.g.IsOutOfGas()
 }
 
+func (d debuggingGasMeter) String() string {
+	return d.g.String()
+}
+
 type GasCountingMockContext struct {
 	parent   HasKVStore
 	GasMeter sdk.GasMeter
