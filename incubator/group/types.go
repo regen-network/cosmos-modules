@@ -1,11 +1,15 @@
 package group
 
 import (
+	"fmt"
+
+	codectypes "github.com/cosmos/cosmos-sdk/codec/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 	"github.com/cosmos/cosmos-sdk/x/params"
-	"github.com/cosmos/cosmos-sdk/x/params/subspace"
+	paramtypes "github.com/cosmos/cosmos-sdk/x/params/types"
 	"github.com/cosmos/modules/incubator/orm"
+	proto "github.com/gogo/protobuf/proto"
 	"github.com/gogo/protobuf/types"
 	"github.com/pkg/errors"
 	"gopkg.in/yaml.v2"
@@ -49,12 +53,22 @@ type DecisionPolicyResult struct {
 type DecisionPolicy interface {
 	orm.Persistent
 	orm.Validateable
+	GetTimeout() types.Duration
 	Allow(tally Tally, totalPower sdk.Dec, votingDuration time.Duration) (DecisionPolicyResult, error)
+	Validate(g GroupMetadata) error
+}
+
+// Implements DecisionPolicy Interface
+var _ DecisionPolicy = &ThresholdDecisionPolicy{}
+
+// NewThresholdDecisionPolicy creates a threshold DecisionPolicy
+func NewThresholdDecisionPolicy(threshold sdk.Dec, timeout types.Duration) DecisionPolicy {
+	return &ThresholdDecisionPolicy{threshold, timeout}
 }
 
 // Allow allows a proposal to pass when the tally of yes votes equals or exceeds the threshold before the timeout.
 func (p ThresholdDecisionPolicy) Allow(tally Tally, totalPower sdk.Dec, votingDuration time.Duration) (DecisionPolicyResult, error) {
-	timeout, err := types.DurationFromProto(&p.Timout)
+	timeout, err := types.DurationFromProto(&p.Timeout)
 	if err != nil {
 		return DecisionPolicyResult{}, err
 	}
@@ -71,6 +85,19 @@ func (p ThresholdDecisionPolicy) Allow(tally Tally, totalPower sdk.Dec, votingDu
 	return DecisionPolicyResult{Allow: false, Final: false}, nil
 }
 
+// GetThreshold returns the policy threshold
+func (p *ThresholdDecisionPolicy) GetThreshold() sdk.Dec {
+	return p.Threshold
+}
+
+// Validate returns an error if policy threshold is greater than the total group weight
+func (p *ThresholdDecisionPolicy) Validate(g GroupMetadata) error {
+	if p.GetThreshold().GT(g.TotalWeight) {
+		return errors.Wrap(ErrInvalid, "policy threshold should not be greater than the total group weight")
+	}
+	return nil
+}
+
 func (p ThresholdDecisionPolicy) ValidateBasic() error {
 	if p.Threshold.IsNil() {
 		return errors.Wrap(ErrEmpty, "threshold")
@@ -78,7 +105,7 @@ func (p ThresholdDecisionPolicy) ValidateBasic() error {
 	if p.Threshold.LT(sdk.OneDec()) {
 		return errors.Wrap(ErrInvalid, "threshold")
 	}
-	timeout, err := types.DurationFromProto(&p.Timout)
+	timeout, err := types.DurationFromProto(&p.Timeout)
 	if err != nil {
 		return errors.Wrap(err, "timeout")
 	}
@@ -96,11 +123,45 @@ func (g GroupMember) NaturalKey() []byte {
 	return result
 }
 
-func (g GroupAccountMetadataBase) NaturalKey() []byte {
+func (g GroupAccountMetadata) NaturalKey() []byte {
 	return g.GroupAccount
 }
 
-func (g GroupAccountMetadataBase) ValidateBasic() error {
+var _ orm.Validateable = GroupAccountMetadata{}
+
+// NewGroupAccountMetadata creates a new GroupAccountMetadata instance
+func NewGroupAccountMetadata(groupAccount sdk.AccAddress, group GroupID, admin sdk.AccAddress, comment string, version uint64, decisionPolicy DecisionPolicy) (GroupAccountMetadata, error) {
+	p := GroupAccountMetadata{
+		GroupAccount: groupAccount,
+		Group:        group,
+		Admin:        admin,
+		Comment:      comment,
+		Version:      version,
+	}
+
+	msg, ok := decisionPolicy.(proto.Message)
+	if !ok {
+		return GroupAccountMetadata{}, fmt.Errorf("%T does not implement proto.Message", decisionPolicy)
+	}
+
+	any, err := codectypes.NewAnyWithValue(msg)
+	if err != nil {
+		return GroupAccountMetadata{}, err
+	}
+
+	p.DecisionPolicy = any
+	return p, nil
+}
+
+func (g GroupAccountMetadata) GetDecisionPolicy() DecisionPolicy {
+	decisionPolicy, ok := g.DecisionPolicy.GetCachedValue().(DecisionPolicy)
+	if !ok {
+		return nil
+	}
+	return decisionPolicy
+}
+
+func (g GroupAccountMetadata) ValidateBasic() error {
 	if g.Admin.Empty() {
 		return sdkerrors.Wrap(ErrEmpty, "admin")
 	}
@@ -120,20 +181,8 @@ func (g GroupAccountMetadataBase) ValidateBasic() error {
 	if g.Version == 0 {
 		return sdkerrors.Wrap(ErrEmpty, "version")
 	}
+	policy := g.GetDecisionPolicy()
 
-	return nil
-}
-func (s StdGroupAccountMetadata) NaturalKey() []byte {
-	return s.Base.NaturalKey()
-}
-
-var _ orm.Validateable = StdGroupAccountMetadata{}
-
-func (s StdGroupAccountMetadata) ValidateBasic() error {
-	if err := s.Base.ValidateBasic(); err != nil {
-		return errors.Wrap(err, "base")
-	}
-	policy := s.DecisionPolicy.GetDecisionPolicy()
 	if policy == nil {
 		return errors.Wrap(ErrEmpty, "policy")
 	}
@@ -207,7 +256,7 @@ func (p Params) Validate() error {
 	return nil
 }
 
-func noopValidator() subspace.ValueValidatorFn {
+func noopValidator() paramtypes.ValueValidatorFn {
 	return func(value interface{}) error { return nil }
 }
 

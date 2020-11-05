@@ -21,8 +21,8 @@ func NewHandler(k Keeper) sdk.Handler {
 			return handleMsgUpdateGroupComment(ctx, k, msg)
 		case MsgUpdateGroupMembers:
 			return handleMsgUpdateGroupMembers(ctx, k, msg)
-		case MsgCreateGroupAccountI:
-			return handleMsgCreateGroupAccountI(ctx, k, msg)
+		case MsgCreateGroupAccount:
+			return handleMsgCreateGroupAccount(ctx, k, msg)
 		case MsgVote:
 			return handleMsgVote(ctx, k, msg)
 		case MsgExec:
@@ -42,7 +42,7 @@ func handleMsgVote(ctx sdk.Context, k Keeper, msg MsgVote) (*sdk.Result, error) 
 	// todo: event?
 	return &sdk.Result{
 		Log:    fmt.Sprintf("Voted for proposal: %d", msg.Proposal),
-		Events: ctx.EventManager().Events(),
+		Events: ctx.EventManager().ABCIEvents(),
 	}, nil
 }
 
@@ -53,17 +53,17 @@ func handleMsgExec(ctx sdk.Context, k Keeper, msg MsgExec) (*sdk.Result, error) 
 	// todo: event?
 	return &sdk.Result{
 		Log:    fmt.Sprintf("Executed proposal: %d", msg.Proposal),
-		Events: ctx.EventManager().Events(),
+		Events: ctx.EventManager().ABCIEvents(),
 	}, nil
 }
 
-func handleMsgCreateGroupAccountI(ctx sdk.Context, k Keeper, msg MsgCreateGroupAccountI) (*sdk.Result, error) {
+func handleMsgCreateGroupAccount(ctx sdk.Context, k Keeper, msg MsgCreateGroupAccount) (*sdk.Result, error) {
 	decisionPolicy := msg.GetDecisionPolicy()
-	acc, err := k.CreateGroupAccount(ctx, msg.GetBase().Admin, msg.GetBase().Group, *decisionPolicy.GetThreshold(), msg.GetBase().Comment)
+	acc, err := k.CreateGroupAccount(ctx, msg.GetAdmin(), msg.GetGroup(), decisionPolicy, msg.GetComment())
 	if err != nil {
 		return nil, errors.Wrap(err, "create group account")
 	}
-	return buildGroupAccountResult(ctx, msg.GetBase().Admin, acc, "created")
+	return buildGroupAccountResult(ctx, msg.GetAdmin(), acc, "created")
 }
 
 func buildGroupAccountResult(ctx sdk.Context, admin sdk.AccAddress, acc sdk.AccAddress, note string) (*sdk.Result, error) {
@@ -77,6 +77,6 @@ func buildGroupAccountResult(ctx sdk.Context, admin sdk.AccAddress, acc sdk.AccA
 	return &sdk.Result{
 		Data:   acc.Bytes(),
 		Log:    fmt.Sprintf("Group account %s %s", acc.String(), note),
-		Events: ctx.EventManager().Events(),
+		Events: ctx.EventManager().ABCIEvents(),
 	}, nil
 }

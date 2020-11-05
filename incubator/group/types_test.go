@@ -22,7 +22,7 @@ func TestThresholdDecisionPolicy(t *testing.T) {
 		"accept when yes count greater than threshold": {
 			srcPolicy: ThresholdDecisionPolicy{
 				Threshold: sdk.OneDec(),
-				Timout:    proto.Duration{Seconds: 1},
+				Timeout:    proto.Duration{Seconds: 1},
 			},
 			srcTally:          Tally{YesCount: sdk.NewDec(2)},
 			srcTotalPower:     sdk.NewDec(3),
@@ -32,7 +32,7 @@ func TestThresholdDecisionPolicy(t *testing.T) {
 		"accept when yes count equal to threshold": {
 			srcPolicy: ThresholdDecisionPolicy{
 				Threshold: sdk.OneDec(),
-				Timout:    proto.Duration{Seconds: 1},
+				Timeout:    proto.Duration{Seconds: 1},
 			},
 			srcTally:          Tally{YesCount: sdk.OneDec(), NoCount: sdk.ZeroDec(), AbstainCount: sdk.ZeroDec(), VetoCount: sdk.ZeroDec()},
 			srcTotalPower:     sdk.NewDec(3),
@@ -42,7 +42,7 @@ func TestThresholdDecisionPolicy(t *testing.T) {
 		"reject when yes count lower to threshold": {
 			srcPolicy: ThresholdDecisionPolicy{
 				Threshold: sdk.OneDec(),
-				Timout:    proto.Duration{Seconds: 1},
+				Timeout:    proto.Duration{Seconds: 1},
 			},
 			srcTally:          Tally{YesCount: sdk.ZeroDec(), NoCount: sdk.ZeroDec(), AbstainCount: sdk.ZeroDec(), VetoCount: sdk.ZeroDec()},
 			srcTotalPower:     sdk.NewDec(3),
@@ -52,7 +52,7 @@ func TestThresholdDecisionPolicy(t *testing.T) {
 		"reject as final when remaining votes can't cross threshold": {
 			srcPolicy: ThresholdDecisionPolicy{
 				Threshold: sdk.NewDec(2),
-				Timout:    proto.Duration{Seconds: 1},
+				Timeout:    proto.Duration{Seconds: 1},
 			},
 			srcTally:          Tally{YesCount: sdk.ZeroDec(), NoCount: sdk.NewDec(2), AbstainCount: sdk.ZeroDec(), VetoCount: sdk.ZeroDec()},
 			srcTotalPower:     sdk.NewDec(3),
@@ -62,7 +62,7 @@ func TestThresholdDecisionPolicy(t *testing.T) {
 		"expired when on timeout": {
 			srcPolicy: ThresholdDecisionPolicy{
 				Threshold: sdk.OneDec(),
-				Timout:    proto.Duration{Seconds: 1},
+				Timeout:    proto.Duration{Seconds: 1},
 			},
 			srcTally:          Tally{YesCount: sdk.NewDec(2)},
 			srcTotalPower:     sdk.NewDec(3),
@@ -72,7 +72,7 @@ func TestThresholdDecisionPolicy(t *testing.T) {
 		"expired when after timeout": {
 			srcPolicy: ThresholdDecisionPolicy{
 				Threshold: sdk.OneDec(),
-				Timout:    proto.Duration{Seconds: 1},
+				Timeout:    proto.Duration{Seconds: 1},
 			},
 			srcTally:          Tally{YesCount: sdk.NewDec(2)},
 			srcTotalPower:     sdk.NewDec(3),
@@ -82,7 +82,7 @@ func TestThresholdDecisionPolicy(t *testing.T) {
 		"abstain has no impact": {
 			srcPolicy: ThresholdDecisionPolicy{
 				Threshold: sdk.OneDec(),
-				Timout:    proto.Duration{Seconds: 1},
+				Timeout:    proto.Duration{Seconds: 1},
 			},
 			srcTally:          Tally{YesCount: sdk.ZeroDec(), NoCount: sdk.ZeroDec(), AbstainCount: sdk.OneDec(), VetoCount: sdk.ZeroDec()},
 			srcTotalPower:     sdk.NewDec(3),
@@ -92,7 +92,7 @@ func TestThresholdDecisionPolicy(t *testing.T) {
 		"veto same as no": {
 			srcPolicy: ThresholdDecisionPolicy{
 				Threshold: sdk.OneDec(),
-				Timout:    proto.Duration{Seconds: 1},
+				Timeout:    proto.Duration{Seconds: 1},
 			},
 			srcTally:          Tally{YesCount: sdk.ZeroDec(), NoCount: sdk.ZeroDec(), AbstainCount: sdk.ZeroDec(), VetoCount: sdk.NewDec(2)},
 			srcTotalPower:     sdk.NewDec(3),
@@ -121,10 +121,10 @@ func TestThresholdDecisionPolicyValidation(t *testing.T) {
 	}{
 		"all good": {src: ThresholdDecisionPolicy{
 			Threshold: sdk.OneDec(),
-			Timout:    proto.Duration{Seconds: 1},
+			Timeout:    proto.Duration{Seconds: 1},
 		}},
 		"threshold missing": {src: ThresholdDecisionPolicy{
-			Timout: proto.Duration{Seconds: 1},
+			Timeout: proto.Duration{Seconds: 1},
 		},
 			expErr: true,
 		},
@@ -135,30 +135,30 @@ func TestThresholdDecisionPolicyValidation(t *testing.T) {
 		},
 		"duration out of limit": {src: ThresholdDecisionPolicy{
 			Threshold: sdk.OneDec(),
-			Timout:    proto.Duration{Seconds: maxSeconds + 1},
+			Timeout:    proto.Duration{Seconds: maxSeconds + 1},
 		},
 			expErr: true,
 		},
 		"no negative thresholds": {src: ThresholdDecisionPolicy{
 			Threshold: sdk.NewDec(-1),
-			Timout:    proto.Duration{Seconds: 1},
+			Timeout:    proto.Duration{Seconds: 1},
 		},
 			expErr: true,
 		},
 		"no empty thresholds": {src: ThresholdDecisionPolicy{
-			Timout: proto.Duration{Seconds: 1},
+			Timeout: proto.Duration{Seconds: 1},
 		},
 			expErr: true,
 		},
 		"no zero thresholds": {src: ThresholdDecisionPolicy{
-			Timout:    proto.Duration{Seconds: 1},
+			Timeout:    proto.Duration{Seconds: 1},
 			Threshold: sdk.ZeroDec(),
 		},
 			expErr: true,
 		},
 		"no negative timeouts": {src: ThresholdDecisionPolicy{
 			Threshold: sdk.OneDec(),
-			Timout:    proto.Duration{Seconds: -1},
+			Timeout:    proto.Duration{Seconds: -1},
 		},
 			expErr: true,
 		},
@@ -322,175 +322,159 @@ func TestGroupMemberValidation(t *testing.T) {
 	}
 }
 
-func TestGroupAccountMetadataBase(t *testing.T) {
+func TestGroupAccountMetadata(t *testing.T) {
 	specs := map[string]struct {
-		src    GroupAccountMetadataBase
-		expErr bool
+		groupAccount sdk.AccAddress
+		group        GroupID
+		admin        sdk.AccAddress
+		comment      string
+		version      uint64
+		threshold    sdk.Dec
+		timeout      proto.Duration
+		expErr       bool
 	}{
 		"all good": {
-			src: GroupAccountMetadataBase{
-				Group:        1,
-				GroupAccount: []byte("valid--group-address"),
-				Admin:        []byte("valid--admin-address"),
-				Comment:      "any",
-				Version:      1,
-			},
+			group:        1,
+			groupAccount: []byte("valid--group-address"),
+			admin:        []byte("valid--admin-address"),
+			comment:      "any",
+			version:      1,
+			threshold:    sdk.OneDec(),
+			timeout:      proto.Duration{Seconds: 1},
 		},
 		"invalid group": {
-			src: GroupAccountMetadataBase{
-				Group:        0,
-				GroupAccount: []byte("valid--group-address"),
-				Admin:        []byte("valid--admin-address"),
-				Comment:      "any",
-				Version:      1,
-			},
-			expErr: true,
+			group:        0,
+			groupAccount: []byte("valid--group-address"),
+			admin:        []byte("valid--admin-address"),
+			comment:      "any",
+			version:      1,
+			threshold:    sdk.OneDec(),
+			timeout:      proto.Duration{Seconds: 1},
+			expErr:       true,
 		},
 		"invalid group account address": {
-			src: GroupAccountMetadataBase{
-				Group:        1,
-				GroupAccount: []byte("any-invalid-group-address"),
-				Admin:        []byte("valid--admin-address"),
-				Comment:      "any",
-				Version:      1,
-			},
-			expErr: true,
+			group:        1,
+			groupAccount: []byte("any-invalid-group-address"),
+			admin:        []byte("valid--admin-address"),
+			comment:      "any",
+			version:      1,
+			threshold:    sdk.OneDec(),
+			timeout:      proto.Duration{Seconds: 1},
+			expErr:       true,
 		},
 		"empty group account address": {
-			src: GroupAccountMetadataBase{
-				Group:   1,
-				Admin:   []byte("valid--admin-address"),
-				Comment: "any",
-				Version: 1,
-			},
-			expErr: true,
-		},
-		"invalid admin account address": {
-			src: GroupAccountMetadataBase{
-				Group:        1,
-				GroupAccount: []byte("valid--group-address"),
-				Admin:        []byte("any-invalid-admin-address"),
-				Comment:      "any",
-				Version:      1,
-			},
-			expErr: true,
+			group:     1,
+			admin:     []byte("valid--admin-address"),
+			comment:   "any",
+			version:   1,
+			threshold: sdk.OneDec(),
+			timeout:   proto.Duration{Seconds: 1},
+			expErr:    true,
 		},
 		"empty admin account address": {
-			src: GroupAccountMetadataBase{
-				Group:        1,
-				GroupAccount: []byte("valid--group-address"),
-				Comment:      "any",
-				Version:      1,
-			},
-			expErr: true,
+			group:        1,
+			groupAccount: []byte("valid--group-address"),
+			comment:      "any",
+			version:      1,
+			threshold:    sdk.OneDec(),
+			timeout:      proto.Duration{Seconds: 1},
+			expErr:       true,
+		},
+		"invalid admin account address": {
+			group:        1,
+			groupAccount: []byte("valid--group-address"),
+			admin:        []byte("any-invalid-admin-address"),
+			comment:      "any",
+			version:      1,
+			threshold:    sdk.OneDec(),
+			timeout:      proto.Duration{Seconds: 1},
+			expErr:       true,
 		},
 		"empty version number": {
-			src: GroupAccountMetadataBase{
-				Group:        1,
-				GroupAccount: []byte("valid--group-address"),
-				Admin:        []byte("valid--admin-address"),
-				Comment:      "any",
-			},
-			expErr: true,
-		},
-	}
-	for msg, spec := range specs {
-		t.Run(msg, func(t *testing.T) {
-			err := spec.src.ValidateBasic()
-			if spec.expErr {
-				require.Error(t, err)
-			} else {
-				require.NoError(t, err)
-			}
-		})
-	}
-}
-
-func TestStdGroupAccountMetadata(t *testing.T) {
-	specs := map[string]struct {
-		src    StdGroupAccountMetadata
-		expErr bool
-	}{
-		"all good": {
-			src: StdGroupAccountMetadata{
-				Base: GroupAccountMetadataBase{
-					Group:        1,
-					GroupAccount: []byte("valid--group-address"),
-					Admin:        []byte("valid--admin-address"),
-					Comment:      "any",
-					Version:      1,
-				},
-				DecisionPolicy: StdDecisionPolicy{Sum: &StdDecisionPolicy_Threshold{&ThresholdDecisionPolicy{
-					Threshold: sdk.OneDec(),
-					Timout:    proto.Duration{Seconds: 1},
-				}}},
-			},
-		},
-		"invalid base": {
-			src: StdGroupAccountMetadata{
-				Base: GroupAccountMetadataBase{},
-				DecisionPolicy: StdDecisionPolicy{Sum: &StdDecisionPolicy_Threshold{&ThresholdDecisionPolicy{
-					Threshold: sdk.OneDec(),
-					Timout:    proto.Duration{Seconds: 1},
-				}}},
-			},
-			expErr: true,
-		},
-		"missing base": {
-			src: StdGroupAccountMetadata{
-				DecisionPolicy: StdDecisionPolicy{Sum: &StdDecisionPolicy_Threshold{&ThresholdDecisionPolicy{
-					Threshold: sdk.OneDec(),
-					Timout:    proto.Duration{Seconds: 1},
-				}}},
-			},
-			expErr: true,
-		},
-		"invalid decision policy": {
-			src: StdGroupAccountMetadata{
-				Base: GroupAccountMetadataBase{
-					Group:        1,
-					GroupAccount: []byte("valid--group-address"),
-					Admin:        []byte("valid--admin-address"),
-					Comment:      "any",
-					Version:      1,
-				},
-				DecisionPolicy: StdDecisionPolicy{Sum: &StdDecisionPolicy_Threshold{&ThresholdDecisionPolicy{}}},
-			},
-			expErr: true,
-		},
-		"concrete decision policy not set": {
-			src: StdGroupAccountMetadata{
-				Base: GroupAccountMetadataBase{
-					Group:        1,
-					GroupAccount: []byte("valid--group-address"),
-					Admin:        []byte("valid--admin-address"),
-					Comment:      "any",
-					Version:      1,
-				},
-				DecisionPolicy: StdDecisionPolicy{Sum: &StdDecisionPolicy_Threshold{}},
-			},
-			expErr: true,
+			group:        1,
+			groupAccount: []byte("valid--group-address"),
+			admin:        []byte("valid--admin-address"),
+			comment:      "any",
+			threshold:    sdk.OneDec(),
+			timeout:      proto.Duration{Seconds: 1},
+			expErr:       true,
 		},
 		"missing decision policy": {
-			src: StdGroupAccountMetadata{
-				Base: GroupAccountMetadataBase{
-					Group:        1,
-					GroupAccount: []byte("valid--group-address"),
-					Admin:        []byte("valid--admin-address"),
-					Comment:      "any",
-					Version:      1,
-				},
-			},
-			expErr: true,
+			group:        1,
+			groupAccount: []byte("valid--group-address"),
+			admin:        []byte("valid--admin-address"),
+			comment:      "any",
+			version:      1,
+			expErr:       true,
+		},
+		"missing decision policy timeout": {
+			group:        1,
+			groupAccount: []byte("valid--group-address"),
+			admin:        []byte("valid--admin-address"),
+			comment:      "any",
+			version:      1,
+			threshold:    sdk.OneDec(),
+			expErr:       true,
+		},
+		"decision policy with invalid timeout": {
+			group:        1,
+			groupAccount: []byte("valid--group-address"),
+			admin:        []byte("valid--admin-address"),
+			comment:      "any",
+			version:      1,
+			threshold:    sdk.OneDec(),
+			timeout:      proto.Duration{Seconds: -1},
+			expErr:       true,
+		},
+		"missing decision policy threshold": {
+			group:        1,
+			groupAccount: []byte("valid--group-address"),
+			admin:        []byte("valid--admin-address"),
+			comment:      "any",
+			version:      1,
+			timeout:      proto.Duration{Seconds: 1},
+			expErr:       true,
+		},
+		"decision policy with negative threshold": {
+			group:        1,
+			groupAccount: []byte("valid--group-address"),
+			admin:        []byte("valid--admin-address"),
+			comment:      "any",
+			version:      1,
+			threshold:    sdk.NewDec(-1),
+			timeout:      proto.Duration{Seconds: 1},
+			expErr:       true,
+		},
+		"decision policy with zero threshold": {
+			group:        1,
+			groupAccount: []byte("valid--group-address"),
+			admin:        []byte("valid--admin-address"),
+			comment:      "any",
+			version:      1,
+			threshold:    sdk.ZeroDec(),
+			timeout:      proto.Duration{Seconds: 1},
+			expErr:       true,
 		},
 	}
 	for msg, spec := range specs {
 		t.Run(msg, func(t *testing.T) {
-			err := spec.src.ValidateBasic()
+			m, err := NewGroupAccountMetadata(
+				spec.groupAccount,
+				spec.group,
+				spec.admin,
+				spec.comment,
+				spec.version,
+				&ThresholdDecisionPolicy{
+					Threshold: spec.threshold,
+					Timeout:    spec.timeout,
+				},
+			)
+			require.NoError(t, err)
+
 			if spec.expErr {
-				require.Error(t, err)
+				require.Error(t, m.ValidateBasic())
 			} else {
-				require.NoError(t, err)
+				require.NoError(t, m.ValidateBasic())
 			}
 		})
 	}

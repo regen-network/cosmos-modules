@@ -10,7 +10,6 @@ import (
 	"github.com/spf13/cobra"
 	abci "github.com/tendermint/tendermint/abci/types"
 )
-
 const ModuleName = "testdata"
 
 type AppModule struct {
@@ -31,19 +30,19 @@ func (a AppModule) RegisterCodec(cdc *codec.Codec) {
 	RegisterCodec(cdc)
 }
 
-func (a AppModule) DefaultGenesis() json.RawMessage {
+func (a AppModule) DefaultGenesis(cdc codec.JSONMarshaler) json.RawMessage {
 	return nil
 }
 
-func (a AppModule) ValidateGenesis(bz json.RawMessage) error {
-	return nil
+func (a AppModule) ValidateGenesis(cdc codec.JSONMarshaler, bz json.RawMessage) error {
+	panic("implement me")
 }
 
 func (a AppModule) RegisterRESTRoutes(ctx context.CLIContext, r *mux.Router) {
 	panic("implement me")
 }
 
-func (a AppModule) GetTxCmd(*codec.Codec) *cobra.Command {
+func (a AppModule) GetTxCmd(ctx context.CLIContext) *cobra.Command {
 	panic("implement me")
 }
 
@@ -51,11 +50,11 @@ func (a AppModule) GetQueryCmd(*codec.Codec) *cobra.Command {
 	panic("implement me")
 }
 
-func (a AppModule) InitGenesis(ctx sdk.Context, data json.RawMessage) []abci.ValidatorUpdate {
+func (a AppModule)InitGenesis(ctx sdk.Context, cdc codec.JSONMarshaler, data json.RawMessage) []abci.ValidatorUpdate {
 	return nil
 }
 
-func (a AppModule) ExportGenesis(ctx sdk.Context) json.RawMessage {
+func (a AppModule) ExportGenesis(ctx sdk.Context, cdc codec.JSONMarshaler) json.RawMessage {
 	return nil
 }
 

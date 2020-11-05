@@ -3,10 +3,12 @@ package group
 import (
 	"github.com/cosmos/cosmos-sdk/baseapp"
 	"github.com/cosmos/cosmos-sdk/codec"
+	"github.com/cosmos/cosmos-sdk/codec/types"
+	"github.com/cosmos/cosmos-sdk/std"
 	"github.com/cosmos/cosmos-sdk/store/rootmulti"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/x/params"
-	"github.com/cosmos/cosmos-sdk/x/params/subspace"
+	paramtypes "github.com/cosmos/cosmos-sdk/x/params/types"
 	abci "github.com/tendermint/tendermint/abci/types"
 	"github.com/tendermint/tendermint/libs/log"
 	dbm "github.com/tendermint/tm-db"
@@ -26,10 +28,16 @@ func NewContext(keys ...sdk.StoreKey) sdk.Context {
 	return sdk.NewContext(cms, abci.Header{}, false, log.NewNopLogger())
 }
 
-func createGroupKeeper() (Keeper, sdk.Context) {
+func NewCodec() *std.Codec {
 	amino := codec.New()
+	interfaceRegistry := types.NewInterfaceRegistry()
+	std.RegisterInterfaces(interfaceRegistry)
+	RegisterInterfaces(interfaceRegistry)
+	return std.NewAppCodec(amino, interfaceRegistry)
+}
+func createGroupKeeper() (Keeper, sdk.Context) {
 	pKey, pTKey := sdk.NewKVStoreKey(params.StoreKey), sdk.NewTransientStoreKey(params.TStoreKey)
-	paramSpace := subspace.NewSubspace(amino, pKey, pTKey, DefaultParamspace)
+	paramSpace := paramtypes.NewSubspace(NewCodec(), pKey, pTKey, DefaultParamspace)
 
 	groupKey := sdk.NewKVStoreKey(StoreKeyName)
 	k := NewGroupKeeper(groupKey, paramSpace, baseapp.NewRouter(), &MockProposalI{})
