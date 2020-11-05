@@ -21,8 +21,8 @@ func NewHandler(k Keeper) sdk.Handler {
 			return handleMsgUpdateGroupComment(ctx, k, msg)
 		case MsgUpdateGroupMembers:
 			return handleMsgUpdateGroupMembers(ctx, k, msg)
-		case MsgCreateGroupAccountI:
-			return handleMsgCreateGroupAccountI(ctx, k, msg)
+		case MsgCreateGroupAccount:
+			return handleMsgCreateGroupAccount(ctx, k, msg)
 		case MsgVote:
 			return handleMsgVote(ctx, k, msg)
 		case MsgExec:
@@ -57,7 +57,7 @@ func handleMsgExec(ctx sdk.Context, k Keeper, msg MsgExec) (*sdk.Result, error) 
 	}, nil
 }
 
-func handleMsgCreateGroupAccountI(ctx sdk.Context, k Keeper, msg MsgCreateGroupAccountI) (*sdk.Result, error) {
+func handleMsgCreateGroupAccount(ctx sdk.Context, k Keeper, msg MsgCreateGroupAccount) (*sdk.Result, error) {
 	decisionPolicy := msg.GetDecisionPolicy()
 	acc, err := k.CreateGroupAccount(ctx, msg.GetAdmin(), msg.GetGroup(), decisionPolicy, msg.GetComment())
 	if err != nil {

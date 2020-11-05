@@ -65,12 +65,12 @@ func (a AppModuleBasic) RegisterRESTRoutes(ctx context.CLIContext, r *mux.Router
 }
 
 func (a AppModuleBasic) GetTxCmd(ctx context.CLIContext) *cobra.Command {
-	return &cobra.Command{}
+	return nil
 }
 
 func (a AppModuleBasic) GetQueryCmd(*codec.Codec) *cobra.Command {
 	//return cli.GetQueryCmd(StoreKey, cdc)
-	return &cobra.Command{}
+	return nil
 }
 
 // RegisterInterfaceTypes registers module concrete types into protobuf Any.

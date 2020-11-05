@@ -22,15 +22,6 @@ const (
 	msgTypeExecProposal       = "exec_proposal"
 )
 
-type MsgCreateGroupAccountI interface {
-	GetAdmin() sdk.AccAddress
-	GetGroup() GroupID
-	GetComment() string
-
-	GetDecisionPolicy() DecisionPolicy
-	SetDecisionPolicy(DecisionPolicy) error
-}
-
 var _ sdk.Msg = &MsgCreateGroup{}
 
 func (m MsgCreateGroup) Route() string { return ModuleName }
@@ -263,10 +254,7 @@ func (m MsgCreateGroupAccount) ValidateBasic() error {
 	return nil
 }
 
-var (
-	_ MsgCreateGroupAccountI        = &MsgCreateGroupAccount{}
-	_ types.UnpackInterfacesMessage = MsgCreateGroupAccount{}
-)
+var _ types.UnpackInterfacesMessage = MsgCreateGroupAccount{}
 
 // NewMsgCreateGroupAccount creates a new MsgCreateGroupAccount.
 func NewMsgCreateGroupAccount(admin sdk.AccAddress, group GroupID, comment string, decisionPolicy DecisionPolicy) (*MsgCreateGroupAccount, error) {
